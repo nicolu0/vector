@@ -97,7 +97,7 @@
 		<input
 			bind:this={emailEl}
 			class="waitlist-input w-full border-0 bg-transparent font-mono transition focus:ring-0 focus:outline-none"
-			placeholder="your email (waitlist)"
+			placeholder="join waitlist w/ email"
 			type="email"
 			inputmode="email"
 			autocomplete="email"
