@@ -242,8 +242,7 @@
 			animation: none;
 		}
 	}
-	/* 1) Draw the check, then fade it out before the dot implodes */
-	/* Check draws, then retracts along the path (no fade). */
+	/* Draw left→right, then erase left→right (no fade) */
 	.check-path {
 		stroke: currentColor;
 		stroke-width: 2;
@@ -251,63 +250,29 @@
 		stroke-linejoin: round;
 		fill: none;
 
-		/* normalized path length, so 1 == full length */
+		/* normalized length via pathLength="1" */
 		stroke-dasharray: 1;
 		stroke-dashoffset: 1;
 
-		/* 1) draw (0–420ms), 2) brief hold (via delay), 3) erase (retract) */
+		/* 1) draw (0→420ms), 2) small gap, 3) erase (0→1) from the start */
 		animation:
 			draw-check 420ms ease-out forwards,
-			erase-check 320ms ease-in 520ms forwards; /* start retract ~100ms after draw */
+			erase-check 320ms ease-in 1020ms forwards; /* start ~100ms after draw */
 	}
 
 	@keyframes draw-check {
 		to {
 			stroke-dashoffset: 0;
-		} /* reveal left → right */
+		} /* reveal left→right */
 	}
 
-	/* Hide from the start point, so it "shrinks" along the path to the right */
 	@keyframes erase-check {
 		from {
 			stroke-dashoffset: 0;
-		}
+		} /* start fully drawn */
 		to {
-			stroke-dashoffset: 1;
-		}
-	}
-
-	/* Tip dot timing: pop in at draw end, implode while the stroke retracts */
-	.check-tip-dot {
-		fill: currentColor;
-		transform-box: fill-box;
-		transform-origin: center;
-		transform: scale(0);
-		opacity: 0;
-		animation:
-			dot-in 120ms ease-out 420ms forwards,
-			/* appears as the check finishes */ dot-out 220ms ease-in 540ms forwards; /* starts with the retract */
-	}
-
-	@keyframes dot-in {
-		from {
-			transform: scale(0);
-			opacity: 0;
-		}
-		to {
-			transform: scale(1);
-			opacity: 1;
-		}
-	}
-	@keyframes dot-out {
-		from {
-			transform: scale(1);
-			opacity: 1;
-		}
-		to {
-			transform: scale(0);
-			opacity: 0;
-		}
+			stroke-dashoffset: -1;
+		} /* erase left→right */
 	}
 
 	/* Reduced motion: show instantly, then hide instantly */
@@ -344,7 +309,7 @@
 	/* On success, shrink to the left and fade */
 	.underline-shrink .underline-bar {
 		animation: underline-shrink 200ms ease-in forwards;
-		animation-delay: 900ms;
+		animation-delay: 1200ms;
 	}
 
 	@keyframes underline-shrink {
