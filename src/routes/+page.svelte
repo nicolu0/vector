@@ -96,16 +96,19 @@
 	<div class="flex w-full max-w-sm flex-row items-end gap-2">
 		<input
 			bind:this={emailEl}
-			class="waitlist-input w-full border-0 bg-transparent font-mono transition focus:ring-0 focus:outline-none"
+			class="waitlist-input w-full border-0 bg-transparent font-mono transition focus:bg-black focus:ring-0 focus:outline-none"
 			placeholder="join waitlist w/ email"
 			type="email"
 			inputmode="email"
 			autocomplete="email"
 		/>
 		<button
-			class="flex flex-row place-items-center gap-3 rounded-md px-4 pt-2 font-mono text-[8px] text-black/80 transition hover:translate-x-1 hover:text-black"
+			type="button"
+			class="flex items-center gap-3 rounded-md px-4 pt-1 font-mono text-[8px] text-black/80
+         transition hover:translate-x-1 hover:text-black
+         focus-visible:outline-black"
 			aria-label="Next"
-			on:click={requestJoin}
+			onclick={requestJoin}
 		>
 			<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" aria-hidden="true">
 				<line
