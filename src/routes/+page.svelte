@@ -74,7 +74,7 @@
 	});
 </script>
 
-<div class="flex min-h-dvh w-full flex-col items-center justify-center gap-12 bg-yellow-50 px-6">
+<div class="flex min-h-dvh w-full flex-col items-center justify-center gap-12 bg-stone-50 px-6">
 	<div class="flex w-full max-w-sm flex-col gap-2">
 		<div>
 			<div class="flex flex-row items-center gap-3">
