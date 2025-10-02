@@ -27,7 +27,6 @@
 
 	let emailEl: HTMLInputElement | null = null;
 	onMount(() => {
-		// Defer to next tick to avoid SSR/hydration race
 		const id = window.setTimeout(() => {
 			if (emailEl) {
 				emailEl.focus({ preventScroll: true });
@@ -75,7 +74,7 @@
 	});
 </script>
 
-<div class="flex h-screen w-full flex-col items-center justify-center gap-12 bg-yellow-50 px-6">
+<div class="flex min-h-dvh w-full flex-col items-center justify-center gap-12 bg-yellow-50 px-6">
 	<div class="flex w-full max-w-sm flex-col gap-2">
 		<div>
 			<div class="flex flex-row items-center gap-3">
@@ -98,7 +97,7 @@
 		<input
 			bind:this={emailEl}
 			class="waitlist-input w-full border-0 bg-transparent font-mono transition focus:ring-0 focus:outline-none"
-			placeholder="your email"
+			placeholder="your email (waitlist)"
 			type="email"
 			inputmode="email"
 			autocomplete="email"
