@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { supabase } from '$lib/supabaseClient';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 
+	let t: ReturnType<typeof setTimeout> | null = null;
 	const NAMES = [
 		'steve jobs',
 		'mark zuckerberg',
@@ -11,67 +12,81 @@
 		'jensen huang'
 	];
 
-	let text = '';
+	let text = $state('');
 	let i = 0,
 		char = 0,
 		typing = true;
-
 	const TYPE_MS = 90,
 		DELETE_MS = 60,
 		HOLD_MS = 2000,
 		GAP_MS = 250;
 
-	let t: number | null = null;
-	let joinRequested = false;
-	let joinCompleted = false;
+	function tick() {
+		const current = NAMES[i];
+		if (typing) {
+			if (char < current.length) {
+				text = current.slice(0, ++char);
+				t = setTimeout(tick, TYPE_MS);
+			} else {
+				typing = false;
+				t = setTimeout(tick, HOLD_MS);
+			}
+		} else {
+			if (char > 0) {
+				text = current.slice(0, --char);
+				t = setTimeout(tick, DELETE_MS);
+			} else {
+				typing = true;
+				i = (i + 1) % NAMES.length;
+				t = setTimeout(tick, GAP_MS);
+			}
+		}
+	}
+
+	$effect(() => {
+		tick();
+		return () => {
+			if (t) clearTimeout(t);
+		};
+	});
 
 	let emailEl: HTMLInputElement | null = null;
-	onMount(() => {
+	let email = $state('');
+	let status = $state<'idle' | 'loading' | 'success' | 'error'>('idle');
+	let errMsg = $state('');
+
+	$effect(() => {
 		const id = window.setTimeout(() => {
 			if (emailEl) {
 				emailEl.focus({ preventScroll: true });
 				emailEl.select();
 			}
 		}, 0);
-		return () => window.clearTimeout(id);
+		return () => clearTimeout(id);
 	});
 
-	function tick() {
-		if (joinCompleted) return;
-		const current = NAMES[i];
-		if (typing) {
-			if (char < current.length) {
-				text = current.slice(0, ++char);
-				t = window.setTimeout(tick, TYPE_MS);
-			} else {
-				typing = false;
-				const delay = joinRequested ? DELETE_MS : HOLD_MS;
-				t = window.setTimeout(tick, delay);
-			}
-		} else {
-			if (char > 0) {
-				text = current.slice(0, --char);
-				t = window.setTimeout(tick, DELETE_MS);
-			} else {
-				if (joinRequested) {
-					text = '';
-					joinCompleted = true;
-					t = null;
-					return;
-				}
-				typing = true;
-				i = (i + 1) % NAMES.length;
-				t = window.setTimeout(tick, GAP_MS);
-			}
-		}
+	function isValidEmail(s: string) {
+		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 	}
 
-	function requestJoin() {}
-
-	onMount(tick);
-	onDestroy(() => {
-		if (t !== null) window.clearTimeout(t);
-	});
+	async function requestJoin() {
+		if (status === 'loading' || status === 'success') return;
+		if (!isValidEmail(email)) {
+			status = 'error';
+			errMsg = 'enter a valid email';
+			return;
+		}
+		status = 'loading';
+		errMsg = '';
+		const { error } = await supabase.from('waitlist').upsert({ email }, { onConflict: 'email' });
+		if (error) {
+			console.error(error);
+			status = 'error';
+			errMsg = 'failed to join, try again';
+			return;
+		}
+		status = 'success';
+	}
 </script>
 
 <div class="flex min-h-dvh w-full flex-col items-center justify-center gap-12 bg-stone-50 px-6">
@@ -93,45 +108,90 @@
 		</div>
 	</div>
 
-	<div class="flex w-full max-w-sm flex-row items-center gap-6">
-		<input
-			bind:this={emailEl}
-			class="waitlist-input w-full border-0 border-b-1 border-[#2D2D2D]/30 bg-transparent font-mono !text-[#2D2D2D] transition
-         selection:bg-[#2D2D2D] selection:text-stone-50
-          focus:ring-0 focus:outline-none"
-			placeholder="join the waitlist w/ email"
-			type="email"
-			inputmode="email"
-			autocomplete="email"
-		/>
+	<!-- Row stays; we swap the left side based on status -->
+	<div class="flex w-full max-w-sm flex-row items-end gap-6">
+		<div class="relative w-full" class:underline-shrink={status === 'success'}>
+			{#if status !== 'success'}
+				<input
+					bind:this={emailEl}
+					bind:value={email}
+					class="waitlist-input w-full border-0 bg-transparent font-mono !text-[#2D2D2D]
+             transition selection:bg-[#2D2D2D] selection:text-stone-50
+             focus:ring-0 focus:outline-none"
+					placeholder="join the waitlist w/ email"
+					type="email"
+					inputmode="email"
+					autocomplete="email"
+					onkeydown={(e) => {
+						if (e.key === 'Enter') requestJoin();
+					}}
+					aria-invalid={status === 'error'}
+					aria-describedby="waitlist-error"
+				/>
+			{:else}
+				<div class="pb-1 font-mono text-sm text-[#2D2D2D]">you’re on the waitlist.</div>
+			{/if}
+
+			<!-- animated underline -->
+			<span class="underline-bar" aria-hidden="true"></span>
+		</div>
 		<button
 			type="button"
-			class="flex items-center rounded-md px-2 font-mono text-xs text-[#2D2D2D]
-         transition hover:translate-x-1 hover:text-[#2D2D2D]
+			class="group flex items-center self-end rounded-md px-2 font-mono text-xs text-[#2D2D2D]
+         transition hover:text-[#2D2D2D]
          focus-visible:outline-1 focus-visible:outline-[#2D2D2D]"
-			aria-label="Next"
+			aria-label={status === 'success' ? 'Joined' : 'Next'}
 			onclick={requestJoin}
+			disabled={status === 'loading' || status === 'success'}
 		>
-			<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" aria-hidden="true">
-				<line
-					x1="14"
-					y1="12"
-					x2="10"
-					y2="8"
-					stroke="currentColor"
-					stroke-width="1.4"
-					stroke-linecap="round"
-				/>
-				<line
-					x1="14"
-					y1="12"
-					x2="10"
-					y2="16"
-					stroke="currentColor"
-					stroke-width="1.4"
-					stroke-linecap="round"
-				/>
-			</svg>
+			<span class="relative inline-block h-5 w-5">
+				{#if status === 'loading'}
+					<span
+						class="absolute inset-0 animate-spin rounded-full border border-[#2D2D2D] border-t-transparent"
+						aria-hidden="true"
+					/>
+				{:else if status === 'success'}
+					<svg
+						viewBox="0 0 24 24"
+						class="check-svg absolute inset-0 -translate-y-0.5 text-[#2D2D2D]"
+						fill="none"
+						aria-hidden="true"
+					>
+						<!-- 1) check draws left→right -->
+						<path d="M6 12l4 4 8-8" pathLength="1" class="check-path" />
+
+						<!-- 2) tiny dot at the tip; pops in, then implodes -->
+						<circle cx="18" cy="8" r="1.6" class="check-tip-dot" />
+					</svg>
+				{:else}
+					<!-- Only the arrow moves on hover -->
+					<svg
+						viewBox="0 0 24 24"
+						class="absolute inset-0 transition-transform duration-150 group-hover:translate-x-1"
+						fill="none"
+						aria-hidden="true"
+					>
+						<line
+							x1="14"
+							y1="12"
+							x2="10"
+							y2="8"
+							stroke="currentColor"
+							stroke-width="1.6"
+							stroke-linecap="round"
+						/>
+						<line
+							x1="14"
+							y1="12"
+							x2="10"
+							y2="16"
+							stroke="currentColor"
+							stroke-width="1.6"
+							stroke-linecap="round"
+						/>
+					</svg>
+				{/if}
+			</span>
 		</button>
 	</div>
 </div>
@@ -150,7 +210,6 @@
 		overflow: hidden;
 		position: relative;
 	}
-
 	.typed {
 		padding-right: 1px;
 		padding-bottom: 1px;
@@ -164,12 +223,6 @@
 		padding: 0;
 		color: color-mix(in srgb, black 60%, transparent);
 	}
-
-	.waitlist-input:focus {
-		outline: none;
-		color: black;
-	}
-
 	.waitlist-input::placeholder {
 		color: color-mix(in srgb, black 35%, transparent);
 	}
@@ -184,10 +237,129 @@
 			border-right-color: color-mix(in oklab, currentColor 0%, transparent);
 		}
 	}
-
 	@media (prefers-reduced-motion: reduce) {
 		.typed {
 			animation: none;
+		}
+	}
+	/* 1) Draw the check, then fade it out before the dot implodes */
+	/* Check draws, then retracts along the path (no fade). */
+	.check-path {
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		fill: none;
+
+		/* normalized path length, so 1 == full length */
+		stroke-dasharray: 1;
+		stroke-dashoffset: 1;
+
+		/* 1) draw (0–420ms), 2) brief hold (via delay), 3) erase (retract) */
+		animation:
+			draw-check 420ms ease-out forwards,
+			erase-check 320ms ease-in 520ms forwards; /* start retract ~100ms after draw */
+	}
+
+	@keyframes draw-check {
+		to {
+			stroke-dashoffset: 0;
+		} /* reveal left → right */
+	}
+
+	/* Hide from the start point, so it "shrinks" along the path to the right */
+	@keyframes erase-check {
+		from {
+			stroke-dashoffset: 0;
+		}
+		to {
+			stroke-dashoffset: 1;
+		}
+	}
+
+	/* Tip dot timing: pop in at draw end, implode while the stroke retracts */
+	.check-tip-dot {
+		fill: currentColor;
+		transform-box: fill-box;
+		transform-origin: center;
+		transform: scale(0);
+		opacity: 0;
+		animation:
+			dot-in 120ms ease-out 420ms forwards,
+			/* appears as the check finishes */ dot-out 220ms ease-in 540ms forwards; /* starts with the retract */
+	}
+
+	@keyframes dot-in {
+		from {
+			transform: scale(0);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+	@keyframes dot-out {
+		from {
+			transform: scale(1);
+			opacity: 1;
+		}
+		to {
+			transform: scale(0);
+			opacity: 0;
+		}
+	}
+
+	/* Reduced motion: show instantly, then hide instantly */
+	@media (prefers-reduced-motion: reduce) {
+		.check-path {
+			animation: none;
+			stroke-dashoffset: 0;
+		}
+		.check-tip-dot {
+			animation: none;
+			opacity: 0;
+			transform: scale(0);
+		}
+	}
+	/* Underline element under the input/text */
+	.underline-bar {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 1px;
+		background: color-mix(in srgb, #2d2d2d 30%, transparent);
+		transform-origin: left; /* anchor on the left */
+		transform: scaleX(1);
+		opacity: 1;
+		pointer-events: none;
+	}
+
+	/* Make the line a bit stronger when the input is focused */
+	.relative:focus-within .underline-bar {
+		background: color-mix(in srgb, #2d2d2d 50%, transparent);
+	}
+
+	/* On success, shrink to the left and fade */
+	.underline-shrink .underline-bar {
+		animation: underline-shrink 200ms ease-in forwards;
+		animation-delay: 900ms;
+	}
+
+	@keyframes underline-shrink {
+		to {
+			transform: scaleX(0);
+			opacity: 0;
+		}
+	}
+
+	/* Prefer reduced motion: just hide it */
+	@media (prefers-reduced-motion: reduce) {
+		.underline-shrink .underline-bar {
+			animation: none;
+			transform: scaleX(0);
+			opacity: 0;
 		}
 	}
 </style>
