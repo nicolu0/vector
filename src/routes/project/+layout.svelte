@@ -18,9 +18,8 @@
 			<span class="font-mono tracking-tight">vector</span>
 		</div>
 		<div class="flex items-center">
-			<span
-				class="rounded-md bg-[#2D2D2D] px-2 py-1 font-mono text-[10px] tracking-tight text-stone-50"
-				>login</span
+			<span class="rounded-md bg-stone-800 px-2 py-1 text-[10px] tracking-tight text-stone-50"
+				>Sign in</span
 			>
 		</div>
 	</header>

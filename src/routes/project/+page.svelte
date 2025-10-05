@@ -6,7 +6,7 @@
 	const {
 		placeholder = 'Tell us your interests…',
 		headline = 'Applying to college/jobs?',
-		subhead = 'Differentiate yourself with good projects. Vector uses job listings to generate the perfect one.',
+		subhead = 'Differentiate yourself with good projects. Vector uses job listings to generate the perfect ones.',
 		showQuizChip = true,
 		quizLabel = 'Take interest quiz',
 		onQuiz = (() => {}) as () => void,
@@ -27,7 +27,7 @@
 	function closeQuiz() {
 		showInterestQuiz = false;
 	}
-	// MASTER POOL (niche)
+
 	const MASTER_SUGGESTIONS = [
 		// Bio/health
 		'gene editing',
