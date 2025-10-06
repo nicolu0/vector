@@ -2,8 +2,10 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
-	import projectData from '$lib/mock/project.sample.json';
-	import { isProject, type Project, type Difficulty } from '$lib/types/project';
+ import projectData from '$lib/mock/project.sample.json';
+ import ProjectDetail from '$lib/components/ProjectDetail.svelte';
+ import { supabase } from '$lib/supabaseClient';
+ import { isProject, type Project } from '$lib/types/project';
 
 	const fallbackProject = projectData as Project;
 	const navigationState = import.meta.env.SSR
@@ -16,44 +18,51 @@
 	);
 	const usingFallback = $state(navigationState?.fallback === true || !hasGeneratedProject);
 
-	let copied = $state(false);
-	async function copyBrief() {
+	let saving = $state(false);
+	let saveError = $state<string | null>(null);
+
+	async function saveToDashboard() {
+		if (saving) return;
+		saveError = null;
+		saving = true;
+
 		try {
-			await navigator.clipboard.writeText(`${project.title}\n\n${project.description}`);
-			copied = true;
-			setTimeout(() => (copied = false), 1200);
-		} catch {}
-	}
+			const {
+				data: { session }
+			} = await supabase.auth.getSession();
 
-	function openLink(u: string) {
-		if (u) window.open(u, '_blank', 'noopener,noreferrer');
-	}
+			if (!session) {
+				saveError = 'Sign in to save projects to your dashboard.';
+				saving = false;
+				goto('/dashboard');
+				return;
+			}
 
-	function difficultyClasses(level: Difficulty): string {
-		switch (level) {
-			case 'Easy':
-				return 'bg-emerald-300 text-emerald-800';
-			case 'Medium':
-				return 'bg-amber-200 text-amber-800';
-			case 'Hard':
-				return 'bg-rose-200 text-rose-700';
-			case 'Expert':
-				return 'bg-purple-200 text-purple-800';
-			default:
-				return 'bg-stone-700 text-white border-stone-800';
+			const insertPayload = {
+				user_id: session.user.id,
+				title: project.title,
+				difficulty: project.difficulty,
+				timeline: project.timeline,
+				description: project.description,
+				jobs: project.jobs,
+				skills: project.skills
+			};
+
+			const { error } = await supabase.from('projects').insert([insertPayload]);
+
+			if (error) throw error;
+
+			saving = false;
+			await goto('/dashboard');
+		} catch (err) {
+			saveError = err instanceof Error ? err.message : 'Unable to save project right now.';
+			saving = false;
 		}
-	}
-
-	function timelineClasses(label: string): string {
-		const normalized = label.toLowerCase();
-		if (normalized.includes('week')) return 'bg-sky-200 text-sky-800';
-		if (normalized.includes('month')) return 'bg-indigo-200 text-indigo-800';
-		return 'bg-stone-200 text-stone-800';
 	}
 </script>
 
 <!-- page -->
-<div class="min-h-dvh w-full bg-stone-50 px-4 text-stone-800">
+<div class="min-h-dvh w-full bg-stone-50 px-4 pb-8 text-stone-800">
 	<button
 		type="button"
 		class=" inline-flex items-center gap-2 p-4 text-sm text-stone-600 transition hover:text-stone-900"
@@ -65,122 +74,20 @@
 		</svg>
 		Back
 	</button>
-	<div class="mx-auto w-full max-w-4xl">
+	<div class="mx-auto w-full max-w-4xl space-y-8">
 		{#if usingFallback}
-			<div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-				We couldn't find a freshly generated project for this session, so you're viewing the sample preview.
-				Head back to tailor a new one.
+			<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+				We couldn't find a freshly generated project for this session, so you're viewing the sample
+				preview. Head back to tailor a new one.
 			</div>
 		{/if}
-		<!-- title row -->
-		<div class="flex flex-col gap-5 md:flex-row md:items-center">
-			<div class="text-2xl font-semibold tracking-tight text-stone-900 sm:text-2xl lg:text-4xl">
-				{project.title}
-			</div>
 
-			<div class="flex flex-wrap items-center gap-2">
-				<div
-					class={'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ' +
-						difficultyClasses(project.difficulty)}
-				>
-					{project.difficulty}
-				</div>
-				<div
-					class={'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ' +
-						timelineClasses(project.timeline)}
-				>
-					{project.timeline}
-				</div>
-			</div>
-		</div>
-
-		<!-- brief card -->
-		<div
-			class="mt-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)]"
-		>
-			<div class="mb-2 text-sm font-semibold tracking-tight text-stone-900">Project brief</div>
-			<div class="text-[15px] leading-7 text-stone-700">
-				{project.description}
-			</div>
-		</div>
-
-		<!-- jobs card -->
-		<div
-			class="mt-5 rounded-2xl border border-stone-200 bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.04)] sm:p-5"
-		>
-			<div class="mb-3 flex items-center justify-between">
-				<div class="text-sm font-semibold tracking-tight text-stone-900">Jobs this maps to</div>
-				<div class="text-xs text-stone-500">
-					{project.jobs.length} source{project.jobs.length === 1 ? '' : 's'}
-				</div>
-			</div>
-
-			{#if project.jobs.length === 0}
-				<div class="rounded-lg border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
-					No job links provided. Generate again with listings to make this laser-targeted.
-				</div>
-			{:else}
-				<div class="divide-y divide-stone-200">
-					{#each project.jobs as j, i}
-						<div
-							class="flex items-center justify-between bg-white px-2 py-3 first:rounded-t-xl last:rounded-b-xl"
-						>
-							<div class="min-w-0">
-								<div class="truncate text-[15px] font-medium text-stone-800">
-									{j.title}
-								</div>
-								<div class="truncate text-xs text-stone-500">
-									{j.url}
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-
-		<!-- skills card -->
-		<div
-			class="mt-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)]"
-		>
-			<div class="mb-3 text-sm font-semibold tracking-tight text-stone-900">
-				Skills you’ll use/learn
-			</div>
-
-			{#if project.skills.length === 0}
-				<div class="text-sm text-stone-600">
-					No skills attached. Add a skills list when generating.
-				</div>
-			{:else}
-				<div class="flex flex-wrap items-center gap-2">
-					{#each project.skills as s}
-						<div
-							class="inline-flex items-center rounded-full border border-stone-300 bg-stone-50 px-3 py-1 text-xs text-stone-700"
-						>
-							{s}
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-
-		<!-- actions -->
-		<div class="mt-8 flex flex-wrap items-center gap-3">
-			<button
-				class="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
-				onclick={() => (window.location.href = '/')}
-			>
-				Start over
-			</button>
-
-			<button
-				class="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
-				onclick={() => {
-					/* hook: save to dashboard */
-				}}
-			>
-				Save to dashboard
-			</button>
-		</div>
+		<ProjectDetail
+			{project}
+			showSaveButton={true}
+			saving={saving}
+			saveError={saveError}
+			on:save={saveToDashboard}
+		/>
 	</div>
 </div>
