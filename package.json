@@ -46,6 +46,7 @@
 		"vitest-browser-svelte": "^0.1.0"
 	},
 	"dependencies": {
-		"@supabase/ssr": "^0.7.0"
+		"@supabase/ssr": "^0.7.0",
+		"openai": "^6.2.0"
 	}
 }

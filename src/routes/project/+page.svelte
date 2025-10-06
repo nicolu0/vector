@@ -1,18 +1,20 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { get } from 'svelte/store';
 	import projectData from '$lib/mock/project.sample.json';
+	import { isProject, type Project, type Difficulty } from '$lib/types/project';
 
-	type Job = { title: string; url: string };
-	type Difficulty = 'Easy' | 'Medium' | 'Hard' | 'Expert';
-	type Project = {
-		title: string;
-		difficulty: Difficulty;
-		description: string;
-		jobs: Job[];
-		skills: string[];
-	};
-
-	const project = $state(projectData as Project);
+	const fallbackProject = projectData as Project;
+	const navigationState = import.meta.env.SSR
+		? undefined
+		: (get(page).state as { project?: unknown; fallback?: boolean } | undefined);
+	const generatedCandidate = navigationState?.project;
+	const hasGeneratedProject = isProject(generatedCandidate);
+	const project = $state<Project>(
+		hasGeneratedProject ? (generatedCandidate as Project) : fallbackProject
+	);
+	const usingFallback = $state(navigationState?.fallback === true || !hasGeneratedProject);
 
 	let copied = $state(false);
 	async function copyBrief() {
@@ -41,6 +43,13 @@
 				return 'bg-stone-700 text-white border-stone-800';
 		}
 	}
+
+	function timelineClasses(label: string): string {
+		const normalized = label.toLowerCase();
+		if (normalized.includes('week')) return 'bg-sky-200 text-sky-800';
+		if (normalized.includes('month')) return 'bg-indigo-200 text-indigo-800';
+		return 'bg-stone-200 text-stone-800';
+	}
 </script>
 
 <!-- page -->
@@ -49,7 +58,7 @@
 		type="button"
 		class=" inline-flex items-center gap-2 p-4 text-sm text-stone-600 transition hover:text-stone-900"
 		aria-label="Back"
-		onclick={goto('/')}
+		onclick={() => goto('/')}
 	>
 		<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
 			<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
@@ -57,18 +66,30 @@
 		Back
 	</button>
 	<div class="mx-auto w-full max-w-4xl">
+		{#if usingFallback}
+			<div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+				We couldn't find a freshly generated project for this session, so you're viewing the sample preview.
+				Head back to tailor a new one.
+			</div>
+		{/if}
 		<!-- title row -->
 		<div class="flex flex-col gap-5 md:flex-row md:items-center">
 			<div class="text-2xl font-semibold tracking-tight text-stone-900 sm:text-2xl lg:text-4xl">
 				{project.title}
 			</div>
 
-			<div class="flex items-center">
+			<div class="flex flex-wrap items-center gap-2">
 				<div
 					class={'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ' +
 						difficultyClasses(project.difficulty)}
 				>
 					{project.difficulty}
+				</div>
+				<div
+					class={'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ' +
+						timelineClasses(project.timeline)}
+				>
+					{project.timeline}
 				</div>
 			</div>
 		</div>
