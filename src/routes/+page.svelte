@@ -1,330 +1,307 @@
 <script lang="ts">
-	import { supabase } from '$lib/supabaseClient';
-	import vectorUrl from '$lib/assets/vector.svg?url';
+	import { blur, fly } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
+	import Quiz from '$lib/components/Quiz.svelte';
+	import { onMount, tick } from 'svelte';
+	import { goto } from '$app/navigation';
 
-	let t: ReturnType<typeof setTimeout> | null = null;
-	const NAMES = [
-		'steve jobs',
-		'mark zuckerberg',
-		'elon musk',
-		'jeff bezos',
-		'sam altman',
-		'jensen huang'
+	const {
+		placeholder = 'Tell us your interests…',
+		headline = 'Applying to college/jobs?',
+		subhead = 'Differentiate yourself with great projects. Vector uses job listings to generate the perfect ones.',
+		showQuizChip = true,
+		quizLabel = 'Take interest quiz',
+		onQuiz = (() => {}) as () => void,
+		quizHref = null as string | null,
+		onGenerate = (() => {}) as (p: { interests: string; tags: string[] }) => void
+	} = $props<{
+		placeholder?: string;
+		headline?: string;
+		subhead?: string;
+		showQuizChip?: boolean;
+		quizLabel?: string;
+		onQuiz?: () => void;
+		quizHref?: string | null;
+		onGenerate?: (p: { interests: string; tags: string[] }) => void;
+	}>();
+
+	let showInterestQuiz = $state(false);
+	function closeQuiz() {
+		showInterestQuiz = false;
+	}
+
+	const MASTER_SUGGESTIONS = [
+		// Bio/health
+		'gene editing',
+		'synthetic bio',
+		'protein design',
+		'wearables',
+		'sleep staging',
+		'ECG analysis',
+		// Robotics
+		'humanoids',
+		'robot arm',
+		'visual servoing',
+		'SLAM mapping',
+		'path planning',
+		'grasp planning',
+		'drone racing',
+		'quad control',
+		'exoskeletons',
+		'prosthetics',
+		// Vision
+		'pose estimation',
+		'object tracking',
+		'depth sensing',
+		'image captioning',
+		'style transfer',
+		'super-resolution',
+		'OCR pipeline',
+		'video summarizer',
+		// Audio/Speech
+		'speaker diarization',
+		'keyword spotting',
+		'voice clone',
+		// NLP / LLM
+		'RAG search',
+		'LoRA finetune',
+		'tool use',
+		'agents',
+		'prompt eval',
+		'quantized LLMs',
+		// Web / Data
+		'web scraping',
+		'data viz',
+		'recsys',
+		'knowledge graph',
+		'semantic search',
+		// Finance
+		'trading bots',
+		'fraud detection',
+		'order book',
+		'market making',
+		// Games
+		'strategy games',
+		'chess engine',
+		'league analytics',
+		'match highlights',
+		'build optimizer',
+		// AR/3D
+		'AR try-on',
+		'3D scanning',
+		'photogrammetry',
+		// Climate/IoT
+		'energy monitor',
+		'solar forecast',
+		'air quality',
+		'smart irrigation'
 	];
 
-	let text = $state('');
-	let i = 0,
-		char = 0,
-		typing = true;
-	const TYPE_MS = 90,
-		DELETE_MS = 60,
-		HOLD_MS = 2000,
-		GAP_MS = 250;
+	// STATE (runes)
+	let chipsEl: HTMLDivElement;
+	let textareaEl: HTMLTextAreaElement;
 
-	function tick() {
-		const current = NAMES[i];
-		if (typing) {
-			if (char < current.length) {
-				text = current.slice(0, ++char);
-				t = setTimeout(tick, TYPE_MS);
-			} else {
-				typing = false;
-				t = setTimeout(tick, HOLD_MS);
-			}
-		} else {
-			if (char > 0) {
-				text = current.slice(0, --char);
-				t = setTimeout(tick, DELETE_MS);
-			} else {
-				typing = true;
-				i = (i + 1) % NAMES.length;
-				t = setTimeout(tick, GAP_MS);
-			}
+	let input = $state('');
+	let loading = $state(true);
+	let picked = $state(new Set<string>());
+
+	let suggestions = $state<string[]>([]);
+	let visibleCount = $state(999); // clamped to two rows after layout
+
+	// DERIVED
+	const visibleSuggestions = $derived(suggestions.slice(0, visibleCount));
+
+	// HELPERS
+	const shortLabel = (s: string) => s.trim().split(/\s+/).slice(0, 2).join(' ');
+	function sample(arr: string[], k = 20) {
+		const pool = [...arr];
+		for (let i = pool.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[pool[i], pool[j]] = [pool[j], pool[i]];
 		}
+		return pool.slice(0, k);
 	}
 
-	$effect(() => {
-		tick();
-		return () => {
-			if (t) clearTimeout(t);
-		};
-	});
-
-	let emailEl: HTMLInputElement | null = null;
-	let email = $state('');
-	let status = $state<'idle' | 'loading' | 'success' | 'error'>('idle');
-	let errMsg = $state('');
-
-	$effect(() => {
-		const id = window.setTimeout(() => {
-			if (emailEl) {
-				emailEl.focus({ preventScroll: true });
-				emailEl.select();
-			}
-		}, 0);
-		return () => clearTimeout(id);
-	});
-
-	function isValidEmail(s: string) {
-		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+	async function refreshSuggestions() {
+		loading = true;
+		suggestions = sample(MASTER_SUGGESTIONS, 24);
+		await clampToTwoRows();
+		loading = false;
 	}
 
-	async function requestJoin() {
-		if (status === 'loading' || status === 'success') return;
-		if (!isValidEmail(email)) {
-			status = 'error';
-			errMsg = 'enter a valid email';
+	function toggle(tag: string) {
+		if (picked.has(tag)) picked.delete(tag);
+		else picked.add(tag);
+	}
+
+	function addToInput(tag: string) {
+		const token = tag.trim();
+		if (!input.toLowerCase().includes(token.toLowerCase())) {
+			input = input ? `${input.trim()}, ${token}` : token;
+		}
+		picked.add(tag);
+	}
+
+	function submit() {
+		onGenerate({ interests: input.trim(), tags: Array.from(picked) });
+	}
+
+	function keydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') submit();
+	}
+
+	// Clamp to exactly two wrapped rows (no horizontal scroll)
+	async function clampToTwoRows() {
+		await tick();
+		if (!chipsEl) return;
+		const items = Array.from(chipsEl.querySelectorAll<HTMLElement>('[data-chip]'));
+		if (items.length === 0) return;
+
+		const tops: number[] = [];
+		for (const el of items) {
+			const t = el.offsetTop;
+			if (!tops.includes(t)) tops.push(t);
+			if (tops.length === 3) break; // we only care if a 3rd row appears
+		}
+
+		// If there are already ≤2 rows, show all; otherwise cut at first item in row 3
+		if (tops.length <= 2) {
+			visibleCount = items.length;
 			return;
 		}
-		status = 'loading';
-		errMsg = '';
-		const { error } = await supabase.from('waitlist').upsert({ email }, { onConflict: 'email' });
-		if (error) {
-			console.error(error);
-			status = 'error';
-			errMsg = 'failed to join, try again';
-			return;
+
+		let cut = items.length;
+		const row1 = tops[0],
+			row2 = tops[1];
+		for (let i = 0; i < items.length; i++) {
+			const r = items[i].offsetTop;
+			if (r !== row1 && r !== row2) {
+				cut = i;
+				break;
+			}
 		}
-		status = 'success';
+		visibleCount = cut - 2;
 	}
+
+	function finishQuiz(interests: any) {
+		for (let i = 0; i < interests.length; i++) {
+			addToInput(interests[i].title);
+		}
+	}
+	let mounted = $state(false);
+
+	onMount(async () => {
+		mounted = true;
+		await refreshSuggestions();
+		const ro = new ResizeObserver(() => clampToTwoRows());
+		if (chipsEl) ro.observe(chipsEl);
+	});
 </script>
 
-<div class="flex min-h-dvh w-full flex-col items-center justify-center gap-12 bg-stone-50 px-6">
-	<div class="flex w-full max-w-sm flex-col gap-2">
-		<div>
-			<div class="flex flex-row items-center gap-3">
-				<img src={vectorUrl} alt="vector" class="h-8 w-8" />
-				<div class="font-mono text-4xl text-[#2D2D2D]">vector</div>
+<main
+	class="flex min-h-[calc(100svh-56px)] w-full flex-col items-center justify-center bg-stone-50 px-6"
+>
+	<div class="mb-30 w-full max-w-3xl">
+		{#if mounted}
+			<div
+				class="text-center text-4xl font-semibold tracking-tight text-stone-800 sm:text-5xl"
+				in:fly={{ y: 18, duration: 500, easing: cubicOut }}
+			>
+				{headline}
 			</div>
+			<p
+				class="mt-3 text-center text-stone-600"
+				in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 100 }}
+			>
+				{subhead}
+			</p>
 
-			<div class="w-full justify-center font-mono text-lg text-[#666]">
-				<div class="headline flex items-baseline" aria-live="polite">
-					<span class="prefix mr-1">become the next</span>
-					<span class="type-box text-[#2D2D2D]">
-						<span class="typed">{text}</span>
-					</span>
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<!-- Row stays; we swap the left side based on status -->
-	<div class="flex w-full max-w-sm flex-row items-end gap-6">
-		<div class="relative w-full" class:underline-shrink={status === 'success'}>
-			{#if status !== 'success'}
-				<input
-					bind:this={emailEl}
-					bind:value={email}
-					class="waitlist-input w-full border-0 bg-transparent font-mono !text-[#2D2D2D]
-             transition selection:bg-[#2D2D2D] selection:text-stone-50
-             focus:ring-0 focus:outline-none"
-					placeholder="join the waitlist w/ email"
-					type="email"
-					inputmode="email"
-					autocomplete="email"
-					onkeydown={(e) => {
-						if (e.key === 'Enter') requestJoin();
-					}}
-					aria-invalid={status === 'error'}
-					aria-describedby="waitlist-error"
+			<div class="relative mt-4" in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 500 }}>
+				<textarea
+					bind:this={textareaEl}
+					bind:value={input}
+					onkeydown={keydown}
+					rows="3"
+					{placeholder}
+					class="h-[96px] w-full resize-none overflow-hidden rounded-xl border border-stone-200/80 bg-white px-4 py-3 pr-12 text-[15px] leading-6 text-stone-800 ring-0 transition outline-none placeholder:text-stone-400"
+					aria-label="Describe your interests"
 				/>
-			{:else}
-				<div class="pb-1 font-mono text-sm text-[#2D2D2D]">you’re on the waitlist.</div>
-			{/if}
-
-			<!-- animated underline -->
-			<span class="underline-bar" aria-hidden="true"></span>
-		</div>
-		<button
-			type="button"
-			class="group flex items-center self-end rounded-md px-2 font-mono text-xs text-[#2D2D2D]
-         transition hover:text-[#2D2D2D]
-         focus-visible:outline-1 focus-visible:outline-[#2D2D2D]"
-			aria-label={status === 'success' ? 'Joined' : 'Next'}
-			onclick={requestJoin}
-			disabled={status === 'loading' || status === 'success'}
-		>
-			<span class="relative inline-block h-5 w-5">
-				{#if status === 'loading'}
-					<span
-						class="absolute inset-0 animate-spin rounded-full border border-[#2D2D2D] border-t-transparent"
-						aria-hidden="true"
-					/>
-				{:else if status === 'success'}
+				<button
+					class="absolute right-3 bottom-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-stone-800 text-white transition hover:bg-stone-900 focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:outline-none"
+					onclick={submit}
+					aria-label="Generate project"
+					title="Generate (Cmd/Ctrl + Enter)"
+				>
 					<svg
 						viewBox="0 0 24 24"
-						class="check-svg absolute inset-0 -translate-y-0.5 text-[#2D2D2D]"
+						class="h-4 w-4"
 						fill="none"
-						aria-hidden="true"
+						stroke="currentColor"
+						stroke-width="2"
 					>
-						<!-- 1) check draws left→right -->
-						<path d="M6 12l4 4 8-8" pathLength="1" class="check-path" />
-
-						<!-- 2) tiny dot at the tip; pops in, then implodes -->
-						<circle cx="18" cy="8" r="1.6" class="check-tip-dot" />
+						<path d="M5 12h14" stroke-linecap="round" />
+						<path d="M13 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
 					</svg>
+				</button>
+			</div>
+
+			<div
+				bind:this={chipsEl}
+				in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 600 }}
+				class="mx-auto mt-2 flex min-h-[78px] max-w-3xl flex-wrap items-start gap-2"
+			>
+				{#if loading}
+					{#each [72, 96, 88, 110, 84, 100, 92, 120, 80, 104] as w, i}
+						<div
+							class="h-8 animate-pulse rounded-full bg-stone-200/70"
+							style={`width:${w}px`}
+							data-chip
+							aria-hidden="true"
+						/>
+					{/each}
 				{:else}
-					<!-- Only the arrow moves on hover -->
-					<svg
-						viewBox="0 0 24 24"
-						class="absolute inset-0 transition-transform duration-150 group-hover:translate-x-1"
-						fill="none"
-						aria-hidden="true"
+					<button
+						data-chip
+						onclick={() => {
+							showInterestQuiz = true;
+						}}
+						class="inline-flex items-center gap-2 rounded-full border border-[#2D2D2D] bg-[#2D2D2D] px-3 py-1.5 text-sm text-white transition hover:bg-stone-800 focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:outline-none"
 					>
-						<line
-							x1="14"
-							y1="12"
-							x2="10"
-							y2="8"
-							stroke="currentColor"
-							stroke-width="1.6"
-							stroke-linecap="round"
-						/>
-						<line
-							x1="14"
-							y1="12"
-							x2="10"
-							y2="16"
-							stroke="currentColor"
-							stroke-width="1.6"
-							stroke-linecap="round"
-						/>
-					</svg>
+						<span class="text-base leading-none">★</span>{quizLabel}
+					</button>
+
+					{#each visibleSuggestions as s}
+						<button
+							data-chip
+							class="group inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-700 transition hover:border-stone-300 hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:outline-none {picked.has(
+								s
+							)
+								? 'border-stone-900 bg-stone-900 text-white hover:bg-stone-900'
+								: ''}"
+							onclick={() => (picked.has(s) ? toggle(s) : addToInput(s))}
+							aria-pressed={picked.has(s)}
+							title={s}
+						>
+							<span class="text-base leading-none">{picked.has(s) ? '•' : '+'}</span>
+							{shortLabel(s)}
+						</button>
+					{/each}
 				{/if}
-			</span>
-		</button>
+			</div>
+		{/if}
 	</div>
-</div>
+	{#if !showInterestQuiz}
+		<p class="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 text-center text-xs text-stone-600">
+			<span> Tip: click a topic to add it, or press Cmd/Ctrl+Enter to generate. </span>
+		</p>
+	{/if}
+</main>
+{#if showInterestQuiz}
+	<Quiz {closeQuiz} {finishQuiz} />
+{/if}
 
 <style>
-	.headline {
-		column-gap: 0.5ch;
-		white-space: nowrap;
-	}
-
-	.type-box {
-		width: 100%;
-		display: inline-flex;
-		align-items: baseline;
-		white-space: nowrap;
-		overflow: hidden;
-		position: relative;
-	}
-	.typed {
-		padding-right: 1px;
-		padding-bottom: 1px;
-		line-height: 1em;
-		display: inline-block;
-		animation: caret-blink 1s step-end infinite;
-	}
-
-	.waitlist-input {
-		background: transparent;
-		padding: 0;
-		color: color-mix(in srgb, black 60%, transparent);
-	}
-	.waitlist-input::placeholder {
-		color: color-mix(in srgb, black 35%, transparent);
-	}
-
-	@keyframes caret-blink {
-		0%,
-		20%,
-		100% {
-			border-right-color: currentColor;
-		}
-		50% {
-			border-right-color: color-mix(in oklab, currentColor 0%, transparent);
-		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.typed {
-			animation: none;
-		}
-	}
-	/* Draw left→right, then erase left→right (no fade) */
-	.check-path {
-		stroke: currentColor;
-		stroke-width: 2;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-		fill: none;
-
-		/* normalized length via pathLength="1" */
-		stroke-dasharray: 1;
-		stroke-dashoffset: 1;
-
-		/* 1) draw (0→420ms), 2) small gap, 3) erase (0→1) from the start */
-		animation:
-			draw-check 420ms ease-out forwards,
-			erase-check 320ms ease-in 1020ms forwards; /* start ~100ms after draw */
-	}
-
-	@keyframes draw-check {
-		to {
-			stroke-dashoffset: 0;
-		} /* reveal left→right */
-	}
-
-	@keyframes erase-check {
-		from {
-			stroke-dashoffset: 0;
-		} /* start fully drawn */
-		to {
-			stroke-dashoffset: -1;
-		} /* erase left→right */
-	}
-
-	/* Reduced motion: show instantly, then hide instantly */
-	@media (prefers-reduced-motion: reduce) {
-		.check-path {
-			animation: none;
-			stroke-dashoffset: 0;
-		}
-		.check-tip-dot {
-			animation: none;
-			opacity: 0;
-			transform: scale(0);
-		}
-	}
-	/* Underline element under the input/text */
-	.underline-bar {
-		position: absolute;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		height: 1px;
-		background: color-mix(in srgb, #2d2d2d 30%, transparent);
-		transform-origin: left; /* anchor on the left */
-		transform: scaleX(1);
-		opacity: 1;
-		pointer-events: none;
-	}
-
-	/* Make the line a bit stronger when the input is focused */
-	.relative:focus-within .underline-bar {
-		background: color-mix(in srgb, #2d2d2d 50%, transparent);
-	}
-
-	/* On success, shrink to the left and fade */
-	.underline-shrink .underline-bar {
-		animation: underline-shrink 200ms ease-in forwards;
-		animation-delay: 1200ms;
-	}
-
-	@keyframes underline-shrink {
-		to {
-			transform: scaleX(0);
-			opacity: 0;
-		}
-	}
-
-	/* Prefer reduced motion: just hide it */
-	@media (prefers-reduced-motion: reduce) {
-		.underline-shrink .underline-bar {
-			animation: none;
-			transform: scaleX(0);
-			opacity: 0;
-		}
+	:global(body) {
+		background: #fafaf7;
 	}
 </style>
