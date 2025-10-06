@@ -144,6 +144,7 @@
 
 	function submit() {
 		onGenerate({ interests: input.trim(), tags: Array.from(picked) });
+		goto('/project');
 	}
 
 	function keydown(e: KeyboardEvent) {
@@ -210,13 +211,13 @@
 				{headline}
 			</div>
 			<p
-				class="mt-3 text-center text-stone-600"
+				class="mt-3 text-center text-stone-500"
 				in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 100 }}
 			>
 				{subhead}
 			</p>
 
-			<div class="relative mt-4" in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 500 }}>
+			<div class="relative mt-4" in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 400 }}>
 				<textarea
 					bind:this={textareaEl}
 					bind:value={input}
@@ -227,7 +228,7 @@
 					aria-label="Describe your interests"
 				/>
 				<button
-					class="absolute right-3 bottom-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-stone-800 text-white transition hover:bg-stone-900 focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:outline-none"
+					class="absolute right-2 bottom-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-stone-800 text-white transition hover:bg-stone-900 focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:outline-none"
 					onclick={submit}
 					aria-label="Generate project"
 					title="Generate (Cmd/Ctrl + Enter)"
@@ -247,7 +248,7 @@
 
 			<div
 				bind:this={chipsEl}
-				in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 600 }}
+				in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 500 }}
 				class="mx-auto mt-2 flex min-h-[78px] max-w-3xl flex-wrap items-start gap-2"
 			>
 				{#if loading}

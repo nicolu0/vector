@@ -395,7 +395,7 @@
 			<button
 				type="button"
 				on:click={closeQuiz}
-				class="fixed top-[68px] left-4 z-[60] inline-flex items-center gap-2 p-4 text-sm text-stone-600 transition hover:text-stone-900"
+				class="fixed top-[58px] left-4 z-[60] inline-flex items-center gap-2 p-4 text-sm text-stone-600 transition hover:text-stone-900"
 				aria-label="Back"
 			>
 				<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
@@ -446,14 +446,14 @@
 					<button
 						type="button"
 						on:click={pickTie}
-						class="rounded-full bg-stone-200 px-4 py-2 font-medium text-stone-900 transition hover:bg-stone-100"
+						class="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
 					>
 						Can’t decide
 					</button>
 					<button
 						type="button"
 						on:click={undoLast}
-						class="rounded-full bg-stone-200 px-4 py-2 font-medium text-stone-900 transition hover:bg-stone-100"
+						class="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
 					>
 						Undo
 					</button>
@@ -493,7 +493,7 @@
 					<button
 						type="button"
 						on:click={continueAnotherBatch}
-						class="rounded-full bg-stone-200 py-2 font-medium text-stone-900 transition hover:bg-stone-100"
+						class="rounded-full border border-stone-300 bg-white px-4 py-2 font-medium text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
 					>
 						Another Round
 					</button>

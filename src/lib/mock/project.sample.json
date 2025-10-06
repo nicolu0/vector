@@ -1,0 +1,16 @@
+{
+  "title": "Linux-Like Operating System",
+  "difficulty": "Expert",
+  "description": "Design and implement a Linux-style OS core in C and x86 Assembly. Build a minimal kernel that boots, manages memory, schedules threads, and exposes a syscall interface. Implement key device drivers (PIC/interrupts, terminal/TTY, RTC, audio, basic file system) and integrate tasking, preemption, and multithreading. Target real hardware and an emulator (QEMU/Bochs) with a reproducible build.",
+  "jobs": [
+    { "title": "Operating Systems / Kernel Engineer", "url": "https://example.com/jobs/kernel-engineer" },
+    { "title": "Device Driver Engineer (x86/Embedded)", "url": "https://example.com/jobs/driver-enginee" }
+  ],
+"skills": ["C","x86 assembly","bootloaders (MBR/ELF, GRUB)","interrupts & PIC/APIC","context switching & scheduling","syscall ABI design",
+"virtual memory & paging",
+"kernel heap/allocator",
+"concurrency & synchronization",
+"device drivers",
+"file systems"
+]
+}
