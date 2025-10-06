@@ -17,7 +17,7 @@ const PROJECT_SCHEMA = {
         type: 'string',
         minLength: 4,
         maxLength: 64,
-        pattern: '^(?:\\S+\\s+){0,3}\\S+$'
+        pattern: '^[A-Za-z0-9-]+(?:\\s+[A-Za-z0-9-]+){0,3}$'
       },
       difficulty: {
         type: 'string',
@@ -84,7 +84,7 @@ function buildPrompt({ interests, tags }: { interests: string; tags: string[] })
     interestSection,
     tagSection,
     'Follow these additional rules:',
-    '- Title must be four words or fewer. Keep it punchy and branded.',
+    '- Title must be four words or fewer, composed only of descriptive technical terms (letters, numbers, hyphen). No branding, marketing, or suffixes.',
     '- Title must be four words or fewer. Keep it punchy and branded.',
     '- Difficulty must be one of: Easy, Medium, Hard, Expert.',
     '- Timeline must be a short estimate like "4-6 weeks" or "2 months". Do not exceed four words.',

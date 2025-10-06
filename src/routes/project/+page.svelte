@@ -53,7 +53,7 @@
 </script>
 
 <!-- page -->
-<div class="min-h-dvh w-full bg-stone-50 px-4 text-stone-800">
+<div class="min-h-dvh w-full bg-stone-50 px-4 pb-8 text-stone-800">
 	<button
 		type="button"
 		class=" inline-flex items-center gap-2 p-4 text-sm text-stone-600 transition hover:text-stone-900"
@@ -68,8 +68,8 @@
 	<div class="mx-auto w-full max-w-4xl">
 		{#if usingFallback}
 			<div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-				We couldn't find a freshly generated project for this session, so you're viewing the sample preview.
-				Head back to tailor a new one.
+				We couldn't find a freshly generated project for this session, so you're viewing the sample
+				preview. Head back to tailor a new one.
 			</div>
 		{/if}
 		<!-- title row -->
@@ -165,16 +165,9 @@
 		</div>
 
 		<!-- actions -->
-		<div class="mt-8 flex flex-wrap items-center gap-3">
+		<div class="mt-8 flex flex-wrap justify-end gap-3">
 			<button
-				class="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
-				onclick={() => (window.location.href = '/')}
-			>
-				Start over
-			</button>
-
-			<button
-				class="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
+				class="rounded-full bg-stone-800 px-4 py-2 text-sm font-medium text-stone-50 transition hover:bg-stone-900 active:scale-[0.98]"
 				onclick={() => {
 					/* hook: save to dashboard */
 				}}
