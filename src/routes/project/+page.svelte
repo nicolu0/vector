@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
 	import projectData from '$lib/mock/project.sample.json';
+	import { supabase } from '$lib/supabaseClient';
 	import { isProject, type Project, type Difficulty } from '$lib/types/project';
 
 	const fallbackProject = projectData as Project;
@@ -17,6 +18,8 @@
 	const usingFallback = $state(navigationState?.fallback === true || !hasGeneratedProject);
 
 	let copied = $state(false);
+	let saving = $state(false);
+	let saveError = $state<string | null>(null);
 	async function copyBrief() {
 		try {
 			await navigator.clipboard.writeText(`${project.title}\n\n${project.description}`);
@@ -49,6 +52,46 @@
 		if (normalized.includes('week')) return 'bg-sky-200 text-sky-800';
 		if (normalized.includes('month')) return 'bg-indigo-200 text-indigo-800';
 		return 'bg-stone-200 text-stone-800';
+	}
+
+	async function saveToDashboard() {
+		if (saving) return;
+		saveError = null;
+		saving = true;
+
+		try {
+			const {
+				data: { session }
+			} = await supabase.auth.getSession();
+
+			if (!session) {
+				saveError = 'Sign in to save projects to your dashboard.';
+				saving = false;
+				goto('/dashboard');
+				return;
+			}
+
+			const insertPayload = {
+				user_id: session.user.id,
+				title: project.title,
+				difficulty: project.difficulty,
+				timeline: project.timeline,
+				description: project.description,
+				jobs: project.jobs,
+				skills: project.skills
+			};
+
+			const { error } = await supabase.from('projects').insert([insertPayload]);
+			console.log(error);
+
+			if (error) throw error;
+
+			saving = false;
+			await goto('/dashboard');
+		} catch (err) {
+			saveError = err instanceof Error ? err.message : 'Unable to save project right now.';
+			saving = false;
+		}
 	}
 </script>
 
@@ -164,16 +207,19 @@
 			{/if}
 		</div>
 
-		<!-- actions -->
 		<div class="mt-8 flex flex-wrap justify-end gap-3">
-			<button
-				class="rounded-full bg-stone-800 px-4 py-2 text-sm font-medium text-stone-50 transition hover:bg-stone-900 active:scale-[0.98]"
-				onclick={() => {
-					/* hook: save to dashboard */
-				}}
-			>
-				Save to dashboard
-			</button>
+			<div class="flex flex-col items-end gap-2">
+				<button
+					disabled={saving}
+					class="rounded-full bg-stone-800 px-4 py-2 text-sm font-medium text-stone-50 transition hover:bg-stone-900 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+					onclick={saveToDashboard}
+				>
+					{saving ? 'Saving…' : 'Save to dashboard'}
+				</button>
+				{#if saveError}
+					<p class="text-xs text-rose-600">{saveError}</p>
+				{/if}
+			</div>
 		</div>
 	</div>
 </div>

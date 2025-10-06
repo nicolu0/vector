@@ -48,7 +48,12 @@ const PROJECT_SCHEMA = {
         type: 'array',
         minItems: 4,
         maxItems: 12,
-        items: { type: 'string', minLength: 2 }
+        items: {
+          type: 'string',
+          minLength: 2,
+          maxLength: 40,
+          pattern: '^[A-Za-z0-9][A-Za-z0-9\\-/ ]{0,39}$'
+        }
       }
     }
   },
@@ -90,6 +95,7 @@ function buildPrompt({ interests, tags }: { interests: string; tags: string[] })
     '- Timeline must be a short estimate like "4-6 weeks" or "2 months". Do not exceed four words.',
     '- Jobs array should list real or plausible job titles. Provide the best guess URLs if unknown.',
     '- Skills list should cover technologies, methodologies, or frameworks needed.',
+    '- Skills must be concise (≤40 chars), alphanumeric with optional spaces, hyphen, or slash. Avoid punctuation like colons or parentheses.',
     '- Description should read like a concise brief (3-5 sentences) and must NOT mention timeframes or duration.',
     '- Do not include markdown, commentary, or explanations outside of the JSON response.'
   ]

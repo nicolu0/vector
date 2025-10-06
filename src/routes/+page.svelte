@@ -364,7 +364,7 @@
 	</main>
 {/if}
 {#if isGenerating}
-	<div class="fixed inset-0 z-50 flex items-center justify-center px-6">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-stone-50 px-6">
 		<div class="w-full max-w-sm p-8 text-center text-stone-800">
 			<div
 				class="mx-auto flex h-12 w-12 items-center justify-center rounded-full border-4 border-stone-200 border-t-stone-800"
@@ -383,10 +383,6 @@
 {/if}
 
 <style>
-	:global(body) {
-		background: #fafaf7;
-	}
-
 	@keyframes spin {
 		from {
 			transform: rotate(0deg);
