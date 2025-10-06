@@ -107,6 +107,8 @@
 
 	let suggestions = $state<string[]>([]);
 	let visibleCount = $state(999); // clamped to two rows after layout
+	let isGenerating = $state(false);
+	let errorMessage = $state<string | null>(null);
 
 	// DERIVED
 	const visibleSuggestions = $derived(suggestions.slice(0, visibleCount));
@@ -142,12 +144,66 @@
 		picked.add(tag);
 	}
 
-	function submit() {
-		onGenerate({ interests: input.trim(), tags: Array.from(picked) });
+	async function submit() {
+		if (isGenerating) return;
+		const interests = input.trim();
+		const tags = Array.from(picked);
+		const payload = { interests, tags };
+		const fallbackMessage = 'We ran into an issue generating your project. Please try again.';
+
+		if (!interests && tags.length === 0) {
+			errorMessage = 'Add a short description or pick at least one tag.';
+			return;
+		}
+
+		errorMessage = null;
+		isGenerating = true;
+		onGenerate(payload);
+
+		try {
+			const response = await fetch('/api/generate-project', {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json'
+				},
+				body: JSON.stringify(payload)
+			});
+
+			if (!response.ok) {
+				let detail: string | null = null;
+				try {
+					const data = await response.json();
+					if (data && typeof data.message === 'string') detail = data.message;
+				} catch (err) {
+					const text = await response.text();
+					detail = text || null;
+				}
+
+				if (response.status === 400 && detail) {
+					errorMessage = detail;
+				} else {
+					errorMessage = fallbackMessage;
+				}
+				isGenerating = false;
+				return;
+			}
+
+			const project = await response.json();
+			const sourceHeader = response.headers.get('x-vector-project-source');
+			const usedFallback = sourceHeader === 'fallback';
+			await goto('/project', { state: { project, fallback: usedFallback } });
+		} catch (err) {
+			console.error('Project generation failed', err);
+			errorMessage = fallbackMessage;
+			isGenerating = false;
+		}
 	}
 
 	function keydown(e: KeyboardEvent) {
-		if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') submit();
+		if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+			e.preventDefault();
+			submit();
+		}
 	}
 
 	// Clamp to exactly two wrapped rows (no horizontal scroll)
@@ -200,6 +256,7 @@
 
 <main
 	class="flex min-h-[calc(100svh-56px)] w-full flex-col items-center justify-center bg-stone-50 px-6"
+	aria-busy={isGenerating}
 >
 	<div class="mb-30 w-full max-w-3xl">
 		{#if mounted}
@@ -210,16 +267,17 @@
 				{headline}
 			</div>
 			<p
-				class="mt-3 text-center text-stone-600"
+				class="mt-3 text-center text-stone-500"
 				in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 100 }}
 			>
 				{subhead}
 			</p>
 
-			<div class="relative mt-4" in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 500 }}>
+			<div class="relative mt-4" in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 400 }}>
 				<textarea
 					bind:this={textareaEl}
 					bind:value={input}
+					oninput={() => (errorMessage = null)}
 					onkeydown={keydown}
 					rows="3"
 					{placeholder}
@@ -227,8 +285,9 @@
 					aria-label="Describe your interests"
 				/>
 				<button
-					class="absolute right-3 bottom-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-stone-800 text-white transition hover:bg-stone-900 focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:outline-none"
+					class="absolute right-2 bottom-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-stone-800 text-white transition hover:bg-stone-900 focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:outline-none"
 					onclick={submit}
+					disabled={isGenerating}
 					aria-label="Generate project"
 					title="Generate (Cmd/Ctrl + Enter)"
 				>
@@ -245,9 +304,15 @@
 				</button>
 			</div>
 
+			{#if errorMessage}
+				<p class="mt-2 text-sm text-rose-600">
+					{errorMessage}
+				</p>
+			{/if}
+
 			<div
 				bind:this={chipsEl}
-				in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 600 }}
+				in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 500 }}
 				class="mx-auto mt-2 flex min-h-[78px] max-w-3xl flex-wrap items-start gap-2"
 			>
 				{#if loading}
@@ -296,6 +361,21 @@
 		</p>
 	{/if}
 </main>
+{#if isGenerating}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/70 px-6">
+		<div class="w-full max-w-sm rounded-3xl border border-white/30 bg-white/95 p-8 text-center text-stone-800 shadow-xl">
+			<div
+				class="mx-auto flex h-12 w-12 items-center justify-center rounded-full border-4 border-stone-200 border-t-stone-800"
+				aria-hidden="true"
+				style="animation: spin 1s linear infinite"
+			></div>
+			<div class="mt-4 text-lg font-semibold">Generating your project</div>
+			<p class="mt-2 text-sm text-stone-500">
+				We’re crafting a tailored project using your inputs.
+			</p>
+		</div>
+	</div>
+{/if}
 {#if showInterestQuiz}
 	<Quiz {closeQuiz} {finishQuiz} />
 {/if}
@@ -303,5 +383,14 @@
 <style>
 	:global(body) {
 		background: #fafaf7;
+	}
+
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>
