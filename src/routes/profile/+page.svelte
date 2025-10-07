@@ -26,6 +26,7 @@
 		description: string;
 		features: string[];
 		isCurrent?: boolean;
+		compareAtPrice?: string;
 	};
 
 	const plans: Plan[] = [
@@ -49,6 +50,7 @@
 			price: '$20',
 			cadence: 'per month',
 			description: 'Best for consistent builders working on multiple tracks.',
+			compareAtPrice: '$24',
 			features: [
 				'5 credits refreshed monthly',
 				'Email support with quick replies',
@@ -172,22 +174,29 @@
 			{#each plans as plan, index}
 				<div
 					class="flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50 p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
-					in:fly|global={
-						shouldAnimateProfile
-							? { y: 10, duration: 500, easing: cubicOut, delay: index * 100 }
-							: undefined
-					}
+					in:fly|global={shouldAnimateProfile
+						? { y: 10, duration: 500, easing: cubicOut, delay: index * 100 }
+						: undefined}
 				>
 					<div class="space-y-4">
 						<div>
 							<p class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">
 								{plan.name}
 							</p>
-							<div class="mt-2 flex items-baseline gap-1">
-								<span class="text-3xl font-semibold text-stone-900">{plan.price}</span>
-								<span class="text-xs tracking-tight text-stone-500 uppercase">
-									{plan.cadence}
-								</span>
+							<div class="mt-2 flex items-baseline gap-3">
+								<div class="flex items-baseline gap-1">
+									{#if plan.compareAtPrice}
+										<span
+											class="text-3xl font-medium text-stone-400 line-through decoration-stone-300 decoration-2"
+										>
+											{plan.compareAtPrice}
+										</span>
+									{/if}
+									<span class="text-3xl font-semibold text-stone-900">{plan.price}</span>
+									<span class="text-xs tracking-tight text-stone-500 uppercase">
+										{plan.cadence}
+									</span>
+								</div>
 							</div>
 							<p class="mt-3 text-sm text-stone-600">{plan.description}</p>
 						</div>
@@ -218,11 +227,9 @@
 		</div>
 		<div
 			class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700"
-			in:fly|global={
-				shouldAnimateProfile
-					? { y: 10, duration: 500, easing: cubicOut, delay: 300 }
-					: undefined
-			}
+			in:fly|global={shouldAnimateProfile
+				? { y: 10, duration: 500, easing: cubicOut, delay: 300 }
+				: undefined}
 		>
 			<div class="flex items-center justify-between">
 				<span class="font-medium text-stone-900">Credits</span>
@@ -238,11 +245,9 @@
 		</div>
 		<section
 			class="rounded-2xl border border-stone-200 bg-stone-50 p-6 shadow-[0_1px_0_rgba(0,0,0,0.04)]"
-			in:fly|global={
-				shouldAnimateProfile
-					? { y: 10, duration: 500, easing: cubicOut, delay: 400 }
-					: undefined
-			}
+			in:fly|global={shouldAnimateProfile
+				? { y: 10, duration: 500, easing: cubicOut, delay: 400 }
+				: undefined}
 		>
 			<h2 class="text-sm font-semibold tracking-tight text-stone-900">Account</h2>
 			<p class="mt-2 text-sm text-stone-600">

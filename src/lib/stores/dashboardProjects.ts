@@ -8,7 +8,7 @@ export type StoredProject = Project & {
 };
 
 export type DashboardProjectsState = {
-	status: 'idle' | 'loading' | 'loaded' | 'error';
+	status: 'idle' | 'loading' | 'refreshing' | 'loaded' | 'error';
 	sessionExists: boolean;
 	projects: StoredProject[];
 	error: string | null;
@@ -51,11 +51,14 @@ async function load(options?: { force?: boolean }) {
 		inFlight = null;
 	}
 
-	store.update((value) => ({
-		...value,
-		status: 'loading',
-		error: null
-	}));
+	store.update((value) => {
+		const hasProjects = value.projects.length > 0;
+		return {
+			...value,
+			status: hasProjects ? 'refreshing' : 'loading',
+			error: null
+		};
+	});
 
 	const promise = (async () => {
 		try {
@@ -102,11 +105,14 @@ async function load(options?: { force?: boolean }) {
 			const message =
 				err instanceof Error ? err.message : 'Unable to load projects right now.';
 
-			store.update((value) => ({
-				...value,
-				status: 'error',
-				error: message
-			}));
+			store.update((value) => {
+				const hasProjects = value.projects.length > 0;
+				return {
+					...value,
+					status: hasProjects ? 'loaded' : 'error',
+					error: message
+				};
+			});
 
 			return null;
 		} finally {

@@ -12,8 +12,12 @@
 	let dashboardState = $state<DashboardProjectsState>(dashboardProjects.getSnapshot());
 	let selectedProject = $state<StoredProject | null>(null);
 
-	const loading = $derived(dashboardState.status === 'loading');
-	const loadError = $derived(dashboardState.error);
+	const initialLoading = $derived(
+		dashboardState.status === 'loading' && dashboardState.projects.length === 0
+	);
+	const isRefreshing = $derived(dashboardState.status === 'refreshing');
+	const loadError = $derived(dashboardState.status === 'error' ? dashboardState.error : null);
+	const hasProjects = $derived(dashboardState.projects.length > 0);
 	const sessionExists = $derived(dashboardState.sessionExists);
 	const projects = $derived(dashboardState.projects);
 
@@ -86,7 +90,7 @@
 
 <div class="min-h-dvh w-full bg-stone-50 px-6 py-4 text-stone-800">
 	<div class="mx-auto w-full max-w-5xl">
-		{#if selectedProject}
+			{#if selectedProject}
 			<button
 				type="button"
 				class="inline-flex items-center gap-2 text-sm text-stone-600 transition hover:text-stone-900"
@@ -112,9 +116,27 @@
 				<div>
 					<h1 class="text-3xl font-semibold tracking-tight text-stone-800">Dashboard</h1>
 				</div>
+				{#if isRefreshing && hasProjects}
+					<div class="flex items-center gap-2 text-xs text-stone-500" aria-live="polite">
+						<svg
+							viewBox="0 0 24 24"
+							class="h-3.5 w-3.5 animate-spin"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path
+								d="M12 3v2m6.36.64-1.42 1.42M21 12h-2m-.64 6.36-1.42-1.42M12 19v2m-6.36-.64 1.42-1.42M5 12H3m.64-6.36 1.42 1.42"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/>
+						</svg>
+						<span>Updating…</span>
+					</div>
+				{/if}
 			</div>
 
-			{#if loading}
+			{#if initialLoading}
 				<div class="mt-10"></div>
 			{:else if loadError}
 				<div class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
