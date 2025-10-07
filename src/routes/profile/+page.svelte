@@ -4,6 +4,15 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
+	import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
+
+	const routeVisitKey = 'profile';
+	const initialShouldAnimate =
+		typeof window === 'undefined' ? false : !hasVisitedRoute(routeVisitKey);
+	if (typeof window !== 'undefined' && initialShouldAnimate) {
+		markRouteVisited(routeVisitKey);
+	}
+	const shouldAnimateProfile = initialShouldAnimate;
 
 	let signingOut = $state(false);
 	let signOutError = $state<string | null>(null);
@@ -24,20 +33,20 @@
 			name: 'Free',
 			price: '$0',
 			cadence: 'forever',
-			description: 'Explore vector with one complimentary project credit.',
+			description: 'Explore Vector with one complimentary project credit.',
 			features: ['1 project credit included', 'Regenerate saved projects', 'Community tips'],
 			isCurrent: true
 		},
 		{
-			name: 'Weekly',
+			name: 'Plus Weekly',
 			price: '$6',
 			cadence: 'per week',
 			description: 'Stay in rhythm with fresh credits every week.',
 			features: ['1 credit added every week', 'Priority project tuning', 'Cancel anytime']
 		},
 		{
-			name: 'Monthly',
-			price: '$18',
+			name: 'Plus Monthly',
+			price: '$20',
 			cadence: 'per month',
 			description: 'Best for consistent builders working on multiple tracks.',
 			features: [
@@ -163,7 +172,11 @@
 			{#each plans as plan, index}
 				<div
 					class="flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50 p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
-					in:fly|global={{ y: 10, duration: 500, easing: cubicOut, delay: index * 100 }}
+					in:fly|global={
+						shouldAnimateProfile
+							? { y: 10, duration: 500, easing: cubicOut, delay: index * 100 }
+							: undefined
+					}
 				>
 					<div class="space-y-4">
 						<div>
@@ -205,7 +218,11 @@
 		</div>
 		<div
 			class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700"
-			in:fly|global={{ y: 10, duration: 500, easing: cubicOut, delay: 300 }}
+			in:fly|global={
+				shouldAnimateProfile
+					? { y: 10, duration: 500, easing: cubicOut, delay: 300 }
+					: undefined
+			}
 		>
 			<div class="flex items-center justify-between">
 				<span class="font-medium text-stone-900">Credits</span>
@@ -221,7 +238,11 @@
 		</div>
 		<section
 			class="rounded-2xl border border-stone-200 bg-stone-50 p-6 shadow-[0_1px_0_rgba(0,0,0,0.04)]"
-			in:fly|global={{ y: 10, duration: 500, easing: cubicOut, delay: 400 }}
+			in:fly|global={
+				shouldAnimateProfile
+					? { y: 10, duration: 500, easing: cubicOut, delay: 400 }
+					: undefined
+			}
 		>
 			<h2 class="text-sm font-semibold tracking-tight text-stone-900">Account</h2>
 			<p class="mt-2 text-sm text-stone-600">

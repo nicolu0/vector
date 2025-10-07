@@ -2,58 +2,28 @@
 	import { cubicOut } from 'svelte/easing';
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import type { Project } from '$lib/types/project';
 	import { difficultyBadgeClasses } from '$lib/styles/difficulty';
 	import { fly } from 'svelte/transition';
 	import ProjectDetail from '$lib/components/ProjectDetail.svelte';
+	import { dashboardProjects } from '$lib/stores/dashboardProjects';
+	import type { DashboardProjectsState, StoredProject } from '$lib/stores/dashboardProjects';
+	import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
 
-	type StoredProject = Project & {
-		id: string;
-		created_at: string | null;
-	};
-
-	let loading = $state(true);
-	let projects = $state<StoredProject[]>([]);
-	let loadError = $state<string | null>(null);
-	let sessionExists = $state(false);
+	let dashboardState = $state<DashboardProjectsState>(dashboardProjects.getSnapshot());
 	let selectedProject = $state<StoredProject | null>(null);
 
-	async function loadProjects() {
-		loading = true;
-		loadError = null;
+	const loading = $derived(dashboardState.status === 'loading');
+	const loadError = $derived(dashboardState.error);
+	const sessionExists = $derived(dashboardState.sessionExists);
+	const projects = $derived(dashboardState.projects);
 
-		try {
-			const {
-				data: { session },
-				error: sessionError
-			} = await supabase.auth.getSession();
-
-			if (sessionError) throw sessionError;
-
-			if (!session) {
-				sessionExists = false;
-				projects = [];
-				loading = false;
-				return;
-			}
-
-			sessionExists = true;
-
-			const { data, error } = await supabase
-				.from('projects')
-				.select('id, title, difficulty, timeline, description, jobs, skills, created_at')
-				.eq('user_id', session.user.id)
-				.order('created_at', { ascending: false });
-
-			if (error) throw error;
-
-			projects = (data ?? []) as StoredProject[];
-		} catch (err) {
-			loadError = err instanceof Error ? err.message : 'Unable to load projects right now.';
-		} finally {
-			loading = false;
-		}
+	const routeVisitKey = 'dashboard';
+	const initialShouldAnimate =
+		typeof window === 'undefined' ? false : !hasVisitedRoute(routeVisitKey);
+	if (typeof window !== 'undefined' && initialShouldAnimate) {
+		markRouteVisited(routeVisitKey);
 	}
+	const shouldAnimateCards = initialShouldAnimate;
 
 	function formatCreatedAt(value: string | null): string {
 		if (!value) return '';
@@ -83,8 +53,30 @@
 		selectedProject = project;
 	}
 
+	function retryLoading() {
+		void dashboardProjects.refresh();
+	}
+
+	$effect(() => {
+		if (!selectedProject) return;
+		const match = dashboardState.projects.find((project) => project.id === selectedProject?.id);
+		if (!match) {
+			selectedProject = null;
+		} else if (match !== selectedProject) {
+			selectedProject = match;
+		}
+	});
+
 	onMount(() => {
-		loadProjects();
+		const unsubscribe = dashboardProjects.subscribe((value) => {
+			dashboardState = value;
+		});
+
+		void dashboardProjects.load();
+
+		return () => {
+			unsubscribe();
+		};
 	});
 </script>
 
@@ -124,6 +116,30 @@
 
 			{#if loading}
 				<div class="mt-10"></div>
+			{:else if loadError}
+				<div class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+					<p>{loadError}</p>
+					<button
+						type="button"
+						class="mt-3 inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:border-rose-300 hover:text-rose-800"
+						onclick={retryLoading}
+					>
+						<svg
+							viewBox="0 0 24 24"
+							class="h-3.5 w-3.5"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path
+								d="M4 4v6h6M20 20v-6h-6M5.64 18.36A9 9 0 0 1 6 6m12 12a9 9 0 0 0 0-12"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/>
+						</svg>
+						Try again
+					</button>
+				</div>
 			{:else if !sessionExists}
 				<div class="rounded-2xl border border-stone-200 bg-white p-4 text-sm text-stone-600">
 					<p class="text-stone-700">
@@ -162,7 +178,11 @@
 				<div class="mt-4 grid gap-4 sm:grid-cols-2">
 					{#each projects as project, index}
 						<div
-							in:fly|global={{ y: 10, duration: 500, easing: cubicOut, delay: index * 100 }}
+							in:fly|global={
+								shouldAnimateCards
+									? { y: 10, duration: 500, easing: cubicOut, delay: index * 100 }
+									: undefined
+							}
 							class="flex min-h-[120px] cursor-pointer flex-col items-start justify-between gap-3 rounded-lg border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)] hover:border-stone-300 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-black/10 focus-visible:outline-none"
 							onclick={() => viewProject(project)}
 							onkeydown={(event) => {

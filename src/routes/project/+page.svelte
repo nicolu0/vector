@@ -2,10 +2,11 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
- import projectData from '$lib/mock/project.sample.json';
- import ProjectDetail from '$lib/components/ProjectDetail.svelte';
- import { supabase } from '$lib/supabaseClient';
- import { isProject, type Project } from '$lib/types/project';
+	import projectData from '$lib/mock/project.sample.json';
+	import ProjectDetail from '$lib/components/ProjectDetail.svelte';
+	import { supabase } from '$lib/supabaseClient';
+	import { dashboardProjects } from '$lib/stores/dashboardProjects';
+	import { isProject, type Project } from '$lib/types/project';
 
 	const fallbackProject = projectData as Project;
 	const navigationState = import.meta.env.SSR
@@ -52,6 +53,7 @@
 
 			if (error) throw error;
 
+			dashboardProjects.invalidate();
 			saving = false;
 			await goto('/dashboard');
 		} catch (err) {
