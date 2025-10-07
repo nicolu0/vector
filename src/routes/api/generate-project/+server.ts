@@ -122,17 +122,22 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
   const supabase = createSupabaseServerClient(cookies);
   const {
-    data: { session }
-  } = await supabase.auth.getSession();
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
 
-  if (!session?.user?.id) {
+  if (userError) {
+    console.error('Failed to verify Supabase user', userError);
+  }
+
+  if (!user?.id || userError) {
     return json(
       { message: 'Sign in to claim your free project credit (0 / 1 credits).' },
       { status: 401 }
     );
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
 
   const { data: userRow, error: userFetchError } = await supabase
     .from('users')

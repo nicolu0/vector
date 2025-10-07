@@ -2,14 +2,14 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import type { Session } from '@supabase/supabase-js';
+	import type { User } from '@supabase/supabase-js';
 	import { supabase } from '$lib/supabaseClient';
 	import '../app.css';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 	import favicon from '$lib/assets/favicon.svg';
 
 	type LayoutData = {
-		session: Session | null;
+		user: User | null;
 		credits: number | null;
 	};
 
@@ -18,11 +18,11 @@
 	let showAuthModal = $state(false);
 	let authLoading = $state(false);
 	let authError = $state<string | null>(null);
-	let sessionExists = $state(Boolean(data?.session));
+	let sessionExists = $state(Boolean(data?.user));
 	let credits = $state<number | null>(data?.credits ?? null);
 
 	$effect(() => {
-		sessionExists = Boolean(data?.session);
+		sessionExists = Boolean(data?.user);
 		credits = data?.credits ?? null;
 	});
 
@@ -168,23 +168,26 @@
 				<span class="font-mono tracking-tight">vector</span>
 			</button>
 
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-4">
 				{#if !sessionExists}
 					<button
-						class="rounded-md px-2 py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
+						class="rounded-md py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
+						>Pricing</button
+					>
+					<button
+						class="rounded-md py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
 					>
 						How it works
 					</button>
 				{/if}
 
-				<button
-					onclick={() => goto('/dashboard')}
-					class="rounded-md px-2 py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
-				>
-					Dashboard
-				</button>
-
 				{#if sessionExists}
+					<button
+						onclick={() => goto('/dashboard')}
+						class="rounded-md py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
+					>
+						Dashboard
+					</button>
 					<button
 						onclick={() => goto('/profile')}
 						class="rounded-md bg-stone-800 px-3 py-1 text-xs font-medium tracking-tight text-stone-50 transition hover:bg-stone-600"

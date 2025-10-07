@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { cubicOut } from 'svelte/easing';
+	import { fly } from 'svelte/transition';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
@@ -7,6 +9,44 @@
 	let signOutError = $state<string | null>(null);
 	let userEmail = $state<string | null>(null);
 	let credits = $state<number | null>(null);
+
+	type Plan = {
+		name: string;
+		price: string;
+		cadence: string;
+		description: string;
+		features: string[];
+		isCurrent?: boolean;
+	};
+
+	const plans: Plan[] = [
+		{
+			name: 'Free',
+			price: '$0',
+			cadence: 'forever',
+			description: 'Explore vector with one complimentary project credit.',
+			features: ['1 project credit included', 'Regenerate saved projects', 'Community tips'],
+			isCurrent: true
+		},
+		{
+			name: 'Weekly',
+			price: '$6',
+			cadence: 'per week',
+			description: 'Stay in rhythm with fresh credits every week.',
+			features: ['1 credit added every week', 'Priority project tuning', 'Cancel anytime']
+		},
+		{
+			name: 'Monthly',
+			price: '$18',
+			cadence: 'per month',
+			description: 'Best for consistent builders working on multiple tracks.',
+			features: [
+				'5 credits refreshed monthly',
+				'Email support with quick replies',
+				'Early feature access'
+			]
+		}
+	];
 
 	onMount(() => {
 		const syncAccount = async () => {
@@ -119,7 +159,54 @@
 			<h1 class="text-3xl font-semibold tracking-tight text-stone-800">Profile</h1>
 		</div>
 
-		<div class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700">
+		<div class="mt-6 grid gap-4 md:grid-cols-3">
+			{#each plans as plan, index}
+				<div
+					class="flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50 p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+					in:fly|global={{ y: 10, duration: 500, easing: cubicOut, delay: index * 100 }}
+				>
+					<div class="space-y-4">
+						<div>
+							<p class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">
+								{plan.name}
+							</p>
+							<div class="mt-2 flex items-baseline gap-1">
+								<span class="text-3xl font-semibold text-stone-900">{plan.price}</span>
+								<span class="text-xs tracking-tight text-stone-500 uppercase">
+									{plan.cadence}
+								</span>
+							</div>
+							<p class="mt-3 text-sm text-stone-600">{plan.description}</p>
+						</div>
+
+						<ul class="space-y-2 text-sm text-stone-700">
+							{#each plan.features as feature}
+								<li class="flex items-start gap-2">
+									<span class="mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full bg-stone-500" />
+									<span>{feature}</span>
+								</li>
+							{/each}
+						</ul>
+					</div>
+
+					<button
+						type="button"
+						class={`mt-6 inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold tracking-tight transition ${
+							plan.isCurrent
+								? 'cursor-default border-stone-200 bg-stone-200 text-stone-500'
+								: 'border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-700'
+						}`}
+						disabled={plan.isCurrent}
+					>
+						{plan.isCurrent ? 'Current plan' : 'Upgrade'}
+					</button>
+				</div>
+			{/each}
+		</div>
+		<div
+			class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700"
+			in:fly|global={{ y: 10, duration: 500, easing: cubicOut, delay: 300 }}
+		>
 			<div class="flex items-center justify-between">
 				<span class="font-medium text-stone-900">Credits</span>
 				<span
@@ -134,6 +221,7 @@
 		</div>
 		<section
 			class="rounded-2xl border border-stone-200 bg-stone-50 p-6 shadow-[0_1px_0_rgba(0,0,0,0.04)]"
+			in:fly|global={{ y: 10, duration: 500, easing: cubicOut, delay: 400 }}
 		>
 			<h2 class="text-sm font-semibold tracking-tight text-stone-900">Account</h2>
 			<p class="mt-2 text-sm text-stone-600">
