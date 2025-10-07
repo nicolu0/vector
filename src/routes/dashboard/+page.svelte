@@ -148,8 +148,10 @@
 					{loadError}
 				</div>
 			{:else if !sessionExists}
-				<div class="rounded-2xl border border-stone-200 bg-white text-sm text-stone-600">
-					<p class="text-stone-700">Sign in to save and revisit your generated projects.</p>
+				<div class="rounded-2xl border border-stone-200 bg-white p-4 text-sm text-stone-600">
+					<p class="text-stone-700">
+						Sign in to save your generated projects and receive guidance.
+					</p>
 					<button
 						class="mt-4 inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 transition hover:border-stone-300 hover:bg-stone-50"
 						on:click={signIn}
