@@ -4,6 +4,7 @@ import { OPENAI_API_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
 import { isProject, type Project } from '$lib/types/project';
 import sampleProject from '$lib/mock/project.sample.json';
+import { createSupabaseServerClient } from '$lib/server/supabase';
 
 const PROJECT_SCHEMA = {
   type: 'json_schema',
@@ -103,7 +104,7 @@ function buildPrompt({ interests, tags }: { interests: string; tags: string[] })
     .join('\n\n');
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, cookies }) => {
   let payload: { interests?: unknown; tags?: unknown };
 
   try {
@@ -119,12 +120,71 @@ export const POST: RequestHandler = async ({ request }) => {
     throw error(400, 'Provide interests or tags to generate a project');
   }
 
+  const supabase = createSupabaseServerClient(cookies);
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+
+  if (!session?.user?.id) {
+    return json(
+      { message: 'Sign in to claim your free project credit (0 / 1 credits).' },
+      { status: 401 }
+    );
+  }
+
+  const userId = session.user.id;
+
+  const { data: userRow, error: userFetchError } = await supabase
+    .from('users')
+    .select('credits')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (userFetchError) {
+    console.error('Failed to fetch user credits', userFetchError);
+    throw error(500, 'Unable to check credits');
+  }
+
+  let credits = typeof userRow?.credits === 'number' ? userRow.credits : null;
+
+  if (userRow === null) {
+    const { data: insertedRow, error: insertError } = await supabase
+      .from('users')
+      .insert({ user_id: userId, credits: 1 })
+      .select('credits')
+      .single();
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        const { data: existingRow } = await supabase
+          .from('users')
+          .select('credits')
+          .eq('user_id', userId)
+          .single();
+        credits = existingRow?.credits ?? 0;
+      } else {
+        console.error('Failed to provision initial credits', insertError);
+        throw error(500, 'Unable to prepare credits');
+      }
+    } else {
+      credits = insertedRow?.credits ?? 0;
+    }
+  }
+
+  if (!credits || credits <= 0) {
+    return json(
+      { message: 'You are out of credits. Visit your profile to review your balance.' },
+      { status: 402 }
+    );
+  }
+
   const client = createOpenAI();
   if (!client) {
     console.warn('OPENAI_API_KEY missing; returning fallback project.');
     return json(FALLBACK_PROJECT, {
       headers: {
-        'x-vector-project-source': 'fallback'
+        'x-vector-project-source': 'fallback',
+        'x-vector-user-credits': String(credits)
       }
     });
   }
@@ -158,10 +218,24 @@ export const POST: RequestHandler = async ({ request }) => {
       throw new Error('Model response did not match expected schema');
     }
 
+    const { data: updatedRow, error: updateError } = await supabase
+      .from('users')
+      .update({ credits: credits - 1 })
+      .eq('user_id', userId)
+      .select('credits')
+      .single();
+
+    if (updateError) {
+      console.error('Failed to deduct credit', updateError);
+    }
+
+    const remainingCredits = typeof updatedRow?.credits === 'number' ? updatedRow.credits : credits - 1;
+
     const validatedProject: Project = project;
     return json(validatedProject, {
       headers: {
-        'x-vector-project-source': 'generated'
+        'x-vector-project-source': 'generated',
+        'x-vector-user-credits': String(Math.max(remainingCredits, 0))
       }
     });
   } catch (err) {

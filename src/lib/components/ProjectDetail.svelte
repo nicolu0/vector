@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { Project, Difficulty } from '$lib/types/project';
+  import type { Project } from '$lib/types/project';
+  import { difficultyBadgeClasses } from '$lib/styles/difficulty';
 
   const {
     project,
@@ -15,21 +16,6 @@
   }>();
 
   const dispatch = createEventDispatcher<{ save: void; copy: void }>();
-
-  function difficultyClasses(level: Difficulty): string {
-    switch (level) {
-      case 'Easy':
-        return 'bg-emerald-300 text-emerald-800';
-      case 'Medium':
-        return 'bg-amber-200 text-amber-800';
-      case 'Hard':
-        return 'bg-rose-200 text-rose-700';
-      case 'Expert':
-        return 'bg-purple-200 text-purple-800';
-      default:
-        return 'bg-stone-700 text-white border-stone-800';
-    }
-  }
 
   function timelineClasses(label: string): string {
     const normalized = label.toLowerCase();
@@ -55,7 +41,7 @@
     <div class="flex flex-wrap items-center gap-2">
       <div
         class={'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ' +
-          difficultyClasses(project.difficulty)}
+          difficultyBadgeClasses(project.difficulty)}
       >
         {project.difficulty}
       </div>
