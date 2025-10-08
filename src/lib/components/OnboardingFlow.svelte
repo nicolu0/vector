@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tweened } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
+	import { slide, scale, blur, fly } from 'svelte/transition';
 	type Answers = {
 		education: 'high_school' | 'college' | null;
 		goal: 'full_time' | 'internship' | 'explore' | null;
@@ -189,6 +190,7 @@
 
 <div
 	class="fixed inset-x-0 top-[56px] z-[110] flex h-[calc(100vh-56px)] items-center justify-center bg-stone-50 px-4 text-stone-900"
+	in:fly={{ y: 24, duration: 300, easing: cubicOut }}
 	role="dialog"
 	aria-modal="true"
 	aria-label="Vector onboarding"

@@ -5,15 +5,20 @@
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
+	import { getContext } from 'svelte';
+
+	type AuthUI = {
+		openAuthModal: (message?: string) => void;
+		closeAuthModal: () => void;
+	};
+
+	const { openAuthModal } = getContext<AuthUI>('auth-ui');
 
 	const {
 		placeholder = 'Tell us your interests… Not sure? Take the interest quiz',
 		headline = 'Applying to college/jobs?',
 		subhead = 'Differentiate yourself with great projects. Vector uses job listings to generate the perfect ones.',
-		showQuizChip = true,
 		quizLabel = 'Take interest quiz',
-		onQuiz = (() => {}) as () => void,
-		quizHref = null as string | null,
 		onGenerate = (() => {}) as (p: { interests: string; tags: string[] }) => void
 	} = $props<{
 		placeholder?: string;
@@ -21,9 +26,8 @@
 		subhead?: string;
 		showQuizChip?: boolean;
 		quizLabel?: string;
-		onQuiz?: () => void;
 		quizHref?: string | null;
-		onGenerate?: (p: { interests: string; tags: string[] }) => void;
+		onGenerate: (p: { interests: string; tags: string[] }) => void;
 	}>();
 
 	let showInterestQuiz = $state(false);
@@ -216,30 +220,70 @@
 		};
 	});
 
+	async function ensureSignedInOrPrompt(payload: { interests: string; tags: string[] }) {
+		const {
+			data: { user },
+			error
+		} = await supabase.auth.getUser();
+		if (error) throw error;
+
+		if (!user) {
+			const message = 'Sign in to claim your free project credit.';
+			savePendingGeneration(payload);
+			window.dispatchEvent(
+				new CustomEvent('vector:auth-required', {
+					detail: { message, reason: 'generate' as const }
+				})
+			);
+			return { user: null, credits: null };
+		}
+
+		const { data: row } = await supabase
+			.from('users')
+			.select('credits')
+			.eq('user_id', user.id)
+			.maybeSingle();
+
+		const credits = typeof row?.credits === 'number' ? row.credits : null;
+		return { user, credits };
+	}
 	async function submit() {
 		if (isGenerating) return;
+
 		const interests = input.trim();
 		const tags = Array.from(picked);
 		const payload = { interests, tags };
-		const fallbackMessage = 'We ran into an issue generating your project. Please try again.';
 
 		if (!interests && tags.length === 0) {
 			errorMessage = 'Add a short description or pick at least one tag.';
 			return;
 		}
 
+		// try {
+		// 	const { user, credits } = await ensureSignedInOrPrompt(payload);
+		// 	if (!user) {
+		// 		return;
+		// 	}
+		//
+		// 	if (credits !== null && credits <= 0) {
+		// 		errorMessage = 'You are out of credits. Visit your profile to review your balance.';
+		// 		window.dispatchEvent(new CustomEvent('vector:credits-updated', { detail: { credits: 0 } }));
+		// 		return;
+		// 	}
+		// } catch (e) {
+		// 	openAuthModal();
+		// 	return;
+		// }
+
 		errorMessage = null;
 		isGenerating = true;
 		onGenerate(payload);
-
 		clearPendingGeneration();
 
 		try {
 			const response = await fetch('/api/generate-project', {
 				method: 'POST',
-				headers: {
-					'content-type': 'application/json'
-				},
+				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify(payload)
 			});
 
@@ -247,14 +291,14 @@
 				let detail: string | null = null;
 				try {
 					const data = await response.json();
-					if (data && typeof data.message === 'string') detail = data.message;
-				} catch (err) {
+					if (typeof data?.message === 'string') detail = data.message;
+				} catch {
 					const text = await response.text();
 					detail = text || null;
 				}
 
 				if (response.status === 401) {
-					const message = detail ?? 'Sign in to claim your free project credit (0 / 1 credits).';
+					const message = detail ?? 'Sign in to claim your free project credit.';
 					errorMessage = message;
 					savePendingGeneration(payload);
 					window.dispatchEvent(
@@ -265,25 +309,18 @@
 					isGenerating = false;
 					return;
 				}
-
 				if (response.status === 402) {
 					const message =
 						detail ?? 'You are out of credits. Visit your profile to review your balance.';
 					errorMessage = message;
 					window.dispatchEvent(
-						new CustomEvent('vector:credits-updated', {
-							detail: { credits: 0 }
-						})
+						new CustomEvent('vector:credits-updated', { detail: { credits: 0 } })
 					);
 					isGenerating = false;
 					return;
 				}
 
-				if (response.status === 400 && detail) {
-					errorMessage = detail;
-				} else {
-					errorMessage = fallbackMessage;
-				}
+				errorMessage = detail || 'We ran into an issue generating your project. Please try again.';
 				isGenerating = false;
 				return;
 			}
@@ -294,19 +331,16 @@
 				const numericCredits = Number.parseInt(creditsHeader, 10);
 				if (!Number.isNaN(numericCredits)) {
 					window.dispatchEvent(
-						new CustomEvent('vector:credits-updated', {
-							detail: { credits: numericCredits }
-						})
+						new CustomEvent('vector:credits-updated', { detail: { credits: numericCredits } })
 					);
 				}
 			}
-			const sourceHeader = response.headers.get('x-vector-project-source');
-			const usedFallback = sourceHeader === 'fallback';
+			const usedFallback = response.headers.get('x-vector-project-source') === 'fallback';
 			clearPendingGeneration();
 			await goto('/project', { state: { project, fallback: usedFallback } });
 		} catch (err) {
 			console.error('Project generation failed', err);
-			errorMessage = fallbackMessage;
+			errorMessage = 'We ran into an issue generating your project. Please try again.';
 			isGenerating = false;
 		}
 	}

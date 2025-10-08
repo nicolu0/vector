@@ -111,16 +111,17 @@
 			if (typeof detail?.credits === 'number' || detail?.credits === null) {
 				credits = detail.credits;
 			}
-			};
+		};
 
-			syncAccount();
-			window.addEventListener('vector:credits-updated', handleCreditsUpdated);
-			if (typeof window !== 'undefined') {
+		syncAccount();
+		window.addEventListener('vector:credits-updated', handleCreditsUpdated);
+		if (typeof window !== 'undefined') {
 			const currentUrl = new URL(window.location.href);
 			const status = currentUrl.searchParams.get('checkout');
 
 			if (status === 'success') {
-				checkoutMessage = 'Success! Stripe is processing your subscription. Check your email for confirmation.';
+				checkoutMessage =
+					'Success! Stripe is processing your subscription. Check your email for confirmation.';
 			} else if (status === 'cancel') {
 				checkoutError = 'Checkout was cancelled. You were not charged.';
 			}
@@ -131,10 +132,10 @@
 				const nextUrl = `${currentUrl.pathname}${nextQuery ? `?${nextQuery}` : ''}${currentUrl.hash}`;
 				window.history.replaceState(null, '', nextUrl);
 			}
-			}
+		}
 
-			return () => {
-				window.removeEventListener('vector:credits-updated', handleCreditsUpdated);
+		return () => {
+			window.removeEventListener('vector:credits-updated', handleCreditsUpdated);
 		};
 	});
 
@@ -165,7 +166,8 @@
 		signingOut = true;
 
 		try {
-			const { error } = await supabase.auth.signOut({ scope: 'global' });
+			const { error } = await supabase.auth.signOut();
+			console.log('error', error);
 			const sessionMissing =
 				(error && 'name' in error && error.name === 'AuthSessionMissingError') ||
 				(error && 'message' in error && /auth session missing/i.test(error.message));
@@ -215,7 +217,9 @@
 		</div>
 
 		{#if checkoutMessage}
-			<div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+			<div
+				class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+			>
 				{checkoutMessage}
 			</div>
 		{/if}
@@ -270,19 +274,19 @@
 					<button
 						type="button"
 						class={`mt-6 inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold tracking-tight transition ${
-			plan.isCurrent
-				? 'cursor-default border-stone-200 bg-stone-200 text-stone-500'
-				: 'border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60'
-		}`}
-					disabled={plan.isCurrent || !plan.paymentLink || checkoutLoading !== null}
-					on:click={() => handlePlanSelection(plan)}
-				>
-					{#if plan.isCurrent}
-						Current plan
-					{:else if checkoutLoading === plan.paymentLink}
-						Redirecting…
-					{:else}
-						Upgrade
+							plan.isCurrent
+								? 'cursor-default border-stone-200 bg-stone-200 text-stone-500'
+								: 'border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60'
+						}`}
+						disabled={plan.isCurrent || !plan.paymentLink || checkoutLoading !== null}
+						on:click={() => handlePlanSelection(plan)}
+					>
+						{#if plan.isCurrent}
+							Current plan
+						{:else if checkoutLoading === plan.paymentLink}
+							Redirecting…
+						{:else}
+							Upgrade
 						{/if}
 					</button>
 				</div>
