@@ -2,40 +2,32 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
+	import type { User } from '@supabase/supabase-js';
 	import { supabase } from '$lib/supabaseClient';
 	import '../app.css';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 	import favicon from '$lib/assets/favicon.svg';
 
-	let { children } = $props();
+	type LayoutData = {
+		user: User | null;
+		credits: number | null;
+	};
+
+	let { children, data } = $props<{ children: () => unknown; data: LayoutData }>();
 
 	let showAuthModal = $state(false);
 	let authLoading = $state(false);
 	let authError = $state<string | null>(null);
-	let sessionExists = $state(false);
+	let sessionExists = $state(Boolean(data?.user));
+	let credits = $state<number | null>(data?.credits ?? null);
 
-onMount(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        sessionExists = Boolean(session);
-    });
+	$effect(() => {
+		sessionExists = Boolean(data?.user);
+		credits = data?.credits ?? null;
+	});
 
-    const {
-        data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
-        sessionExists = Boolean(newSession);
-        if (newSession) {
-            authLoading = false;
-            showAuthModal = false;
-        }
-    });
-
-    return () => {
-        subscription.unsubscribe();
-    };
-});
-
-	function openAuthModal() {
-		authError = null;
+	function openAuthModal(message?: string) {
+		authError = message ?? null;
 		showAuthModal = true;
 	}
 
@@ -45,14 +37,90 @@ onMount(() => {
 		authError = null;
 	}
 
+	function dispatchCreditsUpdated(value: number | null) {
+		if (typeof window === 'undefined') return;
+		window.dispatchEvent(new CustomEvent('vector:credits-updated', { detail: { credits: value } }));
+	}
+
+	async function refreshCreditsFromSupabase() {
+		const {
+			data: { session }
+		} = await supabase.auth.getSession();
+
+		if (!session) {
+			credits = null;
+			dispatchCreditsUpdated(null);
+			return;
+		}
+
+		const { data: row, error } = await supabase
+			.from('users')
+			.select('credits')
+			.eq('user_id', session.user.id)
+			.maybeSingle();
+
+		if (!error && row && typeof row.credits === 'number') {
+			credits = row.credits;
+			dispatchCreditsUpdated(row.credits);
+		}
+	}
+
 	onMount(() => {
-		const onKeyDown = (event: KeyboardEvent) => {
+		supabase.auth.getSession().then(({ data: { session } }) => {
+			sessionExists = Boolean(session);
+			if (!session) {
+				credits = null;
+			}
+		});
+
+		const {
+			data: { subscription }
+		} = supabase.auth.onAuthStateChange((_event, newSession) => {
+			sessionExists = Boolean(newSession);
+
+			if (newSession) {
+				authLoading = false;
+				showAuthModal = false;
+				refreshCreditsFromSupabase();
+				if (typeof window !== 'undefined') {
+					window.dispatchEvent(new CustomEvent('vector:auth-signed-in'));
+				}
+			} else {
+				credits = null;
+				dispatchCreditsUpdated(null);
+			}
+		});
+
+		const handleAuthRequired = (event: Event) => {
+			const detail = (event as CustomEvent<{ message?: string }>).detail;
+			authError = detail?.message ?? 'Sign in to claim your free project credit.';
+			authLoading = false;
+			showAuthModal = true;
+		};
+
+		const handleCreditsUpdated = (event: Event) => {
+			const detail = (event as CustomEvent<{ credits?: number | null }>).detail;
+			if (typeof detail?.credits === 'number' || detail?.credits === null) {
+				credits = detail.credits;
+			}
+		};
+
+		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key === 'Escape' && showAuthModal && !authLoading) {
 				closeAuthModal();
 			}
 		};
-		window.addEventListener('keydown', onKeyDown);
-		return () => window.removeEventListener('keydown', onKeyDown);
+
+		window.addEventListener('vector:auth-required', handleAuthRequired);
+		window.addEventListener('vector:credits-updated', handleCreditsUpdated);
+		window.addEventListener('keydown', handleKeyDown);
+
+		return () => {
+			subscription.unsubscribe();
+			window.removeEventListener('vector:auth-required', handleAuthRequired);
+			window.removeEventListener('vector:credits-updated', handleCreditsUpdated);
+			window.removeEventListener('keydown', handleKeyDown);
+		};
 	});
 
 	async function signInWithGoogle() {
@@ -61,13 +129,19 @@ onMount(() => {
 		authError = null;
 
 		try {
-			const { error } = await supabase.auth.signInWithOAuth({
+			const { data, error } = await supabase.auth.signInWithOAuth({
 				provider: 'google',
 				options: {
-					redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined
+					redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
+					queryParams: {
+						prompt: 'select_account'
+					}
 				}
 			});
 			if (error) throw error;
+			if (data?.url) {
+				window.location.assign(data.url);
+			}
 		} catch (err) {
 			authError = err instanceof Error ? err.message : 'Unexpected error signing in.';
 			authLoading = false;
@@ -94,23 +168,26 @@ onMount(() => {
 				<span class="font-mono tracking-tight">vector</span>
 			</button>
 
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-4">
 				{#if !sessionExists}
 					<button
-						class="rounded-md px-2 py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
+						class="rounded-md py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
+						>Pricing</button
+					>
+					<button
+						class="rounded-md py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
 					>
 						How it works
 					</button>
 				{/if}
 
-				<button
-					onclick={() => goto('/dashboard')}
-					class="rounded-md px-2 py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
-				>
-					Dashboard
-				</button>
-
 				{#if sessionExists}
+					<button
+						onclick={() => goto('/dashboard')}
+						class="rounded-md py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
+					>
+						Dashboard
+					</button>
 					<button
 						onclick={() => goto('/profile')}
 						class="rounded-md bg-stone-800 px-3 py-1 text-xs font-medium tracking-tight text-stone-50 transition hover:bg-stone-600"
@@ -119,7 +196,7 @@ onMount(() => {
 					</button>
 				{:else}
 					<button
-						onclick={openAuthModal}
+						onclick={() => openAuthModal()}
 						class="rounded-md bg-stone-800 px-3 py-1 text-xs font-medium tracking-tight text-stone-50 transition hover:bg-stone-600"
 					>
 						Sign in

@@ -1,56 +1,33 @@
 <script lang="ts">
+	import { cubicOut } from 'svelte/easing';
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import type { Project } from '$lib/types/project';
+	import { difficultyBadgeClasses } from '$lib/styles/difficulty';
+	import { fly } from 'svelte/transition';
 	import ProjectDetail from '$lib/components/ProjectDetail.svelte';
+	import { dashboardProjects } from '$lib/stores/dashboardProjects';
+	import type { DashboardProjectsState, StoredProject } from '$lib/stores/dashboardProjects';
+	import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
 
-	type StoredProject = Project & {
-		id: string;
-		created_at: string | null;
-	};
-
-	let loading = $state(true);
-	let projects = $state<StoredProject[]>([]);
-	let loadError = $state<string | null>(null);
-	let sessionExists = $state(false);
+	let dashboardState = $state<DashboardProjectsState>(dashboardProjects.getSnapshot());
 	let selectedProject = $state<StoredProject | null>(null);
 
-	async function loadProjects() {
-		loading = true;
-		loadError = null;
+	const initialLoading = $derived(
+		dashboardState.status === 'loading' && dashboardState.projects.length === 0
+	);
+	const isRefreshing = $derived(dashboardState.status === 'refreshing');
+	const loadError = $derived(dashboardState.status === 'error' ? dashboardState.error : null);
+	const hasProjects = $derived(dashboardState.projects.length > 0);
+	const sessionExists = $derived(dashboardState.sessionExists);
+	const projects = $derived(dashboardState.projects);
 
-		try {
-			const {
-				data: { session },
-				error: sessionError
-			} = await supabase.auth.getSession();
-
-			if (sessionError) throw sessionError;
-
-			if (!session) {
-				sessionExists = false;
-				projects = [];
-				loading = false;
-				return;
-			}
-
-			sessionExists = true;
-
-			const { data, error } = await supabase
-				.from('projects')
-				.select('id, title, difficulty, timeline, description, jobs, skills, created_at')
-				.eq('user_id', session.user.id)
-				.order('created_at', { ascending: false });
-
-			if (error) throw error;
-
-			projects = (data ?? []) as StoredProject[];
-		} catch (err) {
-			loadError = err instanceof Error ? err.message : 'Unable to load projects right now.';
-		} finally {
-			loading = false;
-		}
+	const routeVisitKey = 'dashboard';
+	const initialShouldAnimate =
+		typeof window === 'undefined' ? false : !hasVisitedRoute(routeVisitKey);
+	if (typeof window !== 'undefined' && initialShouldAnimate) {
+		markRouteVisited(routeVisitKey);
 	}
+	const shouldAnimateCards = initialShouldAnimate;
 
 	function formatCreatedAt(value: string | null): string {
 		if (!value) return '';
@@ -80,37 +57,44 @@
 		selectedProject = project;
 	}
 
-	function difficultyClasses(level: Project['difficulty']): string {
-		switch (level) {
-			case 'Easy':
-				return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-			case 'Medium':
-				return 'border-amber-200 bg-amber-50 text-amber-700';
-			case 'Hard':
-				return 'border-rose-200 bg-rose-50 text-rose-700';
-			case 'Expert':
-				return 'border-purple-200 bg-purple-50 text-purple-700';
-			default:
-				return 'border-stone-200 bg-stone-50 text-stone-700';
-		}
+	function retryLoading() {
+		void dashboardProjects.refresh();
 	}
 
+	$effect(() => {
+		if (!selectedProject) return;
+		const match = dashboardState.projects.find((project) => project.id === selectedProject?.id);
+		if (!match) {
+			selectedProject = null;
+		} else if (match !== selectedProject) {
+			selectedProject = match;
+		}
+	});
+
 	onMount(() => {
-		loadProjects();
+		const unsubscribe = dashboardProjects.subscribe((value) => {
+			dashboardState = value;
+		});
+
+		void dashboardProjects.load();
+
+		return () => {
+			unsubscribe();
+		};
 	});
 </script>
 
 <svelte:head>
-	<title>Dashboard • Vector</title>
+	<title>Dashboard</title>
 </svelte:head>
 
 <div class="min-h-dvh w-full bg-stone-50 px-6 py-4 text-stone-800">
-	<div class="mx-auto w-full max-w-4xl">
-		{#if selectedProject}
+	<div class="mx-auto w-full max-w-5xl">
+			{#if selectedProject}
 			<button
 				type="button"
 				class="inline-flex items-center gap-2 text-sm text-stone-600 transition hover:text-stone-900"
-				on:click={() => (selectedProject = null)}
+				onclick={() => (selectedProject = null)}
 				aria-label="Back to dashboard"
 			>
 				<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
@@ -130,22 +114,53 @@
 		{:else}
 			<div class="flex items-center justify-between gap-3">
 				<div>
-					<h1 class="text-3xl font-semibold tracking-tight text-stone-900">Dashboard</h1>
+					<h1 class="text-3xl font-semibold tracking-tight text-stone-800">Dashboard</h1>
 				</div>
+				{#if isRefreshing && hasProjects}
+					<div class="flex items-center gap-2 text-xs text-stone-500" aria-live="polite">
+						<svg
+							viewBox="0 0 24 24"
+							class="h-3.5 w-3.5 animate-spin"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path
+								d="M12 3v2m6.36.64-1.42 1.42M21 12h-2m-.64 6.36-1.42-1.42M12 19v2m-6.36-.64 1.42-1.42M5 12H3m.64-6.36 1.42 1.42"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/>
+						</svg>
+						<span>Updating…</span>
+					</div>
+				{/if}
 			</div>
 
-			{#if loading}
-				<div class="mt-10 space-y-4">
-					{#each Array.from({ length: 3 }) as _, i}
-						<div
-							class="h-[120px] animate-pulse rounded-2xl border border-stone-200 bg-white/70"
-							aria-hidden="true"
-						/>
-					{/each}
-				</div>
+			{#if initialLoading}
+				<div class="mt-10"></div>
 			{:else if loadError}
-				<div class="mt-10 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
-					{loadError}
+				<div class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+					<p>{loadError}</p>
+					<button
+						type="button"
+						class="mt-3 inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:border-rose-300 hover:text-rose-800"
+						onclick={retryLoading}
+					>
+						<svg
+							viewBox="0 0 24 24"
+							class="h-3.5 w-3.5"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path
+								d="M4 4v6h6M20 20v-6h-6M5.64 18.36A9 9 0 0 1 6 6m12 12a9 9 0 0 0 0-12"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/>
+						</svg>
+						Try again
+					</button>
 				</div>
 			{:else if !sessionExists}
 				<div class="rounded-2xl border border-stone-200 bg-white p-4 text-sm text-stone-600">
@@ -154,7 +169,7 @@
 					</p>
 					<button
 						class="mt-4 inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 transition hover:border-stone-300 hover:bg-stone-50"
-						on:click={signIn}
+						onclick={signIn}
 					>
 						<svg class="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
 							<path
@@ -183,50 +198,62 @@
 				</div>
 			{:else}
 				<div class="mt-4 grid gap-4 sm:grid-cols-2">
-					{#each projects as project}
-						<article
-							role="button"
-							tabindex="0"
-							class="flex min-h-[160px] cursor-pointer flex-col justify-between gap-3 rounded-lg border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition hover:border-stone-300 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-black/10 focus-visible:outline-none"
-							on:click={() => viewProject(project)}
-							on:keydown={(event) => {
-								if (event.key === 'Enter' || event.key === ' ') {
-									event.preventDefault();
-									viewProject(project);
+						{#each projects as project, index}
+							<div
+								in:fly|global={
+									shouldAnimateCards
+										? { y: 10, duration: 500, easing: cubicOut, delay: index * 100 }
+										: undefined
+								}
+								class="flex min-h-[120px] cursor-pointer flex-col items-start justify-between gap-3 rounded-lg border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)] hover:border-stone-300 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-black/10 focus-visible:outline-none"
+								role="button"
+								tabindex="0"
+								onclick={() => viewProject(project)}
+								onkeydown={(event) => {
+									if (event.key === 'Enter' || event.key === ' ') {
+										event.preventDefault();
+										viewProject(project);
 								}
 							}}
 						>
-							<div class="flex items-start justify-between gap-2">
+							<div class="flex w-full items-center justify-between">
 								<h2
-									class="w-full truncate text-sm font-semibold tracking-tight text-stone-900"
+									class="w-full truncate text-lg font-medium tracking-tight text-stone-800"
 									title={project.title}
 								>
 									{project.title}
 								</h2>
-								<span
-									class={`shrink-0 rounded-lg border px-2.5 py-1 text-[11px] font-medium ${difficultyClasses(project.difficulty)}`}
-								>
-									{project.difficulty}
-								</span>
+								<div class="flex flex-row gap-2 self-end pr-5">
+									<span
+										class={`rounded-md border px-2 py-1 text-[10px] ${difficultyBadgeClasses(project.difficulty)}`}
+									>
+										{project.difficulty}
+									</span>
+									<span
+										class={`shrink-0 rounded-md border border-stone-400 bg-stone-100 px-2 py-1 text-[10px] text-stone-500`}
+									>
+										Not Started
+									</span>
+								</div>
 							</div>
 
 							<div class="flex flex-wrap gap-2">
-								{#each project.skills.slice(0, 4) as skill}
+								{#each project.skills.slice(0, 2) as skill}
 									<span
 										class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-[11px] text-stone-700"
 									>
 										{skill}
 									</span>
 								{/each}
-								{#if project.skills.length > 4}
+								{#if project.skills.length > 2}
 									<span
 										class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-[11px] text-stone-600"
 									>
-										+{project.skills.length - 4} more
+										+{project.skills.length - 2} more
 									</span>
 								{/if}
 							</div>
-						</article>
+						</div>
 					{/each}
 				</div>
 			{/if}

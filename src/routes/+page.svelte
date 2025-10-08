@@ -4,6 +4,7 @@
 	import Quiz from '$lib/components/Quiz.svelte';
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { supabase } from '$lib/supabaseClient';
 
 	const {
 		placeholder = 'Tell us your interests… Not sure? Take the interest quiz',
@@ -29,6 +30,8 @@
 	function closeQuiz() {
 		showInterestQuiz = false;
 	}
+
+	const PENDING_GENERATION_KEY = 'vector:pending-generation';
 
 	const MASTER_SUGGESTIONS = [
 		// Bio/health
@@ -144,6 +147,76 @@
 		picked.add(tag);
 	}
 
+	function savePendingGeneration(payload: { interests: string; tags: string[] }) {
+		if (typeof window === 'undefined') return;
+		try {
+			sessionStorage.setItem(PENDING_GENERATION_KEY, JSON.stringify(payload));
+		} catch (
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			_err
+		) {
+			// ignore quota / availability issues
+		}
+	}
+
+	function loadPendingGeneration(): { interests: string; tags: string[] } | null {
+		if (typeof window === 'undefined') return null;
+		try {
+			const raw = sessionStorage.getItem(PENDING_GENERATION_KEY);
+			if (!raw) return null;
+			const parsed = JSON.parse(raw) as { interests?: unknown; tags?: unknown };
+			const interests = typeof parsed.interests === 'string' ? parsed.interests : '';
+			const tags = Array.isArray(parsed.tags)
+				? parsed.tags.filter((tag): tag is string => typeof tag === 'string')
+				: [];
+			return { interests, tags };
+		} catch (
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			_err
+		) {
+			return null;
+		}
+	}
+
+	function clearPendingGeneration() {
+		if (typeof window === 'undefined') return;
+		try {
+			sessionStorage.removeItem(PENDING_GENERATION_KEY);
+		} catch (
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			_err
+		) {
+			// ignore
+		}
+	}
+
+	async function resumePendingGeneration() {
+		if (isGenerating) return;
+		const pending = loadPendingGeneration();
+		if (!pending) return;
+		const {
+			data: { session }
+		} = await supabase.auth.getSession();
+		if (!session) return;
+		clearPendingGeneration();
+		input = pending.interests;
+		picked = new Set(pending.tags);
+		errorMessage = null;
+		await submit();
+	}
+
+	onMount(() => {
+		resumePendingGeneration();
+		const handleSignedIn = () => {
+			resumePendingGeneration();
+		};
+
+		window.addEventListener('vector:auth-signed-in', handleSignedIn);
+		return () => {
+			window.removeEventListener('vector:auth-signed-in', handleSignedIn);
+		};
+	});
+
 	async function submit() {
 		if (isGenerating) return;
 		const interests = input.trim();
@@ -159,6 +232,8 @@
 		errorMessage = null;
 		isGenerating = true;
 		onGenerate(payload);
+
+		clearPendingGeneration();
 
 		try {
 			const response = await fetch('/api/generate-project', {
@@ -179,6 +254,32 @@
 					detail = text || null;
 				}
 
+				if (response.status === 401) {
+					const message = detail ?? 'Sign in to claim your free project credit (0 / 1 credits).';
+					errorMessage = message;
+					savePendingGeneration(payload);
+					window.dispatchEvent(
+						new CustomEvent('vector:auth-required', {
+							detail: { message }
+						})
+					);
+					isGenerating = false;
+					return;
+				}
+
+				if (response.status === 402) {
+					const message =
+						detail ?? 'You are out of credits. Visit your profile to review your balance.';
+					errorMessage = message;
+					window.dispatchEvent(
+						new CustomEvent('vector:credits-updated', {
+							detail: { credits: 0 }
+						})
+					);
+					isGenerating = false;
+					return;
+				}
+
 				if (response.status === 400 && detail) {
 					errorMessage = detail;
 				} else {
@@ -189,8 +290,20 @@
 			}
 
 			const project = await response.json();
+			const creditsHeader = response.headers.get('x-vector-user-credits');
+			if (creditsHeader !== null) {
+				const numericCredits = Number.parseInt(creditsHeader, 10);
+				if (!Number.isNaN(numericCredits)) {
+					window.dispatchEvent(
+						new CustomEvent('vector:credits-updated', {
+							detail: { credits: numericCredits }
+						})
+					);
+				}
+			}
 			const sourceHeader = response.headers.get('x-vector-project-source');
 			const usedFallback = sourceHeader === 'fallback';
+			clearPendingGeneration();
 			await goto('/project', { state: { project, fallback: usedFallback } });
 		} catch (err) {
 			console.error('Project generation failed', err);
@@ -339,11 +452,7 @@
 						{#each visibleSuggestions as s}
 							<button
 								data-chip
-								class="group inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-700 transition hover:border-stone-300 hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:outline-none {picked.has(
-									s
-								)
-									? 'border-stone-900 bg-stone-900 text-white hover:bg-stone-900'
-									: ''}"
+								class="group inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-700 transition hover:border-stone-300 hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:outline-none"
 								onclick={() => (picked.has(s) ? toggle(s) : addToInput(s))}
 								aria-pressed={picked.has(s)}
 								title={s}
