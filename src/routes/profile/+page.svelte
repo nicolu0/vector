@@ -27,6 +27,7 @@
 		features: string[];
 		isCurrent?: boolean;
 		compareAtPrice?: string;
+		paymentLink?: string;
 	};
 
 	const plans: Plan[] = [
@@ -43,7 +44,8 @@
 			price: '$6',
 			cadence: 'per week',
 			description: 'Stay in rhythm with fresh credits every week.',
-			features: ['1 credit added every week', 'Priority project tuning', 'Cancel anytime']
+			features: ['1 credit added every week', 'Priority project tuning', 'Cancel anytime'],
+			paymentLink: import.meta.env.VITE_STRIPE_PAYMENT_LINK_WEEKLY
 		},
 		{
 			name: 'Plus Monthly',
@@ -55,9 +57,14 @@
 				'5 credits refreshed monthly',
 				'Email support with quick replies',
 				'Early feature access'
-			]
+			],
+			paymentLink: import.meta.env.VITE_STRIPE_PAYMENT_LINK_MONTHLY
 		}
 	];
+
+	let checkoutLoading = $state<string | null>(null);
+	let checkoutError = $state<string | null>(null);
+	let checkoutMessage = $state<string | null>(null);
 
 	onMount(() => {
 		const syncAccount = async () => {
@@ -104,12 +111,30 @@
 			if (typeof detail?.credits === 'number' || detail?.credits === null) {
 				credits = detail.credits;
 			}
-		};
+			};
 
-		syncAccount();
-		window.addEventListener('vector:credits-updated', handleCreditsUpdated);
-		return () => {
-			window.removeEventListener('vector:credits-updated', handleCreditsUpdated);
+			syncAccount();
+			window.addEventListener('vector:credits-updated', handleCreditsUpdated);
+			if (typeof window !== 'undefined') {
+			const currentUrl = new URL(window.location.href);
+			const status = currentUrl.searchParams.get('checkout');
+
+			if (status === 'success') {
+				checkoutMessage = 'Success! Stripe is processing your subscription. Check your email for confirmation.';
+			} else if (status === 'cancel') {
+				checkoutError = 'Checkout was cancelled. You were not charged.';
+			}
+
+			if (status) {
+				currentUrl.searchParams.delete('checkout');
+				const nextQuery = currentUrl.searchParams.toString();
+				const nextUrl = `${currentUrl.pathname}${nextQuery ? `?${nextQuery}` : ''}${currentUrl.hash}`;
+				window.history.replaceState(null, '', nextUrl);
+			}
+			}
+
+			return () => {
+				window.removeEventListener('vector:credits-updated', handleCreditsUpdated);
 		};
 	});
 
@@ -158,6 +183,25 @@
 			signingOut = false;
 		}
 	}
+
+	function handlePlanSelection(plan: Plan) {
+		if (!plan.paymentLink || plan.isCurrent || checkoutLoading) return;
+		checkoutError = null;
+		checkoutMessage = null;
+		checkoutLoading = plan.paymentLink;
+		if (typeof window === 'undefined') {
+			checkoutError = 'Checkout is only available in the browser.';
+			checkoutLoading = null;
+			return;
+		}
+		try {
+			const url = new URL(plan.paymentLink, window.location.origin);
+			window.location.assign(url.toString());
+		} catch (err) {
+			checkoutError = 'Unable to open checkout right now.';
+			checkoutLoading = null;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -169,6 +213,18 @@
 		<div>
 			<h1 class="text-3xl font-semibold tracking-tight text-stone-800">Profile</h1>
 		</div>
+
+		{#if checkoutMessage}
+			<div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+				{checkoutMessage}
+			</div>
+		{/if}
+
+		{#if checkoutError}
+			<div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+				{checkoutError}
+			</div>
+		{/if}
 
 		<div class="mt-6 grid gap-4 md:grid-cols-3">
 			{#each plans as plan, index}
@@ -184,7 +240,7 @@
 								{plan.name}
 							</p>
 							<div class="mt-2 flex items-baseline gap-3">
-								<div class="flex items-baseline gap-1">
+								<div class="flex items-baseline gap-2">
 									{#if plan.compareAtPrice}
 										<span
 											class="text-3xl font-medium text-stone-400 line-through decoration-stone-300 decoration-2"
@@ -214,13 +270,20 @@
 					<button
 						type="button"
 						class={`mt-6 inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold tracking-tight transition ${
-							plan.isCurrent
-								? 'cursor-default border-stone-200 bg-stone-200 text-stone-500'
-								: 'border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-700'
-						}`}
-						disabled={plan.isCurrent}
-					>
-						{plan.isCurrent ? 'Current plan' : 'Upgrade'}
+			plan.isCurrent
+				? 'cursor-default border-stone-200 bg-stone-200 text-stone-500'
+				: 'border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60'
+		}`}
+					disabled={plan.isCurrent || !plan.paymentLink || checkoutLoading !== null}
+					on:click={() => handlePlanSelection(plan)}
+				>
+					{#if plan.isCurrent}
+						Current plan
+					{:else if checkoutLoading === plan.paymentLink}
+						Redirecting…
+					{:else}
+						Upgrade
+						{/if}
 					</button>
 				</div>
 			{/each}
