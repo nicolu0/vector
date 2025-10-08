@@ -400,7 +400,7 @@
 
 	{@render children()}
 
-	{#if true}
+	{#if showOnboarding}
 		<OnboardingFlow
 			onSubmit={handleOnboardingSubmit}
 			submitting={onboardingSubmitting}
