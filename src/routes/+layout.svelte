@@ -320,20 +320,20 @@
 			}
 		}
 
+		const redirectTo =
+			typeof window !== 'undefined' ? `http://localhost:5173/auth/callback` : undefined;
+		console.log('redirect: ', redirectTo);
 		try {
 			const { data: authData, error } = await supabase.auth.signInWithOAuth({
 				provider: 'google',
 				options: {
-					redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
+					redirectTo: redirectTo,
 					queryParams: {
 						prompt: 'select_account'
 					}
 				}
 			});
 			if (error) throw error;
-			if (authData?.url) {
-				window.location.assign(authData.url);
-			}
 		} catch (err) {
 			authError = err instanceof Error ? err.message : 'Unexpected error signing in.';
 			authLoading = false;
