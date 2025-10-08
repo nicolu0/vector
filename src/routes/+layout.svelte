@@ -2,16 +2,77 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import type { User } from '@supabase/supabase-js';
+	import type { Session, User } from '@supabase/supabase-js';
 	import { supabase } from '$lib/supabaseClient';
 	import '../app.css';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 	import favicon from '$lib/assets/favicon.svg';
+	import OnboardingFlow from '$lib/components/OnboardingFlow.svelte';
 
 	type LayoutData = {
 		user: User | null;
 		credits: number | null;
 	};
+
+	type AuthIntent = 'general' | 'generate';
+	type OnboardingAction = 'profile' | 'generate';
+	type OnboardingAnswers = {
+		education: 'high_school' | 'college' | null;
+		goal: 'full_time' | 'internship' | 'explore' | null;
+		project: 'research' | 'industry' | null;
+	};
+
+	type VectorOnboarding = {
+		education?: 'high_school' | 'college';
+		goal?: 'full_time' | 'internship' | 'explore';
+		project?: 'research' | 'industry';
+		completed?: boolean;
+		updated_at?: string;
+	} | null;
+
+	const AUTH_INTENT_KEY = 'vector:auth-intent';
+
+	function extractOnboarding(user: User | null): VectorOnboarding {
+		if (!user || typeof user.user_metadata !== 'object') return null;
+		const raw = (user.user_metadata as Record<string, unknown>).vector_onboarding;
+		if (!raw || typeof raw !== 'object') return null;
+
+		const candidate = raw as Record<string, unknown>;
+		const education =
+			candidate.education === 'high_school' || candidate.education === 'college'
+				? candidate.education
+				: undefined;
+		const goal =
+			candidate.goal === 'full_time' ||
+			candidate.goal === 'internship' ||
+			candidate.goal === 'explore'
+				? candidate.goal
+				: undefined;
+		const project =
+			candidate.project === 'research' || candidate.project === 'industry'
+				? candidate.project
+				: undefined;
+		const completed = candidate.completed === true;
+		const updated_at = typeof candidate.updated_at === 'string' ? candidate.updated_at : undefined;
+
+		return {
+			education,
+			goal,
+			project,
+			completed,
+			updated_at
+		};
+	}
+
+	function isOnboardingComplete(data: VectorOnboarding): boolean {
+		if (!data) return false;
+		return Boolean(data.completed && data.education && data.goal && data.project);
+	}
+
+	function needsOnboarding(user: User | null): boolean {
+		if (!user) return false;
+		return !isOnboardingComplete(extractOnboarding(user));
+	}
 
 	let { children, data } = $props<{ children: () => unknown; data: LayoutData }>();
 
@@ -20,14 +81,46 @@
 	let authError = $state<string | null>(null);
 	let sessionExists = $state(Boolean(data?.user));
 	let credits = $state<number | null>(data?.credits ?? null);
+	let authIntent = $state<AuthIntent | null>(null);
+
+	const initialOnboarding = extractOnboarding(data?.user ?? null);
+	const initialNeedsOnboarding = Boolean(data?.user && !isOnboardingComplete(initialOnboarding));
+
+	let onboardingAnswers = $state<OnboardingAnswers>({
+		education: initialOnboarding?.education ?? null,
+		goal: initialOnboarding?.goal ?? null,
+		project: initialOnboarding?.project ?? null
+	});
+	let showOnboarding = $state(initialNeedsOnboarding);
+	let onboardingSubmitting = $state(false);
+	let onboardingError = $state<string | null>(null);
+	let onboardingAction = $state<OnboardingAction | null>(initialNeedsOnboarding ? 'profile' : null);
 
 	$effect(() => {
 		sessionExists = Boolean(data?.user);
 		credits = data?.credits ?? null;
 	});
 
-	function openAuthModal(message?: string) {
+	function consumeStoredAuthIntent() {
+		if (typeof window === 'undefined') return;
+		try {
+			const stored = window.sessionStorage.getItem(AUTH_INTENT_KEY);
+			if (stored === 'generate' || stored === 'general') {
+				authIntent = stored;
+			}
+			window.sessionStorage.removeItem(AUTH_INTENT_KEY);
+		} catch (
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			_err
+		) {
+			// ignore
+		}
+	}
+
+	function openAuthModal(message?: string, intent: AuthIntent = 'general') {
 		authError = message ?? null;
+		authLoading = false;
+		authIntent = intent;
 		showAuthModal = true;
 	}
 
@@ -65,12 +158,48 @@
 		}
 	}
 
+	function handleSignedInSession(session: Session, source: 'initial' | 'auth-change') {
+		const onboarding = extractOnboarding(session.user);
+		onboardingAnswers = {
+			education: onboarding?.education ?? onboardingAnswers.education,
+			goal: onboarding?.goal ?? onboardingAnswers.goal,
+			project: onboarding?.project ?? onboardingAnswers.project
+		};
+
+		if (!isOnboardingComplete(onboarding)) {
+			onboardingError = null;
+			onboardingSubmitting = false;
+			showOnboarding = true;
+			onboardingAction = authIntent === 'generate' ? 'generate' : (onboardingAction ?? 'profile');
+			return;
+		}
+
+		showOnboarding = false;
+		onboardingAction = null;
+		onboardingError = null;
+		onboardingSubmitting = false;
+
+		if (authIntent === 'generate') {
+			if (typeof window !== 'undefined') {
+				window.dispatchEvent(new CustomEvent('vector:auth-signed-in'));
+			}
+		} else if (authIntent === 'general' && source === 'auth-change') {
+			goto('/profile');
+		}
+
+		authIntent = null;
+	}
+
 	onMount(() => {
+		consumeStoredAuthIntent();
+
 		supabase.auth.getSession().then(({ data: { session } }) => {
 			sessionExists = Boolean(session);
 			if (!session) {
 				credits = null;
+				return;
 			}
+			handleSignedInSession(session, 'initial');
 		});
 
 		const {
@@ -82,20 +211,18 @@
 				authLoading = false;
 				showAuthModal = false;
 				refreshCreditsFromSupabase();
-				if (typeof window !== 'undefined') {
-					window.dispatchEvent(new CustomEvent('vector:auth-signed-in'));
-				}
+				handleSignedInSession(newSession, 'auth-change');
 			} else {
 				credits = null;
 				dispatchCreditsUpdated(null);
+				authIntent = null;
 			}
 		});
 
 		const handleAuthRequired = (event: Event) => {
-			const detail = (event as CustomEvent<{ message?: string }>).detail;
-			authError = detail?.message ?? 'Sign in to claim your free project credit.';
-			authLoading = false;
-			showAuthModal = true;
+			const detail = (event as CustomEvent<{ message?: string; reason?: 'generate' }>).detail;
+			const intent = detail?.reason === 'generate' ? 'generate' : 'general';
+			openAuthModal(detail?.message ?? 'Sign in to claim your free project credit.', intent);
 		};
 
 		const handleCreditsUpdated = (event: Event) => {
@@ -123,25 +250,90 @@
 		};
 	});
 
+	async function handleOnboardingSubmit(answers: {
+		education: 'high_school' | 'college';
+		goal: 'full_time' | 'internship' | 'explore';
+		project: 'research' | 'industry';
+	}) {
+		if (onboardingSubmitting) return;
+		onboardingError = null;
+		onboardingSubmitting = true;
+
+		try {
+			const { error } = await supabase.auth.updateUser({
+				data: {
+					vector_onboarding: {
+						education: answers.education,
+						goal: answers.goal,
+						project: answers.project,
+						completed: true,
+						updated_at: new Date().toISOString()
+					}
+				}
+			});
+			if (error) throw error;
+
+			onboardingAnswers = {
+				education: answers.education,
+				goal: answers.goal,
+				project: answers.project
+			};
+			onboardingSubmitting = false;
+			showOnboarding = false;
+
+			const nextAction =
+				onboardingAction ??
+				(authIntent === 'generate' ? 'generate' : ('profile' as OnboardingAction));
+
+			const intentToUse = authIntent;
+			onboardingAction = null;
+			authIntent = null;
+
+			if (intentToUse === 'generate' || nextAction === 'generate') {
+				if (typeof window !== 'undefined') {
+					window.dispatchEvent(new CustomEvent('vector:auth-signed-in'));
+				}
+			} else if (nextAction === 'profile') {
+				goto('/profile');
+			}
+		} catch (err) {
+			onboardingSubmitting = false;
+			onboardingError =
+				err instanceof Error ? err.message : 'Unable to save your onboarding answers right now.';
+		}
+	}
+
 	async function signInWithGoogle() {
 		if (authLoading) return;
 		authLoading = true;
 		authError = null;
 
+		const intent = authIntent ?? 'general';
+		if (typeof window !== 'undefined') {
+			try {
+				window.sessionStorage.setItem(AUTH_INTENT_KEY, intent);
+			} catch (
+				// eslint-disable-next-line @typescript-eslint/no-unused-vars
+				_err
+			) {
+				// ignore
+			}
+		}
+
+		const redirectTo =
+			typeof window !== 'undefined' ? `http://localhost:5173/auth/callback` : undefined;
+		console.log('redirect: ', redirectTo);
 		try {
-			const { data, error } = await supabase.auth.signInWithOAuth({
+			const { data: authData, error } = await supabase.auth.signInWithOAuth({
 				provider: 'google',
 				options: {
-					redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
+					redirectTo: redirectTo,
 					queryParams: {
 						prompt: 'select_account'
 					}
 				}
 			});
 			if (error) throw error;
-			if (data?.url) {
-				window.location.assign(data.url);
-			}
 		} catch (err) {
 			authError = err instanceof Error ? err.message : 'Unexpected error signing in.';
 			authLoading = false;
@@ -207,6 +399,15 @@
 	{/if}
 
 	{@render children()}
+
+	{#if showOnboarding}
+		<OnboardingFlow
+			onSubmit={handleOnboardingSubmit}
+			submitting={onboardingSubmitting}
+			error={onboardingError}
+			initialAnswers={onboardingAnswers}
+		/>
+	{/if}
 
 	{#if showAuthModal}
 		<div

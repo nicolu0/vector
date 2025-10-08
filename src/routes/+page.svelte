@@ -206,7 +206,6 @@
 	}
 
 	onMount(() => {
-		resumePendingGeneration();
 		const handleSignedIn = () => {
 			resumePendingGeneration();
 		};
@@ -260,7 +259,7 @@
 					savePendingGeneration(payload);
 					window.dispatchEvent(
 						new CustomEvent('vector:auth-required', {
-							detail: { message }
+							detail: { message, reason: 'generate' as const }
 						})
 					);
 					isGenerating = false;
