@@ -8,13 +8,13 @@
 		showSaveButton = false,
 		saving = false,
 		saveError = null,
-		openAuthModal
+		saveProject
 	} = $props<{
 		project: Project;
 		showSaveButton?: boolean;
 		saving?: boolean;
 		saveError?: string | null;
-		openAuthModal: () => void;
+		saveProject: () => void;
 	}>();
 
 	const dispatch = createEventDispatcher<{ save: void; copy: void }>();
@@ -24,11 +24,6 @@
 		if (normalized.includes('week')) return 'bg-sky-200 text-sky-800';
 		if (normalized.includes('month')) return 'bg-indigo-200 text-indigo-800';
 		return 'bg-stone-200 text-stone-800';
-	}
-
-	function saveProject(project: Project) {
-		sessionStorage.setItem('vector:cached-project', JSON.stringify(project));
-		openAuthModal();
 	}
 
 	function openLink(url: string) {

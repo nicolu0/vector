@@ -1,63 +1,63 @@
 <script lang="ts">
-	import { blur, fly } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
+	import Toast from '$lib/components/Toast.svelte';
 	import { cubicOut } from 'svelte/easing';
 	import OnboardingFlow from '$lib/components/OnboardingFlow.svelte';
 	import Quiz from '$lib/components/Quiz.svelte';
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
-	import Toast from '$lib/components/Toast.svelte';
-	import { getContext } from 'svelte';
 
-	type AuthUI = {
-		openAuthModal: (message?: string) => void;
-		closeAuthModal: () => void;
-	};
-
-	const { openAuthModal } = getContext<AuthUI>('auth-ui');
-
-	type OnboardingAnswers = {
+	type Answers = {
 		education: 'high_school' | 'college' | null;
-		goal: 'full_time' | 'internship' | 'explore' | null;
+		goal: 'full_time' | 'internship' | null;
 		project: 'research' | 'industry' | null;
 	};
 
-	type ToastTone = 'neutral' | 'success' | 'warning' | 'danger';
+	type OnboardingRow = {
+		edu_level: string | null;
+		goal: string | null;
+		project_type: string | null;
+	};
 
+	let onboardingRow = $state<OnboardingRow | null>(null);
+
+	const onboardingComplete = $derived(
+		!!onboardingRow?.edu_level && !!onboardingRow?.goal && !!onboardingRow?.project_type
+	);
+	$inspect(onboardingComplete);
 	let showOnboarding = $state(false);
 	let onboardingSubmitting = $state(false);
 	let onboardingError: string | null = $state(null);
-	let onboardingAnswers: OnboardingAnswers = $state({
+	let onboardingAnswers: Partial<Answers> = $state({
 		education: null,
 		goal: null,
 		project: null
 	});
-	let toastOpen = $state(false);
-	let toastMessage = $state('');
-	let toastTone = $state<ToastTone>('neutral');
 
-	async function showToast(message: string, tone: ToastTone = 'neutral') {
-		toastMessage = message;
-		toastTone = tone;
-		toastOpen = false;
-		await tick();
-		toastOpen = true;
+	async function loadOnboarding() {
+		const {
+			data: { session }
+		} = await supabase.auth.getSession();
+
+		if (!session) {
+			onboardingRow = null;
+			return;
+		}
+
+		const { data, error } = await supabase
+			.from('users')
+			.select('edu_level, goal, project_type')
+			.eq('user_id', session.user.id)
+			.single();
+
+		if (!error && data) onboardingRow = data as OnboardingRow;
 	}
-	async function handleOnboardingSubmit(answers: {
-		education: 'high_school' | 'college';
-		goal: 'full_time' | 'internship' | 'explore';
-		project: 'research' | 'industry';
-	}) {
+
+	async function generateProject() {
 		const interests = input.trim();
 		const tags = Array.from(picked);
 		const payload = { interests, tags };
-
-		if (onboardingSubmitting) return;
-		onboardingError = null;
-		onboardingSubmitting = true;
-		isGenerating = true;
-		showOnboarding = false;
-		clearPendingGeneration();
 
 		try {
 			const response = await fetch('/api/generate-project', {
@@ -78,7 +78,7 @@
 
 				if (response.status === 401) {
 					const message = detail ?? 'Sign in to claim your free project credit.';
-					errorMessage = message;
+					await showToast(message, 'danger');
 					savePendingGeneration(payload);
 					window.dispatchEvent(
 						new CustomEvent('vector:auth-required', {
@@ -91,7 +91,7 @@
 				if (response.status === 402) {
 					const message =
 						detail ?? 'You are out of credits. Visit your profile to review your balance.';
-					errorMessage = message;
+					await showToast(message, 'danger');
 					window.dispatchEvent(
 						new CustomEvent('vector:credits-updated', { detail: { credits: 0 } })
 					);
@@ -99,7 +99,8 @@
 					return;
 				}
 
-				errorMessage = detail || 'We ran into an issue generating your project. Please try again.';
+				const message = detail || 'We ran into an issue generating your project. Please try again.';
+				await showToast(message, 'danger');
 				isGenerating = false;
 				return;
 			}
@@ -118,10 +119,20 @@
 			clearPendingGeneration();
 			await goto('/project', { state: { project, fallback: usedFallback } });
 		} catch (err) {
-			console.error('Project generation failed', err);
-			errorMessage = 'We ran into an issue generating your project. Please try again.';
+			const message = 'We ran into an issue generating your project. Please try again.';
+			await showToast(message, 'danger');
 			isGenerating = false;
 		}
+	}
+
+	async function handleOnboardingSubmit() {
+		if (onboardingSubmitting) return;
+		onboardingError = null;
+		onboardingSubmitting = true;
+		isGenerating = true;
+		showOnboarding = false;
+		clearPendingGeneration();
+		await generateProject();
 	}
 
 	const {
@@ -322,33 +333,6 @@
 		};
 	});
 
-	async function ensureSignedInOrPrompt(payload: { interests: string; tags: string[] }) {
-		const {
-			data: { user },
-			error
-		} = await supabase.auth.getUser();
-		if (error) throw error;
-
-		if (!user) {
-			const message = 'Sign in to claim your free project credit.';
-			savePendingGeneration(payload);
-			window.dispatchEvent(
-				new CustomEvent('vector:auth-required', {
-					detail: { message, reason: 'generate' as const }
-				})
-			);
-			return { user: null, credits: null };
-		}
-
-		const { data: row } = await supabase
-			.from('users')
-			.select('credits')
-			.eq('user_id', user.id)
-			.maybeSingle();
-
-		const credits = typeof row?.credits === 'number' ? row.credits : null;
-		return { user, credits };
-	}
 	async function submit() {
 		if (isGenerating) return;
 
@@ -356,10 +340,13 @@
 		const tags = Array.from(picked);
 
 		if (!interests && tags.length === 0) {
-			errorMessage = 'Add a short description or pick at least one tag.';
+			const message = 'Add a short description or pick at least one tag.';
+			await showToast(message, 'warning');
 			return;
-		} else {
+		} else if (!onboardingComplete) {
 			showOnboarding = true;
+		} else {
+			generateProject();
 		}
 	}
 
@@ -410,39 +397,25 @@
 	let mounted = $state(false);
 
 	onMount(async () => {
-		const raw = sessionStorage.getItem('vector:cached-project');
-		const project = raw ? JSON.parse(raw) : null;
-		console.log(project);
-		if (project) {
-			console.log('inserting');
-			const {
-				data: { user }
-			} = await supabase.auth.getUser();
-
-			const insertPayload = {
-				user_id: user?.id,
-				title: project.title,
-				difficulty: project.difficulty,
-				timeline: project.timeline,
-				description: project.description,
-				jobs: project.jobs,
-				skills: project.skills
-			};
-
-			const { error } = await supabase.from('projects').insert([insertPayload]);
-			if (!error) {
-				sessionStorage.removeItem('vector:cached-project');
-				await showToast('Project saved to your dashboard.', 'success');
-			} else {
-				await showToast('We could not save that project. Please try again.', 'danger');
-			}
-		}
-
 		mounted = true;
+		await loadOnboarding();
 		await refreshSuggestions();
 		const ro = new ResizeObserver(() => clampToTwoRows());
 		if (chipsEl) ro.observe(chipsEl);
 	});
+
+	type ToastTone = 'neutral' | 'success' | 'warning' | 'danger';
+	let toastOpen = $state(false);
+	let toastMessage = $state('');
+	let toastTone = $state<ToastTone>('neutral');
+
+	async function showToast(message: string, tone: ToastTone = 'neutral') {
+		toastMessage = message;
+		toastTone = tone;
+		toastOpen = false;
+		await tick();
+		toastOpen = true;
+	}
 </script>
 
 {#if !isGenerating}
@@ -496,12 +469,6 @@
 					</button>
 				</div>
 
-				{#if errorMessage}
-					<p class="mt-2 text-sm text-rose-600">
-						{errorMessage}
-					</p>
-				{/if}
-
 				<div
 					bind:this={chipsEl}
 					in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 500 }}
@@ -550,12 +517,6 @@
 		{/if}
 	</main>
 {/if}
-<Toast
-	message={toastMessage}
-	tone={toastTone}
-	open={toastOpen}
-	on:dismiss={() => (toastOpen = false)}
-/>
 {#if isGenerating}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-stone-50 px-6">
 		<div class="w-full max-w-sm p-8 text-center text-stone-800">
@@ -585,6 +546,12 @@
 		}}
 	/>
 {/if}
+<Toast
+	message={toastMessage}
+	tone={toastTone}
+	open={toastOpen}
+	on:dismiss={() => (toastOpen = false)}
+/>
 
 <style>
 	@keyframes spin {

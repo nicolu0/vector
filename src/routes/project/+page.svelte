@@ -29,7 +29,7 @@
 	let saving = $state(false);
 	let saveError = $state<string | null>(null);
 
-	async function saveToDashboard() {
+	async function saveProject() {
 		if (saving) return;
 		saveError = null;
 		saving = true;
@@ -40,9 +40,8 @@
 			} = await supabase.auth.getUser();
 
 			if (!user) {
-				saveError = 'Sign in to save projects to your dashboard.';
-				saving = false;
-				goto('/dashboard');
+				sessionStorage.setItem('vector:cached-project', JSON.stringify(project));
+				openAuthModal();
 				return;
 			}
 
@@ -91,13 +90,6 @@
 			</div>
 		{/if}
 
-		<ProjectDetail
-			{project}
-			showSaveButton={true}
-			{saving}
-			{saveError}
-			on:save={saveToDashboard}
-			{openAuthModal}
-		/>
+		<ProjectDetail {project} showSaveButton={true} {saving} {saveError} {saveProject} />
 	</div>
 </div>

@@ -7,7 +7,6 @@
 	import '../app.css';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 	import favicon from '$lib/assets/favicon.svg';
-	import OnboardingFlow from '$lib/components/OnboardingFlow.svelte';
 	import { setContext } from 'svelte';
 
 	type AuthUI = {

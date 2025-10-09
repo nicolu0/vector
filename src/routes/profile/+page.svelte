@@ -2,9 +2,10 @@
 	import { cubicOut } from 'svelte/easing';
 	import { fly } from 'svelte/transition';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { getContext, onMount } from 'svelte';
+	import { getContext, onMount, tick } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
+	import Toast from '$lib/components/Toast.svelte';
 
 	const routeVisitKey = 'profile';
 	const initialShouldAnimate =
@@ -69,6 +70,18 @@
 	let checkoutLoading = $state<string | null>(null);
 	let checkoutError = $state<string | null>(null);
 	let checkoutMessage = $state<string | null>(null);
+	type ToastTone = 'neutral' | 'success' | 'warning' | 'danger';
+	let toastOpen = $state(false);
+	let toastMessage = $state('');
+	let toastTone = $state<ToastTone>('neutral');
+
+	async function showToast(message: string, tone: ToastTone = 'neutral') {
+		toastMessage = message;
+		toastTone = tone;
+		toastOpen = false;
+		await tick();
+		toastOpen = true;
+	}
 
 	onMount(() => {
 		const syncAccount = async () => {
@@ -118,6 +131,7 @@
 		};
 
 		syncAccount();
+		void persistCachedProject();
 		window.addEventListener('vector:credits-updated', handleCreditsUpdated);
 		if (typeof window !== 'undefined') {
 			const currentUrl = new URL(window.location.href);
@@ -142,6 +156,59 @@
 			window.removeEventListener('vector:credits-updated', handleCreditsUpdated);
 		};
 	});
+
+	type CachedProject = {
+		title: string;
+		difficulty: string;
+		timeline: string;
+		description: string;
+		jobs: unknown;
+		skills: unknown;
+	};
+
+	async function persistCachedProject() {
+		if (typeof window === 'undefined') return;
+		const raw = sessionStorage.getItem('vector:cached-project');
+		if (!raw) return;
+
+		let project: CachedProject | null = null;
+		try {
+			project = JSON.parse(raw) as CachedProject;
+		} catch {
+			sessionStorage.removeItem('vector:cached-project');
+			await showToast('We could not save that project. Please try again.', 'danger');
+			return;
+		}
+
+		if (!project) return;
+
+		const {
+			data: { user }
+		} = await supabase.auth.getUser();
+
+		if (!user?.id) {
+			await showToast('Sign in to save your project to the dashboard.', 'warning');
+			return;
+		}
+
+		const insertPayload = {
+			user_id: user.id,
+			title: project.title,
+			difficulty: project.difficulty,
+			timeline: project.timeline,
+			description: project.description,
+			jobs: project.jobs,
+			skills: project.skills
+		};
+
+		const { error } = await supabase.from('projects').insert([insertPayload]);
+		if (!error) {
+			sessionStorage.removeItem('vector:cached-project');
+			await showToast('Project saved to your dashboard.', 'success');
+		} else {
+			await showToast('We could not save that project. Please try again.', 'danger');
+		}
+	}
 
 	async function clearSupabaseSession() {
 		const auth = supabase.auth as unknown as {
@@ -359,3 +426,9 @@
 		</section>
 	</div>
 </div>
+<Toast
+	message={toastMessage}
+	tone={toastTone}
+	open={toastOpen}
+	on:dismiss={() => (toastOpen = false)}
+/>
