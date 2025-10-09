@@ -33,10 +33,10 @@
 				<div class="flex max-w-[75%] flex-col gap-1">
 					<div
 						class={message.role === 'user'
-							? 'self-end rounded-2xl border border-stone-900 bg-stone-900 px-4 py-2 text-stone-50 shadow-sm'
+							? 'self-end rounded-2xl border border-stone-900 bg-stone-900 px-4 py-2 text-stone-50'
 							: 'px-4 py-2 text-stone-700'}
 					>
-						<p class="mt-1 text-[15px] leading-6 text-current">{message.content}</p>
+						<p class="mt-1 text-xs leading-6 text-current">{message.content}</p>
 					</div>
 				</div>
 			</div>

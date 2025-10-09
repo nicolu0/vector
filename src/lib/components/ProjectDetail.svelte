@@ -35,41 +35,43 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<div class="flex flex-row items-center gap-2">
-			<div class="text-2xl font-semibold tracking-tight text-stone-900 sm:text-2xl lg:text-3xl">
-				{project.title}
-			</div>
-
-			<div class="flex flex-wrap items-center gap-2">
-				<div
-					class={'inline-flex items-center rounded-lg border px-3 py-1 text-xs font-medium ' +
-						difficultyBadgeClasses(project.difficulty)}
-				>
-					{project.difficulty}
-				</div>
-				<div
-					class={'inline-flex items-center rounded-lg border px-3 py-1 text-xs font-medium ' +
-						timelineClasses(project.timeline)}
-				>
-					{project.timeline}
-				</div>
-				<div
-					class="inline-flex items-center rounded-lg border border-stone-400 bg-stone-100 px-3 py-1 text-xs font-medium text-stone-500"
-				>
-					Not Started
-				</div>
-			</div>
+	<div class="flex flex-col items-start gap-3 lg:gap-4">
+		<div class="min-w-0 flex-1 text-2xl font-semibold tracking-tight text-stone-900">
+			{project.title}
 		</div>
-		<div
-			class="inline-flex items-center rounded-full bg-stone-800 px-3 py-1 text-xs font-medium text-stone-50"
-		>
-			<svg class="mr-2 h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
-				<path
-					d="M12 2C6.477 2 2 6.588 2 12.253c0 4.525 2.865 8.363 6.839 9.72.5.095.683-.22.683-.49 0-.242-.009-.882-.014-1.732-2.782.615-3.369-1.35-3.369-1.35-.455-1.176-1.11-1.49-1.11-1.49-.907-.633.069-.62.069-.62 1.003.072 1.53 1.05 1.53 1.05.892 1.559 2.341 1.109 2.91.848.091-.66.35-1.109.636-1.364-2.221-.257-4.555-1.136-4.555-5.055 0-1.117.388-2.03 1.026-2.747-.103-.258-.445-1.296.098-2.7 0 0 .84-.27 2.75 1.048A9.37 9.37 0 0 1 12 6.84c.852.004 1.709.116 2.511.34 1.909-1.318 2.748-1.048 2.748-1.048.544 1.404.202 2.442.1 2.7.64.717 1.025 1.63 1.025 2.747 0 3.93-2.338 4.795-4.566 5.047.36.317.68.942.68 1.898 0 1.37-.013 2.474-.013 2.812 0 .272.18.589.69.489A10.03 10.03 0 0 0 22 12.253C22 6.588 17.523 2 12 2z"
-				/>
-			</svg>
-			<span>Link GitHub</span>
+
+		<div class="flex min-w-[280px] shrink-0 items-start justify-start gap-2">
+			<div
+				class={'inline-flex items-center rounded-lg border px-3 py-1 text-xs font-medium ' +
+					difficultyBadgeClasses(project.difficulty)}
+			>
+				{project.difficulty}
+			</div>
+			<div
+				class={'inline-flex items-center rounded-lg border px-3 py-1 text-xs font-medium ' +
+					timelineClasses(project.timeline)}
+			>
+				{project.timeline}
+			</div>
+			<div
+				class="inline-flex items-center rounded-lg border border-stone-400 bg-stone-100 px-3 py-1 text-xs font-medium text-stone-500"
+			>
+				Not Started
+			</div>
+			<div
+				class="inline-flex items-center rounded-full bg-stone-800 px-3 py-1 text-xs font-medium text-stone-50"
+			>
+				<svg
+					class="mr-2 h-4 w-4 shrink-0"
+					viewBox="0 0 24 24"
+					aria-hidden="true"
+					fill="currentColor"
+					><path
+						d="M12 2C6.477 2 2 6.588 2 12.253c0 4.525 2.865 8.363 6.839 9.72.5.095.683-.22.683-.49 0-.242-.009-.882-.014-1.732-2.782.615-3.369-1.35-3.369-1.35-.455-1.176-1.11-1.49-1.11-1.49-.907-.633.069-.62.069-.62 1.003.072 1.53 1.05 1.53 1.05.892 1.559 2.341 1.109 2.91.848.091-.66.35-1.109.636-1.364-2.221-.257-4.555-1.136-4.555-5.055 0-1.117.388-2.03 1.026-2.747-.103-.258-.445-1.296.098-2.7 0 0 .84-.27 2.75 1.048A9.37 9.37 0 0 1 12 6.84c.852.004 1.709.116 2.511.34 1.909-1.318 2.748-1.048 2.748-1.048.544 1.404.202 2.442.1 2.7.64.717 1.025 1.63 1.025 2.747 0 3.93-2.338 4.795-4.566 5.047.36.317.68.942.68 1.898 0 1.37-.013 2.474-.013 2.812 0 .272.18.589.69.489A10.03 10.03 0 0 0 22 12.253C22 6.588 17.523 2 12 2z"
+					/></svg
+				>
+				<span>Link GitHub</span>
+			</div>
 		</div>
 	</div>
 
