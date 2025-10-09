@@ -171,37 +171,36 @@
 </svelte:head>
 
 <div
-	class="w-full bg-stone-50 px-6 py-4 text-stone-800"
+	class="w-full bg-stone-50 px-6 text-stone-800"
 	class:h-full={!!selectedProject}
 	class:overflow-clip={!!selectedProject}
 >
 	<div class="mx-auto w-full max-w-5xl" class:h-full={!!selectedProject}>
 		{#if selectedProject}
 			<div class="flex h-full flex-col">
-				<button
-					type="button"
-					class="inline-flex items-center gap-2 text-sm text-stone-600 transition hover:text-stone-900"
-					onclick={() => (selectedProject = null)}
-					aria-label="Back to dashboard"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						class="h-4 w-4"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-					</svg>
-					Back
-				</button>
-
 				<div
-					class="mt-6 flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0"
+					class="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0"
 					bind:clientWidth={containerWidth}
 					class:select-none={isResizing}
 				>
 					<div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
+						<button
+							type="button"
+							class="inline-flex items-center gap-2 py-4 text-xs text-stone-400 transition hover:text-stone-900"
+							onclick={() => (selectedProject = null)}
+							aria-label="Back to dashboard"
+						>
+							<svg
+								viewBox="0 0 24 24"
+								class="h-4 w-4"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+							</svg>
+							Back
+						</button>
 						<ProjectDetail project={selectedProject} />
 					</div>
 					<div
@@ -211,7 +210,7 @@
 						aria-orientation="vertical"
 						aria-label="Resize project panels"
 					>
-						<div class="my-2 h-full w-px rounded-full bg-stone-200" />
+						<div class="h-full w-px rounded-full bg-stone-100" />
 					</div>
 
 					<!-- Chat panel: fixed width and scrolls itself -->
@@ -228,7 +227,7 @@
 		{:else}
 			<div class="flex items-center justify-between gap-3">
 				<div>
-					<h1 class="text-3xl font-semibold tracking-tight text-stone-800">Dashboard</h1>
+					<h1 class="mt-4 text-3xl font-semibold tracking-tight text-stone-800">Dashboard</h1>
 				</div>
 				{#if isRefreshing && hasProjects}
 					<div class="flex items-center gap-2 text-xs text-stone-500" aria-live="polite">
