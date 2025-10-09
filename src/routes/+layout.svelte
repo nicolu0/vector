@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { fade, blur, slide, scale } from 'svelte/transition';
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
@@ -108,7 +109,6 @@
 				data: { user }
 			} = await supabase.auth.getUser();
 			userExists = Boolean(user);
-			console.log(userExists);
 			if (user) {
 				await fetchCredits(user.id);
 				await fetchOnboardingFromDB(user.id);
@@ -166,10 +166,11 @@
 		authError = null;
 
 		try {
+			const redirectTo = browser ? `${window.location.origin}/profile` : undefined;
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider: 'google',
 				options: {
-					redirectTo: 'http://localhost:5173',
+					redirectTo: redirectTo,
 					queryParams: { prompt: 'select_account' }
 				}
 			});

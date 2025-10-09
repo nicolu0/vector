@@ -36,10 +36,10 @@
 
 		try {
 			const {
-				data: { session }
-			} = await supabase.auth.getSession();
+				data: { user }
+			} = await supabase.auth.getUser();
 
-			if (!session) {
+			if (!user) {
 				saveError = 'Sign in to save projects to your dashboard.';
 				saving = false;
 				goto('/dashboard');
@@ -47,7 +47,7 @@
 			}
 
 			const insertPayload = {
-				user_id: session.user.id,
+				user_id: user.id,
 				title: project.title,
 				difficulty: project.difficulty,
 				timeline: project.timeline,

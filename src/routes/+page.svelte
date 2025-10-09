@@ -399,7 +399,26 @@
 	onMount(async () => {
 		const raw = sessionStorage.getItem('vector:cached-project');
 		const project = raw ? JSON.parse(raw) : null;
-		console.log('after login: ', project);
+		if (project) {
+			const {
+				data: { user }
+			} = await supabase.auth.getUser();
+
+			const insertPayload = {
+				user_id: user?.id,
+				title: project.title,
+				difficulty: project.difficulty,
+				timeline: project.timeline,
+				description: project.description,
+				jobs: project.jobs,
+				skills: project.skills
+			};
+
+			const { error } = await supabase.from('projects').insert([insertPayload]);
+			if (!error) {
+				sessionStorage.removeItem('vector:cached-project');
+			}
+		}
 
 		mounted = true;
 		await refreshSuggestions();
