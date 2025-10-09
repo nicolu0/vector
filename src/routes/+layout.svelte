@@ -1,253 +1,118 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { browser } from '$app/environment';
+	import { fade, blur, slide, scale } from 'svelte/transition';
 	import { onMount } from 'svelte';
-	import type { Session, User } from '@supabase/supabase-js';
 	import { supabase } from '$lib/supabaseClient';
 	import '../app.css';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 	import favicon from '$lib/assets/favicon.svg';
-	import OnboardingFlow from '$lib/components/OnboardingFlow.svelte';
+	import { setContext } from 'svelte';
 
-	type LayoutData = {
-		user: User | null;
-		credits: number | null;
+	type AuthUI = {
+		openAuthModal: () => void;
+	};
+	type OnboardingUI = {
+		openOnboarding: () => void;
+	};
+	type AuthStateUI = {
+		resetUserState: () => void;
 	};
 
-	type AuthIntent = 'general' | 'generate';
-	type OnboardingAction = 'profile' | 'generate';
+	let { children } = $props();
+
+	let userExists = $state(false);
+	let credits: number | null = $state(null);
+
+	let showAuthModal = $state(false);
+	let authLoading = $state(false);
+	let authError: string | null = $state(null);
+
 	type OnboardingAnswers = {
 		education: 'high_school' | 'college' | null;
 		goal: 'full_time' | 'internship' | 'explore' | null;
 		project: 'research' | 'industry' | null;
 	};
 
-	type VectorOnboarding = {
-		education?: 'high_school' | 'college';
-		goal?: 'full_time' | 'internship' | 'explore';
-		project?: 'research' | 'industry';
-		completed?: boolean;
-		updated_at?: string;
-	} | null;
-
-	const AUTH_INTENT_KEY = 'vector:auth-intent';
-
-	function extractOnboarding(user: User | null): VectorOnboarding {
-		if (!user || typeof user.user_metadata !== 'object') return null;
-		const raw = (user.user_metadata as Record<string, unknown>).vector_onboarding;
-		if (!raw || typeof raw !== 'object') return null;
-
-		const candidate = raw as Record<string, unknown>;
-		const education =
-			candidate.education === 'high_school' || candidate.education === 'college'
-				? candidate.education
-				: undefined;
-		const goal =
-			candidate.goal === 'full_time' ||
-			candidate.goal === 'internship' ||
-			candidate.goal === 'explore'
-				? candidate.goal
-				: undefined;
-		const project =
-			candidate.project === 'research' || candidate.project === 'industry'
-				? candidate.project
-				: undefined;
-		const completed = candidate.completed === true;
-		const updated_at = typeof candidate.updated_at === 'string' ? candidate.updated_at : undefined;
-
-		return {
-			education,
-			goal,
-			project,
-			completed,
-			updated_at
+	let showOnboarding = $state(false);
+	let onboardingSubmitting = $state(false);
+	let onboardingError: string | null = $state(null);
+	let onboardingAnswers: OnboardingAnswers = $state({
+		education: null,
+		goal: null,
+		project: null
+	});
+	function resetUserState() {
+		userExists = false;
+		credits = null;
+		showOnboarding = false;
+		onboardingAnswers = {
+			education: null,
+			goal: null,
+			project: null
 		};
 	}
 
-	function isOnboardingComplete(data: VectorOnboarding): boolean {
-		if (!data) return false;
-		return Boolean(data.completed && data.education && data.goal && data.project);
-	}
-
-	function needsOnboarding(user: User | null): boolean {
-		if (!user) return false;
-		return !isOnboardingComplete(extractOnboarding(user));
-	}
-
-	let { children, data } = $props<{ children: () => unknown; data: LayoutData }>();
-
-	let showAuthModal = $state(false);
-	let authLoading = $state(false);
-	let authError = $state<string | null>(null);
-	let sessionExists = $state(Boolean(data?.user));
-	let credits = $state<number | null>(data?.credits ?? null);
-	let authIntent = $state<AuthIntent | null>(null);
-
-	const initialOnboarding = extractOnboarding(data?.user ?? null);
-	const initialNeedsOnboarding = Boolean(data?.user && !isOnboardingComplete(initialOnboarding));
-
-	let onboardingAnswers = $state<OnboardingAnswers>({
-		education: initialOnboarding?.education ?? null,
-		goal: initialOnboarding?.goal ?? null,
-		project: initialOnboarding?.project ?? null
-	});
-	let showOnboarding = $state(initialNeedsOnboarding);
-	let onboardingSubmitting = $state(false);
-	let onboardingError = $state<string | null>(null);
-	let onboardingAction = $state<OnboardingAction | null>(initialNeedsOnboarding ? 'profile' : null);
-
-	$effect(() => {
-		sessionExists = Boolean(data?.user);
-		credits = data?.credits ?? null;
-	});
-
-	function consumeStoredAuthIntent() {
-		if (typeof window === 'undefined') return;
-		try {
-			const stored = window.sessionStorage.getItem(AUTH_INTENT_KEY);
-			if (stored === 'generate' || stored === 'general') {
-				authIntent = stored;
-			}
-			window.sessionStorage.removeItem(AUTH_INTENT_KEY);
-		} catch (
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			_err
-		) {
-			// ignore
+	async function fetchCredits(userId: string) {
+		const { data, error } = await supabase
+			.from('users')
+			.select('credits')
+			.eq('user_id', userId)
+			.maybeSingle();
+		if (!error && data && typeof data.credits === 'number') {
+			credits = data.credits;
+		} else {
+			credits = null;
 		}
 	}
 
-	function openAuthModal(message?: string, intent: AuthIntent = 'general') {
-		authError = message ?? null;
-		authLoading = false;
-		authIntent = intent;
-		showAuthModal = true;
+	async function fetchOnboardingFromDB(userId: string) {
+		const { data, error } = await supabase
+			.from('users')
+			.select('edu_level, goal, project_type')
+			.eq('user_id', userId)
+			.maybeSingle();
+		if (error) throw error;
+
+		const education =
+			data?.edu_level === 'high_school' || data?.edu_level === 'college' ? data.edu_level : null;
+		const goal =
+			data?.goal === 'full_time' || data?.goal === 'internship' || data?.goal === 'explore'
+				? data.goal
+				: null;
+		const project =
+			data?.project_type === 'research' || data?.project_type === 'industry'
+				? data.project_type
+				: null;
+
+		onboardingAnswers = { education, goal, project };
+		showOnboarding = !education || !goal || !project; // mounts -> transitions run
 	}
 
+	function openOnboarding() {
+		showOnboarding = true;
+	}
+	function openAuthModal() {
+		showAuthModal = true;
+		authLoading = false;
+	}
 	function closeAuthModal() {
 		if (authLoading) return;
 		showAuthModal = false;
 		authError = null;
 	}
 
-	function dispatchCreditsUpdated(value: number | null) {
-		if (typeof window === 'undefined') return;
-		window.dispatchEvent(new CustomEvent('vector:credits-updated', { detail: { credits: value } }));
-	}
-
-	async function refreshCreditsFromSupabase() {
-		const {
-			data: { session }
-		} = await supabase.auth.getSession();
-
-		if (!session) {
-			credits = null;
-			dispatchCreditsUpdated(null);
-			return;
-		}
-
-		const { data: row, error } = await supabase
-			.from('users')
-			.select('credits')
-			.eq('user_id', session.user.id)
-			.maybeSingle();
-
-		if (!error && row && typeof row.credits === 'number') {
-			credits = row.credits;
-			dispatchCreditsUpdated(row.credits);
-		}
-	}
-
-	function handleSignedInSession(session: Session, source: 'initial' | 'auth-change') {
-		const onboarding = extractOnboarding(session.user);
-		onboardingAnswers = {
-			education: onboarding?.education ?? onboardingAnswers.education,
-			goal: onboarding?.goal ?? onboardingAnswers.goal,
-			project: onboarding?.project ?? onboardingAnswers.project
-		};
-
-		if (!isOnboardingComplete(onboarding)) {
-			onboardingError = null;
-			onboardingSubmitting = false;
-			showOnboarding = true;
-			onboardingAction = authIntent === 'generate' ? 'generate' : (onboardingAction ?? 'profile');
-			return;
-		}
-
-		showOnboarding = false;
-		onboardingAction = null;
-		onboardingError = null;
-		onboardingSubmitting = false;
-
-		if (authIntent === 'generate') {
-			if (typeof window !== 'undefined') {
-				window.dispatchEvent(new CustomEvent('vector:auth-signed-in'));
-			}
-		} else if (authIntent === 'general' && source === 'auth-change') {
-			goto('/profile');
-		}
-
-		authIntent = null;
-	}
-
 	onMount(() => {
-		consumeStoredAuthIntent();
-
-		supabase.auth.getSession().then(({ data: { session } }) => {
-			sessionExists = Boolean(session);
-			if (!session) {
-				credits = null;
-				return;
+		(async () => {
+			const {
+				data: { user }
+			} = await supabase.auth.getUser();
+			userExists = Boolean(user);
+			if (user) {
+				await fetchCredits(user.id);
+				await fetchOnboardingFromDB(user.id);
 			}
-			handleSignedInSession(session, 'initial');
-		});
-
-		const {
-			data: { subscription }
-		} = supabase.auth.onAuthStateChange((_event, newSession) => {
-			sessionExists = Boolean(newSession);
-
-			if (newSession) {
-				authLoading = false;
-				showAuthModal = false;
-				refreshCreditsFromSupabase();
-				handleSignedInSession(newSession, 'auth-change');
-			} else {
-				credits = null;
-				dispatchCreditsUpdated(null);
-				authIntent = null;
-			}
-		});
-
-		const handleAuthRequired = (event: Event) => {
-			const detail = (event as CustomEvent<{ message?: string; reason?: 'generate' }>).detail;
-			const intent = detail?.reason === 'generate' ? 'generate' : 'general';
-			openAuthModal(detail?.message ?? 'Sign in to claim your free project credit.', intent);
-		};
-
-		const handleCreditsUpdated = (event: Event) => {
-			const detail = (event as CustomEvent<{ credits?: number | null }>).detail;
-			if (typeof detail?.credits === 'number' || detail?.credits === null) {
-				credits = detail.credits;
-			}
-		};
-
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === 'Escape' && showAuthModal && !authLoading) {
-				closeAuthModal();
-			}
-		};
-
-		window.addEventListener('vector:auth-required', handleAuthRequired);
-		window.addEventListener('vector:credits-updated', handleCreditsUpdated);
-		window.addEventListener('keydown', handleKeyDown);
-
-		return () => {
-			subscription.unsubscribe();
-			window.removeEventListener('vector:auth-required', handleAuthRequired);
-			window.removeEventListener('vector:credits-updated', handleCreditsUpdated);
-			window.removeEventListener('keydown', handleKeyDown);
-		};
+		})();
 	});
 
 	async function handleOnboardingSubmit(answers: {
@@ -260,46 +125,37 @@
 		onboardingSubmitting = true;
 
 		try {
-			const { error } = await supabase.auth.updateUser({
-				data: {
-					vector_onboarding: {
-						education: answers.education,
+			const {
+				data: { user },
+				error: uerr
+			} = await supabase.auth.getUser();
+			if (uerr) throw uerr;
+			if (!user) throw new Error('Not signed in');
+
+			const { error } = await supabase
+				.from('users')
+				.upsert(
+					{
+						user_id: user.id,
+						edu_level: answers.education,
 						goal: answers.goal,
-						project: answers.project,
-						completed: true,
-						updated_at: new Date().toISOString()
-					}
-				}
-			});
+						project_type: answers.project
+					},
+					{ onConflict: 'user_id' }
+				)
+				.select('user_id');
+
 			if (error) throw error;
 
-			onboardingAnswers = {
-				education: answers.education,
-				goal: answers.goal,
-				project: answers.project
-			};
-			onboardingSubmitting = false;
-			showOnboarding = false;
-
-			const nextAction =
-				onboardingAction ??
-				(authIntent === 'generate' ? 'generate' : ('profile' as OnboardingAction));
-
-			const intentToUse = authIntent;
-			onboardingAction = null;
-			authIntent = null;
-
-			if (intentToUse === 'generate' || nextAction === 'generate') {
-				if (typeof window !== 'undefined') {
-					window.dispatchEvent(new CustomEvent('vector:auth-signed-in'));
-				}
-			} else if (nextAction === 'profile') {
-				goto('/profile');
+			await fetchOnboardingFromDB(user.id);
+			if (!showOnboarding) {
+				onboardingError = null;
 			}
 		} catch (err) {
-			onboardingSubmitting = false;
 			onboardingError =
-				err instanceof Error ? err.message : 'Unable to save your onboarding answers right now.';
+				err instanceof Error ? err.message : 'Unable to save your onboarding answers.';
+		} finally {
+			onboardingSubmitting = false;
 		}
 	}
 
@@ -308,29 +164,13 @@
 		authLoading = true;
 		authError = null;
 
-		const intent = authIntent ?? 'general';
-		if (typeof window !== 'undefined') {
-			try {
-				window.sessionStorage.setItem(AUTH_INTENT_KEY, intent);
-			} catch (
-				// eslint-disable-next-line @typescript-eslint/no-unused-vars
-				_err
-			) {
-				// ignore
-			}
-		}
-
-		const redirectTo =
-			typeof window !== 'undefined' ? `http://localhost:5173/auth/callback` : undefined;
-		console.log('redirect: ', redirectTo);
 		try {
-			const { data: authData, error } = await supabase.auth.signInWithOAuth({
+			const redirectTo = browser ? `${window.location.origin}/profile` : undefined;
+			const { error } = await supabase.auth.signInWithOAuth({
 				provider: 'google',
 				options: {
 					redirectTo: redirectTo,
-					queryParams: {
-						prompt: 'select_account'
-					}
+					queryParams: { prompt: 'select_account' }
 				}
 			});
 			if (error) throw error;
@@ -339,101 +179,80 @@
 			authLoading = false;
 		}
 	}
+	const authApi: AuthUI = { openAuthModal };
+	setContext('auth-ui', authApi);
+	const onboardingApi: OnboardingUI = { openOnboarding };
+	setContext('onboarding-ui', onboardingApi);
+	const authStateApi: AuthStateUI = { resetUserState };
+	setContext('auth-state', authStateApi);
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="min-h-screen transition-[filter,transform] duration-150 ease-out">
-	{#if !$page.url.pathname.startsWith('/waitlist')}
-		<header
-			class="sticky top-0 z-[70] flex w-full items-center justify-between bg-stone-50 px-6 py-4"
-		>
-			<button
-				class="flex items-center gap-2"
-				onclick={() => {
-					goto('/');
-				}}
-			>
-				<img src={vectorUrl} alt="vector" class="h-4 w-4" />
-				<span class="font-mono tracking-tight">vector</span>
-			</button>
+<div class="min-h-screen">
+	<header
+		class="sticky top-0 z-[70] flex w-full items-center justify-between border border-b-1 border-stone-100 bg-stone-50 px-6 py-4"
+	>
+		<button class="flex items-center gap-2" onclick={() => goto('/')}>
+			<img src={vectorUrl} alt="vector" class="h-4 w-4" />
+			<span class="font-mono tracking-tight">vector</span>
+		</button>
 
-			<div class="flex items-center gap-4">
-				{#if !sessionExists}
-					<button
-						class="rounded-md py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
-						>Pricing</button
-					>
-					<button
-						class="rounded-md py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
-					>
-						How it works
-					</button>
-				{/if}
-
-				{#if sessionExists}
-					<button
-						onclick={() => goto('/dashboard')}
-						class="rounded-md py-1 text-xs tracking-tight text-stone-700 transition hover:text-stone-500"
-					>
-						Dashboard
-					</button>
-					<button
-						onclick={() => goto('/profile')}
-						class="rounded-md bg-stone-800 px-3 py-1 text-xs font-medium tracking-tight text-stone-50 transition hover:bg-stone-600"
-					>
-						Profile
-					</button>
-				{:else}
-					<button
-						onclick={() => openAuthModal()}
-						class="rounded-md bg-stone-800 px-3 py-1 text-xs font-medium tracking-tight text-stone-50 transition hover:bg-stone-600"
-					>
-						Sign in
-					</button>
-				{/if}
-			</div>
-		</header>
-	{/if}
+		<div class="flex items-center gap-4">
+			{#if userExists}
+				<span class="text-xs text-stone-600">{credits ?? 0} credits</span>
+				<button
+					onclick={() => goto('/dashboard')}
+					class="rounded-md py-1 text-xs text-stone-700 hover:text-stone-500">Dashboard</button
+				>
+				<button
+					onclick={() => goto('/profile')}
+					class="rounded-md py-1 text-xs font-medium text-stone-700 hover:text-stone-500"
+					>Profile</button
+				>
+			{:else}
+				<button class="rounded-md py-1 text-xs text-stone-700 hover:text-stone-500">Pricing</button>
+				<button class="rounded-md py-1 text-xs text-stone-700 hover:text-stone-500"
+					>How it works</button
+				>
+				<button
+					onclick={() => openAuthModal()}
+					class="rounded-md bg-stone-800 px-3 py-1 text-xs font-medium text-stone-50 hover:bg-stone-600"
+					>Sign in</button
+				>
+			{/if}
+		</div>
+	</header>
 
 	{@render children()}
 
-	{#if showOnboarding}
-		<OnboardingFlow
-			onSubmit={handleOnboardingSubmit}
-			submitting={onboardingSubmitting}
-			error={onboardingError}
-			initialAnswers={onboardingAnswers}
-		/>
-	{/if}
-
 	{#if showAuthModal}
 		<div
-			class="fixed inset-0 z-[120] flex items-center justify-center bg-stone-50/80 transition"
+			in:fade={{ duration: 200 }}
+			class="fixed inset-0 z-[120] flex items-center justify-center bg-stone-50/80"
 			role="dialog"
 			aria-modal="true"
 			aria-label="Sign in"
 			tabindex="-1"
-			onclick={(event) => {
-				if (authLoading) return;
-				if (event.target === event.currentTarget) closeAuthModal();
+			onclick={(e) => {
+				if (!authLoading && e.target === e.currentTarget) closeAuthModal();
 			}}
-			onkeydown={(event) => {
-				if (event.key === 'Enter' && !authLoading) closeAuthModal();
+			onkeydown={(e) => {
+				if (!authLoading && e.key === 'Escape') closeAuthModal();
 			}}
 		>
 			<div
+				in:scale={{ start: 0.9, duration: 200 }}
 				class="w-full max-w-sm rounded-3xl border border-stone-200 bg-white/95 p-6 text-stone-800 shadow-[0_12px_32px_rgba(15,15,15,0.12)]"
 			>
 				<div class="flex items-center justify-between">
 					<div class="text-sm font-semibold tracking-tight text-stone-900">Sign in to Vector</div>
 					<button
 						type="button"
-						class="rounded-full p-1 text-stone-500 transition hover:text-stone-800"
+						class="rounded-full p-1 text-stone-500 hover:text-stone-800"
 						onclick={closeAuthModal}
-						title="Close sign in"
 						aria-label="Close sign in"
 					>
 						<svg
@@ -475,8 +294,7 @@
 							fill="#EA4335"
 							d="M12.24 4.754c2.154 0 3.605.93 4.434 1.707l3.237-3.16C17.92 1.24 15.336 0 12.24 0 7.245 0 2.97 2.17 1.27 7.173l3.426 2.707c.918-2.796 3.495-5.126 7.544-5.126"
 						/>
-					</svg>
-					<span>{authLoading ? 'Redirecting…' : 'Continue with Google'}</span>
+					</svg> <span>{authLoading ? 'Redirecting…' : 'Continue with Google'}</span>
 				</button>
 
 				{#if authError}

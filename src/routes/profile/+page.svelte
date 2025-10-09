@@ -2,9 +2,10 @@
 	import { cubicOut } from 'svelte/easing';
 	import { fly } from 'svelte/transition';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { getContext, onMount, tick } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
+	import Toast from '$lib/components/Toast.svelte';
 
 	const routeVisitKey = 'profile';
 	const initialShouldAnimate =
@@ -18,6 +19,17 @@
 	let signOutError = $state<string | null>(null);
 	let userEmail = $state<string | null>(null);
 	let credits = $state<number | null>(null);
+	let eduLevel = $state<string | null>(null);
+	let goal = $state<string | null>(null);
+	let projectType = $state<string | null>(null);
+
+	const pretty = (v: string | null) =>
+		v ? v.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'Not set';
+
+	type LayoutAuthStateApi = {
+		resetUserState: () => void;
+	};
+	const layoutAuthState = getContext<LayoutAuthStateApi | null>('auth-state');
 
 	type Plan = {
 		name: string;
@@ -65,42 +77,74 @@
 	let checkoutLoading = $state<string | null>(null);
 	let checkoutError = $state<string | null>(null);
 	let checkoutMessage = $state<string | null>(null);
+	type ToastTone = 'neutral' | 'success' | 'warning' | 'danger';
+	let toastOpen = $state(false);
+	let toastMessage = $state('');
+	let toastTone = $state<ToastTone>('neutral');
+
+	async function showToast(message: string, tone: ToastTone = 'neutral') {
+		toastMessage = message;
+		toastTone = tone;
+		toastOpen = false;
+		await tick();
+		toastOpen = true;
+	}
+	function hydrateOnboarding(
+		row: { edu_level?: string | null; goal?: string | null; project_type?: string | null } | null
+	) {
+		eduLevel = row?.edu_level ?? null;
+		goal = row?.goal ?? null;
+		projectType = row?.project_type ?? null;
+	}
 
 	onMount(() => {
 		const syncAccount = async () => {
 			const {
-				data: { session }
-			} = await supabase.auth.getSession();
+				data: { user }
+			} = await supabase.auth.getUser();
 
-			userEmail = session?.user.email ?? null;
-			if (session?.user?.id) {
-				const { data, error } = await supabase
+			userEmail = user?.email ?? null;
+
+			if (!user?.id) return;
+
+			// 1) Try read
+			const { data, error } = await supabase
+				.from('users')
+				.select('credits, edu_level, goal, project_type')
+				.eq('user_id', user.id)
+				.maybeSingle();
+
+			if (!error && data) {
+				if (typeof data.credits === 'number') credits = data.credits;
+				hydrateOnboarding(data);
+				return;
+			}
+
+			// 2) If row missing, create with defaults
+			if (!error && data === null) {
+				const { data: inserted, error: insertError } = await supabase
 					.from('users')
-					.select('credits')
-					.eq('user_id', session.user.id)
-					.maybeSingle();
+					.insert({ user_id: user.id, credits: 1 }) // minimal bootstrap
+					.select('credits, edu_level, goal, project_type')
+					.single();
 
-				if (!error && data && typeof data.credits === 'number') {
-					credits = data.credits;
-				} else if (!error && data === null) {
-					const { data: inserted, error: insertError } = await supabase
+				if (!insertError && inserted) {
+					credits = typeof inserted.credits === 'number' ? inserted.credits : 1;
+					hydrateOnboarding(inserted);
+					return;
+				}
+
+				// 3) Handle race on unique constraint
+				if (insertError?.code === '23505') {
+					const { data: existing } = await supabase
 						.from('users')
-						.insert({ user_id: session.user.id, credits: 1 })
-						.select('credits')
+						.select('credits, edu_level, goal, project_type')
+						.eq('user_id', user.id)
 						.single();
-					if (insertError) {
-						if (insertError.code === '23505') {
-							const { data: existing } = await supabase
-								.from('users')
-								.select('credits')
-								.eq('user_id', session.user.id)
-								.single();
-							if (typeof existing?.credits === 'number') {
-								credits = existing.credits;
-							}
-						}
-					} else if (typeof inserted?.credits === 'number') {
-						credits = inserted.credits;
+
+					if (existing) {
+						if (typeof existing.credits === 'number') credits = existing.credits;
+						hydrateOnboarding(existing);
 					}
 				}
 			}
@@ -111,16 +155,23 @@
 			if (typeof detail?.credits === 'number' || detail?.credits === null) {
 				credits = detail.credits;
 			}
-			};
+		};
 
-			syncAccount();
-			window.addEventListener('vector:credits-updated', handleCreditsUpdated);
-			if (typeof window !== 'undefined') {
+		// Initial sync
+		syncAccount();
+		void persistCachedProject();
+
+		// Listen for credits updates from other parts of the app
+		window.addEventListener('vector:credits-updated', handleCreditsUpdated);
+
+		// Handle checkout querystring noise
+		if (typeof window !== 'undefined') {
 			const currentUrl = new URL(window.location.href);
 			const status = currentUrl.searchParams.get('checkout');
 
 			if (status === 'success') {
-				checkoutMessage = 'Success! Stripe is processing your subscription. Check your email for confirmation.';
+				checkoutMessage =
+					'Success! Stripe is processing your subscription. Check your email for confirmation.';
 			} else if (status === 'cancel') {
 				checkoutError = 'Checkout was cancelled. You were not charged.';
 			}
@@ -131,12 +182,65 @@
 				const nextUrl = `${currentUrl.pathname}${nextQuery ? `?${nextQuery}` : ''}${currentUrl.hash}`;
 				window.history.replaceState(null, '', nextUrl);
 			}
-			}
+		}
 
-			return () => {
-				window.removeEventListener('vector:credits-updated', handleCreditsUpdated);
+		return () => {
+			window.removeEventListener('vector:credits-updated', handleCreditsUpdated);
 		};
 	});
+
+	type CachedProject = {
+		title: string;
+		difficulty: string;
+		timeline: string;
+		description: string;
+		jobs: unknown;
+		skills: unknown;
+	};
+
+	async function persistCachedProject() {
+		if (typeof window === 'undefined') return;
+		const raw = sessionStorage.getItem('vector:cached-project');
+		if (!raw) return;
+
+		let project: CachedProject | null = null;
+		try {
+			project = JSON.parse(raw) as CachedProject;
+		} catch {
+			sessionStorage.removeItem('vector:cached-project');
+			await showToast('We could not save that project. Please try again.', 'danger');
+			return;
+		}
+
+		if (!project) return;
+
+		const {
+			data: { user }
+		} = await supabase.auth.getUser();
+
+		if (!user?.id) {
+			await showToast('Sign in to save your project to the dashboard.', 'warning');
+			return;
+		}
+
+		const insertPayload = {
+			user_id: user.id,
+			title: project.title,
+			difficulty: project.difficulty,
+			timeline: project.timeline,
+			description: project.description,
+			jobs: project.jobs,
+			skills: project.skills
+		};
+
+		const { error } = await supabase.from('projects').insert([insertPayload]);
+		if (!error) {
+			sessionStorage.removeItem('vector:cached-project');
+			await showToast('Project saved to your dashboard.', 'success');
+		} else {
+			await showToast('We could not save that project. Please try again.', 'danger');
+		}
+	}
 
 	async function clearSupabaseSession() {
 		const auth = supabase.auth as unknown as {
@@ -165,7 +269,8 @@
 		signingOut = true;
 
 		try {
-			const { error } = await supabase.auth.signOut({ scope: 'global' });
+			const { error } = await supabase.auth.signOut();
+			console.log('error', error);
 			const sessionMissing =
 				(error && 'name' in error && error.name === 'AuthSessionMissingError') ||
 				(error && 'message' in error && /auth session missing/i.test(error.message));
@@ -173,6 +278,7 @@
 				throw error;
 			}
 			await clearSupabaseSession();
+			layoutAuthState?.resetUserState();
 			userEmail = null;
 			credits = null;
 			await invalidateAll();
@@ -215,7 +321,9 @@
 		</div>
 
 		{#if checkoutMessage}
-			<div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+			<div
+				class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+			>
 				{checkoutMessage}
 			</div>
 		{/if}
@@ -231,7 +339,7 @@
 				<div
 					class="flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50 p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
 					in:fly|global={shouldAnimateProfile
-						? { y: 10, duration: 500, easing: cubicOut, delay: index * 100 }
+						? { y: 10, duration: 500, easing: cubicOut, delay: index * 50 }
 						: undefined}
 				>
 					<div class="space-y-4">
@@ -270,19 +378,19 @@
 					<button
 						type="button"
 						class={`mt-6 inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold tracking-tight transition ${
-			plan.isCurrent
-				? 'cursor-default border-stone-200 bg-stone-200 text-stone-500'
-				: 'border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60'
-		}`}
-					disabled={plan.isCurrent || !plan.paymentLink || checkoutLoading !== null}
-					on:click={() => handlePlanSelection(plan)}
-				>
-					{#if plan.isCurrent}
-						Current plan
-					{:else if checkoutLoading === plan.paymentLink}
-						Redirecting…
-					{:else}
-						Upgrade
+							plan.isCurrent
+								? 'cursor-default border-stone-200 bg-stone-200 text-stone-500'
+								: 'border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60'
+						}`}
+						disabled={plan.isCurrent || !plan.paymentLink || checkoutLoading !== null}
+						on:click={() => handlePlanSelection(plan)}
+					>
+						{#if plan.isCurrent}
+							Current plan
+						{:else if checkoutLoading === plan.paymentLink}
+							Redirecting…
+						{:else}
+							Upgrade
 						{/if}
 					</button>
 				</div>
@@ -291,7 +399,7 @@
 		<div
 			class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700"
 			in:fly|global={shouldAnimateProfile
-				? { y: 10, duration: 500, easing: cubicOut, delay: 300 }
+				? { y: 10, duration: 500, easing: cubicOut, delay: 200 }
 				: undefined}
 		>
 			<div class="flex items-center justify-between">
@@ -306,10 +414,63 @@
 				Use one credit to generate a tailored project. Sign in again later to refresh your balance.
 			</p>
 		</div>
+		<div class="mt-6 grid gap-4 md:grid-cols-3">
+			<div
+				class="flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50 p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+				in:fly|global={shouldAnimateProfile
+					? { y: 10, duration: 500, easing: cubicOut, delay: 300 }
+					: undefined}
+			>
+				<div class="flex flex-row items-center justify-between">
+					<p class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">Education</p>
+					<span
+						class="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold tracking-tight text-stone-700"
+					>
+						{pretty(eduLevel)}
+					</span>
+				</div>
+			</div>
+
+			<!-- Goal -->
+			<div
+				class="flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50 p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+				in:fly|global={shouldAnimateProfile
+					? { y: 10, duration: 500, easing: cubicOut, delay: 300 }
+					: undefined}
+			>
+				<div class="flex flex-row items-center justify-between">
+					<p class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">Goal</p>
+					<span
+						class="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold tracking-tight text-stone-700"
+					>
+						{pretty(goal)}
+					</span>
+				</div>
+			</div>
+
+			<div
+				class="flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50 p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+				in:fly|global={shouldAnimateProfile
+					? { y: 10, duration: 500, easing: cubicOut, delay: 300 }
+					: undefined}
+			>
+				<div class="flex flex-row items-center justify-between">
+					<p class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">
+						Project Type
+					</p>
+					<span
+						class="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold tracking-tight text-stone-700"
+					>
+						{pretty(projectType)}
+					</span>
+				</div>
+			</div>
+		</div>
+
 		<section
 			class="rounded-2xl border border-stone-200 bg-stone-50 p-6 shadow-[0_1px_0_rgba(0,0,0,0.04)]"
 			in:fly|global={shouldAnimateProfile
-				? { y: 10, duration: 500, easing: cubicOut, delay: 400 }
+				? { y: 10, duration: 500, easing: cubicOut, delay: 500 }
 				: undefined}
 		>
 			<h2 class="text-sm font-semibold tracking-tight text-stone-900">Account</h2>
@@ -350,3 +511,9 @@
 		</section>
 	</div>
 </div>
+<Toast
+	message={toastMessage}
+	tone={toastTone}
+	open={toastOpen}
+	on:dismiss={() => (toastOpen = false)}
+/>

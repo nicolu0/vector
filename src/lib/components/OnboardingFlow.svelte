@@ -1,43 +1,58 @@
 <script lang="ts">
 	import { tweened } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
+	import { slide, scale, blur, fly } from 'svelte/transition';
 	type Answers = {
 		education: 'high_school' | 'college' | null;
-		goal: 'full_time' | 'internship' | 'explore' | null;
+		goal: 'full_time' | 'internship' | null;
 		project: 'research' | 'industry' | null;
 	};
+	function clearCurrentAnswer() {
+		if (currentStep.id === 'education') {
+			answers = { ...answers, education: null };
+		} else if (currentStep.id === 'goal') {
+			answers = { ...answers, goal: null };
+		} else if (currentStep.id === 'project') {
+			answers = { ...answers, project: null };
+		}
+	}
+
+	function skip() {
+		if (submitting) return;
+		clearCurrentAnswer();
+		if (stepIndex < totalSteps - 1) {
+			stepIndex += 1;
+		} else {
+			close();
+		}
+	}
 
 	const {
 		onSubmit = (async () => {}) as (answers: {
 			education: 'high_school' | 'college';
-			goal: 'full_time' | 'internship' | 'explore';
+			goal: 'full_time' | 'internship';
 			project: 'research' | 'industry';
 		}) => Promise<void>,
 		submitting = false,
 		error = null as string | null,
-		initialAnswers = {} as Partial<Answers>
+		initialAnswers = {} as Partial<Answers>,
+		close
 	} = $props<{
 		onSubmit?: (answers: {
 			education: 'high_school' | 'college';
-			goal: 'full_time' | 'internship' | 'explore';
+			goal: 'full_time' | 'internship';
 			project: 'research' | 'industry';
 		}) => Promise<void>;
 		submitting?: boolean;
 		error?: string | null;
 		initialAnswers?: Partial<Answers>;
+		close: () => void;
 	}>();
 
 	type StepId = 'education' | 'goal' | 'project';
 
 	type StepOption = {
-		value:
-			| 'high_school'
-			| 'college'
-			| 'full_time'
-			| 'internship'
-			| 'explore'
-			| 'research'
-			| 'industry';
+		value: 'high_school' | 'college' | 'full_time' | 'internship' | 'research' | 'industry';
 		label: string;
 		description: string;
 	};
@@ -81,11 +96,6 @@
 					value: 'internship',
 					label: 'Land an internship',
 					description: 'Show initiative with projects that stand out to recruiters.'
-				},
-				{
-					value: 'explore',
-					label: 'Learn and explore',
-					description: 'Try new areas, build confidence, and discover what you enjoy.'
 				}
 			]
 		},
@@ -128,10 +138,7 @@
 				education: value
 			};
 		}
-		if (
-			currentStep.id === 'goal' &&
-			(value === 'full_time' || value === 'internship' || value === 'explore')
-		) {
+		if (currentStep.id === 'goal' && (value === 'full_time' || value === 'internship')) {
 			answers = {
 				...answers,
 				goal: value
@@ -188,30 +195,44 @@
 </script>
 
 <div
-	class="fixed inset-x-0 top-[56px] z-[110] flex h-[calc(100vh-56px)] items-center justify-center bg-stone-50 px-4 text-stone-900"
+	class="fixed inset-x-0 top-[56px] z-[110] flex h-[calc(100vh-56px)] flex-col items-center justify-center bg-stone-50 px-4 text-stone-900"
 	role="dialog"
 	aria-modal="true"
 	aria-label="Vector onboarding"
 >
-	<div class="mb-16 flex max-h-[80vh] min-h-0 w-full max-w-3xl flex-col px-2 sm:px-4">
+	<button
+		type="button"
+		onclick={close}
+		class="absolute top-3 left-3 inline-flex items-center gap-2 p-3 text-sm text-stone-600 transition hover:text-stone-900"
+	>
+		<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
+			<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+		</svg>
+		Back
+	</button>
+	<div class="mb-16 flex max-h-[80vh] min-h-0 w-full max-w-3xl flex-col gap-5 px-2 sm:px-4">
 		<div class="space-y-3">
-			<p class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">
+			<p
+				class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase"
+				in:fly={{ y: 18, duration: 500, easing: cubicOut }}
+			>
 				Step {stepIndex + 1} of {totalSteps}
 			</p>
-			<div>
+			<div in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 100 }}>
 				<h2 class="text-3xl font-semibold tracking-tight">{currentStep.title}</h2>
 				<p class="mt-2 text-sm text-stone-600">{currentStep.description}</p>
 			</div>
 		</div>
 
-		<div class="mt-6 grid gap-4 md:grid-cols-2">
-			{#each currentStep.options as option}
+		<div class="grid gap-4 md:grid-cols-2">
+			{#each currentStep.options as option, index}
 				<button
+					in:fly|global={{ y: 18, duration: 500, easing: cubicOut, delay: index * 100 + 100 }}
 					type="button"
 					class={`min-h-[196px] w-full rounded-2xl border p-6 text-left transition duration-200 focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:outline-none ${
 						isSelected(option.value)
-							? 'border-stone-900 bg-white shadow-[0_12px_32px_rgba(28,25,23,0.18)]'
-							: 'border-stone-200 bg-white hover:scale-[1.02] hover:border-stone-300 hover:shadow-[0_8px_24px_rgba(87,83,78,0.14)]'
+							? 'border-stone-900 bg-white hover:shadow-lg'
+							: 'border-stone-200 bg-white hover:scale-[1.02] hover:border-stone-300 hover:shadow-lg'
 					}`}
 					onclick={() => selectOption(option.value)}
 					aria-pressed={isSelected(option.value)}
@@ -285,26 +306,6 @@
 									<path d="M7 10h10" stroke-linecap="round" />
 									<path d="M7 14h5" stroke-linecap="round" />
 								</svg>
-							{:else if option.value === 'explore'}
-								<svg
-									viewBox="0 0 24 24"
-									class="h-6 w-6"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="1.75"
-								>
-									<path d="M12 3v2" stroke-linecap="round" />
-									<path d="M19.5 6.5 18 8" stroke-linecap="round" />
-									<path d="M21 13h-2" stroke-linecap="round" />
-									<path d="M5 13H3" stroke-linecap="round" />
-									<path d="M6 6 4.5 4.5" stroke-linecap="round" />
-									<circle cx="12" cy="13" r="5" />
-									<path
-										d="M12 10.5a2.5 2.5 0 0 0-2.5 2.857 2.5 2.5 0 0 1 2.143 2.143A2.5 2.5 0 0 0 14.5 12.5 2.5 2.5 0 0 1 12 10.5Z"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									/>
-								</svg>
 							{:else if option.value === 'research'}
 								<svg
 									viewBox="0 0 24 24"
@@ -349,18 +350,19 @@
 			</div>
 		{/if}
 
-		<div class="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+		<div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
 			<button
 				type="button"
-				class="inline-flex items-center justify-center rounded-full border border-stone-300 bg-white px-5 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
-				onclick={back}
-				disabled={stepIndex === 0 || submitting}
+				class="rounded-full border border-stone-300 px-4 py-2 text-xs text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
+				onclick={skip}
+				disabled={submitting}
 			>
-				Back
+				Skip
 			</button>
+
 			<button
 				type="button"
-				class={`inline-flex items-center justify-center gap-2 rounded-full px-6 py-2 text-sm font-semibold tracking-tight transition ${
+				class={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs  tracking-tight transition ${
 					canContinue && !submitting
 						? 'bg-stone-900 text-stone-50 hover:bg-stone-800'
 						: 'bg-stone-300 text-stone-600'

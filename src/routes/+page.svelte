@@ -1,29 +1,152 @@
 <script lang="ts">
-	import { blur, fly } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
+	import Toast from '$lib/components/Toast.svelte';
 	import { cubicOut } from 'svelte/easing';
+	import OnboardingFlow from '$lib/components/OnboardingFlow.svelte';
 	import Quiz from '$lib/components/Quiz.svelte';
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
 
+	type Answers = {
+		education: 'high_school' | 'college' | null;
+		goal: 'full_time' | 'internship' | null;
+		project: 'research' | 'industry' | null;
+	};
+
+	type OnboardingRow = {
+		edu_level: string | null;
+		goal: string | null;
+		project_type: string | null;
+	};
+
+	let onboardingRow = $state<OnboardingRow | null>(null);
+
+	const onboardingComplete = $derived(
+		!!onboardingRow?.edu_level && !!onboardingRow?.goal && !!onboardingRow?.project_type
+	);
+	$inspect(onboardingComplete);
+	let showOnboarding = $state(false);
+	let onboardingSubmitting = $state(false);
+	let onboardingError: string | null = $state(null);
+	let onboardingAnswers: Partial<Answers> = $state({
+		education: null,
+		goal: null,
+		project: null
+	});
+
+	async function loadOnboarding() {
+		const {
+			data: { session }
+		} = await supabase.auth.getSession();
+
+		if (!session) {
+			onboardingRow = null;
+			return;
+		}
+
+		const { data, error } = await supabase
+			.from('users')
+			.select('edu_level, goal, project_type')
+			.eq('user_id', session.user.id)
+			.single();
+
+		if (!error && data) onboardingRow = data as OnboardingRow;
+	}
+
+	async function generateProject() {
+		const interests = input.trim();
+		const tags = Array.from(picked);
+		const payload = { interests, tags };
+
+		try {
+			const response = await fetch('/api/generate-project', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+
+			if (!response.ok) {
+				let detail: string | null = null;
+				try {
+					const data = await response.json();
+					if (typeof data?.message === 'string') detail = data.message;
+				} catch {
+					const text = await response.text();
+					detail = text || null;
+				}
+
+				if (response.status === 401) {
+					const message = detail ?? 'Sign in to claim your free project credit.';
+					await showToast(message, 'danger');
+					savePendingGeneration(payload);
+					window.dispatchEvent(
+						new CustomEvent('vector:auth-required', {
+							detail: { message, reason: 'generate' as const }
+						})
+					);
+					isGenerating = false;
+					return;
+				}
+				if (response.status === 402) {
+					const message =
+						detail ?? 'You are out of credits. Visit your profile to review your balance.';
+					await showToast(message, 'danger');
+					window.dispatchEvent(
+						new CustomEvent('vector:credits-updated', { detail: { credits: 0 } })
+					);
+					isGenerating = false;
+					return;
+				}
+
+				const message = detail || 'We ran into an issue generating your project. Please try again.';
+				await showToast(message, 'danger');
+				isGenerating = false;
+				return;
+			}
+
+			const project = await response.json();
+			const creditsHeader = response.headers.get('x-vector-user-credits');
+			if (creditsHeader !== null) {
+				const numericCredits = Number.parseInt(creditsHeader, 10);
+				if (!Number.isNaN(numericCredits)) {
+					window.dispatchEvent(
+						new CustomEvent('vector:credits-updated', { detail: { credits: numericCredits } })
+					);
+				}
+			}
+			const usedFallback = response.headers.get('x-vector-project-source') === 'fallback';
+			clearPendingGeneration();
+			await goto('/project', { state: { project, fallback: usedFallback } });
+		} catch (err) {
+			const message = 'We ran into an issue generating your project. Please try again.';
+			await showToast(message, 'danger');
+			isGenerating = false;
+		}
+	}
+
+	async function handleOnboardingSubmit() {
+		if (onboardingSubmitting) return;
+		onboardingError = null;
+		onboardingSubmitting = true;
+		isGenerating = true;
+		showOnboarding = false;
+		clearPendingGeneration();
+		await generateProject();
+	}
+
 	const {
 		placeholder = 'Tell us your interests… Not sure? Take the interest quiz',
 		headline = 'Applying to college/jobs?',
 		subhead = 'Differentiate yourself with great projects. Vector uses job listings to generate the perfect ones.',
-		showQuizChip = true,
-		quizLabel = 'Take interest quiz',
-		onQuiz = (() => {}) as () => void,
-		quizHref = null as string | null,
-		onGenerate = (() => {}) as (p: { interests: string; tags: string[] }) => void
+		quizLabel = 'Take interest quiz'
 	} = $props<{
 		placeholder?: string;
 		headline?: string;
 		subhead?: string;
 		showQuizChip?: boolean;
 		quizLabel?: string;
-		onQuiz?: () => void;
 		quizHref?: string | null;
-		onGenerate?: (p: { interests: string; tags: string[] }) => void;
 	}>();
 
 	let showInterestQuiz = $state(false);
@@ -151,12 +274,7 @@
 		if (typeof window === 'undefined') return;
 		try {
 			sessionStorage.setItem(PENDING_GENERATION_KEY, JSON.stringify(payload));
-		} catch (
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			_err
-		) {
-			// ignore quota / availability issues
-		}
+		} catch (_err) {}
 	}
 
 	function loadPendingGeneration(): { interests: string; tags: string[] } | null {
@@ -209,7 +327,6 @@
 		const handleSignedIn = () => {
 			resumePendingGeneration();
 		};
-
 		window.addEventListener('vector:auth-signed-in', handleSignedIn);
 		return () => {
 			window.removeEventListener('vector:auth-signed-in', handleSignedIn);
@@ -218,96 +335,18 @@
 
 	async function submit() {
 		if (isGenerating) return;
+
 		const interests = input.trim();
 		const tags = Array.from(picked);
-		const payload = { interests, tags };
-		const fallbackMessage = 'We ran into an issue generating your project. Please try again.';
 
 		if (!interests && tags.length === 0) {
-			errorMessage = 'Add a short description or pick at least one tag.';
+			const message = 'Add a short description or pick at least one tag.';
+			await showToast(message, 'warning');
 			return;
-		}
-
-		errorMessage = null;
-		isGenerating = true;
-		onGenerate(payload);
-
-		clearPendingGeneration();
-
-		try {
-			const response = await fetch('/api/generate-project', {
-				method: 'POST',
-				headers: {
-					'content-type': 'application/json'
-				},
-				body: JSON.stringify(payload)
-			});
-
-			if (!response.ok) {
-				let detail: string | null = null;
-				try {
-					const data = await response.json();
-					if (data && typeof data.message === 'string') detail = data.message;
-				} catch (err) {
-					const text = await response.text();
-					detail = text || null;
-				}
-
-				if (response.status === 401) {
-					const message = detail ?? 'Sign in to claim your free project credit (0 / 1 credits).';
-					errorMessage = message;
-					savePendingGeneration(payload);
-					window.dispatchEvent(
-						new CustomEvent('vector:auth-required', {
-							detail: { message, reason: 'generate' as const }
-						})
-					);
-					isGenerating = false;
-					return;
-				}
-
-				if (response.status === 402) {
-					const message =
-						detail ?? 'You are out of credits. Visit your profile to review your balance.';
-					errorMessage = message;
-					window.dispatchEvent(
-						new CustomEvent('vector:credits-updated', {
-							detail: { credits: 0 }
-						})
-					);
-					isGenerating = false;
-					return;
-				}
-
-				if (response.status === 400 && detail) {
-					errorMessage = detail;
-				} else {
-					errorMessage = fallbackMessage;
-				}
-				isGenerating = false;
-				return;
-			}
-
-			const project = await response.json();
-			const creditsHeader = response.headers.get('x-vector-user-credits');
-			if (creditsHeader !== null) {
-				const numericCredits = Number.parseInt(creditsHeader, 10);
-				if (!Number.isNaN(numericCredits)) {
-					window.dispatchEvent(
-						new CustomEvent('vector:credits-updated', {
-							detail: { credits: numericCredits }
-						})
-					);
-				}
-			}
-			const sourceHeader = response.headers.get('x-vector-project-source');
-			const usedFallback = sourceHeader === 'fallback';
-			clearPendingGeneration();
-			await goto('/project', { state: { project, fallback: usedFallback } });
-		} catch (err) {
-			console.error('Project generation failed', err);
-			errorMessage = fallbackMessage;
-			isGenerating = false;
+		} else if (!onboardingComplete) {
+			showOnboarding = true;
+		} else {
+			generateProject();
 		}
 	}
 
@@ -318,7 +357,6 @@
 		}
 	}
 
-	// Clamp to exactly two wrapped rows (no horizontal scroll)
 	async function clampToTwoRows() {
 		await tick();
 		if (!chipsEl) return;
@@ -360,10 +398,24 @@
 
 	onMount(async () => {
 		mounted = true;
+		await loadOnboarding();
 		await refreshSuggestions();
 		const ro = new ResizeObserver(() => clampToTwoRows());
 		if (chipsEl) ro.observe(chipsEl);
 	});
+
+	type ToastTone = 'neutral' | 'success' | 'warning' | 'danger';
+	let toastOpen = $state(false);
+	let toastMessage = $state('');
+	let toastTone = $state<ToastTone>('neutral');
+
+	async function showToast(message: string, tone: ToastTone = 'neutral') {
+		toastMessage = message;
+		toastTone = tone;
+		toastOpen = false;
+		await tick();
+		toastOpen = true;
+	}
 </script>
 
 {#if !isGenerating}
@@ -416,12 +468,6 @@
 						</svg>
 					</button>
 				</div>
-
-				{#if errorMessage}
-					<p class="mt-2 text-sm text-rose-600">
-						{errorMessage}
-					</p>
-				{/if}
 
 				<div
 					bind:this={chipsEl}
@@ -489,6 +535,23 @@
 {#if showInterestQuiz}
 	<Quiz {closeQuiz} {finishQuiz} />
 {/if}
+{#if showOnboarding}
+	<OnboardingFlow
+		onSubmit={handleOnboardingSubmit}
+		submitting={onboardingSubmitting}
+		error={onboardingError}
+		initialAnswers={onboardingAnswers}
+		close={() => {
+			showOnboarding = false;
+		}}
+	/>
+{/if}
+<Toast
+	message={toastMessage}
+	tone={toastTone}
+	open={toastOpen}
+	on:dismiss={() => (toastOpen = false)}
+/>
 
 <style>
 	@keyframes spin {

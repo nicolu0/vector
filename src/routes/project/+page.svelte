@@ -7,7 +7,14 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 	import { isProject, type Project } from '$lib/types/project';
+	import { getContext } from 'svelte';
 
+	type AuthUI = {
+		openAuthModal: () => void;
+		closeAuthModal: () => void;
+	};
+
+	const { openAuthModal } = getContext<AuthUI>('auth-ui');
 	const fallbackProject = projectData as Project;
 	const navigationState = import.meta.env.SSR
 		? undefined
@@ -22,25 +29,24 @@
 	let saving = $state(false);
 	let saveError = $state<string | null>(null);
 
-	async function saveToDashboard() {
+	async function saveProject() {
 		if (saving) return;
 		saveError = null;
 		saving = true;
 
 		try {
 			const {
-				data: { session }
-			} = await supabase.auth.getSession();
+				data: { user }
+			} = await supabase.auth.getUser();
 
-			if (!session) {
-				saveError = 'Sign in to save projects to your dashboard.';
-				saving = false;
-				goto('/dashboard');
+			if (!user) {
+				sessionStorage.setItem('vector:cached-project', JSON.stringify(project));
+				openAuthModal();
 				return;
 			}
 
 			const insertPayload = {
-				user_id: session.user.id,
+				user_id: user.id,
 				title: project.title,
 				difficulty: project.difficulty,
 				timeline: project.timeline,
@@ -84,12 +90,6 @@
 			</div>
 		{/if}
 
-		<ProjectDetail
-			{project}
-			showSaveButton={true}
-			saving={saving}
-			saveError={saveError}
-			on:save={saveToDashboard}
-		/>
+		<ProjectDetail {project} showSaveButton={true} {saving} {saveError} {saveProject} />
 	</div>
 </div>

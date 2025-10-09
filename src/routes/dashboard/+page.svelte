@@ -90,7 +90,7 @@
 
 <div class="min-h-dvh w-full bg-stone-50 px-6 py-4 text-stone-800">
 	<div class="mx-auto w-full max-w-5xl">
-			{#if selectedProject}
+		{#if selectedProject}
 			<button
 				type="button"
 				class="inline-flex items-center gap-2 text-sm text-stone-600 transition hover:text-stone-900"
@@ -104,11 +104,6 @@
 			</button>
 
 			<div class="mt-6 space-y-4">
-				{#if selectedProject.created_at}
-					<p class="text-xs text-stone-500">
-						Saved {formatCreatedAt(selectedProject.created_at)}
-					</p>
-				{/if}
 				<ProjectDetail project={selectedProject} />
 			</div>
 		{:else}
@@ -198,21 +193,19 @@
 				</div>
 			{:else}
 				<div class="mt-4 grid gap-4 sm:grid-cols-2">
-						{#each projects as project, index}
-							<div
-								in:fly|global={
-									shouldAnimateCards
-										? { y: 10, duration: 500, easing: cubicOut, delay: index * 100 }
-										: undefined
-								}
-								class="flex min-h-[120px] cursor-pointer flex-col items-start justify-between gap-3 rounded-lg border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)] hover:border-stone-300 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-black/10 focus-visible:outline-none"
-								role="button"
-								tabindex="0"
-								onclick={() => viewProject(project)}
-								onkeydown={(event) => {
-									if (event.key === 'Enter' || event.key === ' ') {
-										event.preventDefault();
-										viewProject(project);
+					{#each projects as project, index}
+						<div
+							in:fly|global={shouldAnimateCards
+								? { y: 10, duration: 500, easing: cubicOut, delay: index * 100 }
+								: undefined}
+							class="flex min-h-[120px] cursor-pointer flex-col items-start justify-between gap-3 rounded-lg border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)] hover:border-stone-300 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-black/10 focus-visible:outline-none"
+							role="button"
+							tabindex="0"
+							onclick={() => viewProject(project)}
+							onkeydown={(event) => {
+								if (event.key === 'Enter' || event.key === ' ') {
+									event.preventDefault();
+									viewProject(project);
 								}
 							}}
 						>
@@ -225,12 +218,12 @@
 								</h2>
 								<div class="flex flex-row gap-2 self-end pr-5">
 									<span
-										class={`rounded-md border px-2 py-1 text-[10px] ${difficultyBadgeClasses(project.difficulty)}`}
+										class={`rounded-lg border px-2 py-1 text-[10px] ${difficultyBadgeClasses(project.difficulty)}`}
 									>
 										{project.difficulty}
 									</span>
 									<span
-										class={`shrink-0 rounded-md border border-stone-400 bg-stone-100 px-2 py-1 text-[10px] text-stone-500`}
+										class={`shrink-0 rounded-lg border border-stone-400 bg-stone-100 px-2 py-1 text-[10px] text-stone-500`}
 									>
 										Not Started
 									</span>

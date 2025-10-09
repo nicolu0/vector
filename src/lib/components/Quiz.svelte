@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { fly } from 'svelte/transition';
 	import { tweened } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
 	import { onMount } from 'svelte';
@@ -405,8 +406,8 @@
 			</button>
 
 			<div class="space-y-5">
-				<div>
-					<h2 class="text-2xl font-semibold tracking-tight">Pick one</h2>
+				<div in:fly|global={{ y: 18, duration: 500, easing: cubicOut }}>
+					<div class="text-3xl font-semibold tracking-tight">Pick One</div>
 					<p class="text-sm text-stone-600">Select the topic that seems the most interesting.</p>
 				</div>
 
@@ -415,6 +416,7 @@
 						<button
 							type="button"
 							on:click={pickLeft}
+							in:fly|global={{ y: 18, duration: 500, easing: cubicOut, delay: 100 }}
 							class="min-h-[180px] w-full cursor-pointer rounded-xl border border-stone-200 bg-white p-5 text-left transition duration-200 hover:scale-[1.03] hover:border-stone-300 hover:shadow-lg"
 						>
 							<div class="flex h-full flex-col">
@@ -427,6 +429,7 @@
 
 						<button
 							type="button"
+							in:fly|global={{ y: 18, duration: 500, easing: cubicOut, delay: 200 }}
 							on:click={pickRight}
 							class="min-h-[180px] w-full cursor-pointer rounded-xl border border-stone-200 bg-white p-5 text-left transition duration-200 hover:scale-[1.03] hover:border-stone-300 hover:shadow-lg"
 						>
@@ -446,14 +449,14 @@
 					<button
 						type="button"
 						on:click={pickTie}
-						class="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
+						class="rounded-full border border-stone-300 px-4 py-2 text-xs text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
 					>
 						Can’t decide
 					</button>
 					<button
 						type="button"
 						on:click={undoLast}
-						class="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
+						class="rounded-full border border-stone-300 px-4 py-2 text-xs text-stone-700 hover:bg-stone-100 active:scale-[0.98]"
 					>
 						Undo
 					</button>

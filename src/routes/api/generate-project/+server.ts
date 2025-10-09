@@ -1,10 +1,21 @@
 import { json, error } from '@sveltejs/kit';
 import OpenAI from 'openai';
-import { OPENAI_API_KEY } from '$env/static/private';
+import {
+  OPENAI_API_KEY,
+} from '$env/static/private';
 import type { RequestHandler } from './$types';
 import { isProject, type Project } from '$lib/types/project';
 import sampleProject from '$lib/mock/project.sample.json';
 import { createSupabaseServerClient } from '$lib/server/supabase';
+
+const REQUIRE_AUTH = false;
+const REQUIRE_CREDITS = false;
+const INITIAL_CREDITS = Number.isFinite(Number(1))
+  ? Number(1)
+  : 1;
+
+const FALLBACK_PROJECT = sampleProject as Project;
+
 
 const PROJECT_SCHEMA = {
   type: 'json_schema',
@@ -61,16 +72,6 @@ const PROJECT_SCHEMA = {
   strict: true
 } as const;
 
-const FALLBACK_PROJECT = sampleProject as Project;
-
-function createOpenAI() {
-  const apiKey = OPENAI_API_KEY;
-  if (!apiKey) {
-    return null;
-  }
-  return new OpenAI({ apiKey });
-}
-
 function buildPrompt({ interests, tags }: { interests: string; tags: string[] }) {
   const focus = interests ? interests.trim() : '';
   const tagList = tags.filter(Boolean);
@@ -80,7 +81,8 @@ function buildPrompt({ interests, tags }: { interests: string; tags: string[] })
     ? `Key focus tags:\n${tagList.map((tag) => `- ${tag}`).join('\n')}\n`
     : '';
 
-  const guidance = `Generate a single standout technical project tailored to the candidate. ` +
+  const guidance =
+    `Generate a single standout technical project tailored to the candidate. ` +
     `Align it closely with the interests, highlight relevant industry context, and ensure it feels ` +
     `practical to execute within 4-8 weeks. Include concrete deliverables, measurable outcomes, and ` +
     `references to real-world tools or datasets when possible.`;
@@ -104,96 +106,24 @@ function buildPrompt({ interests, tags }: { interests: string; tags: string[] })
     .join('\n\n');
 }
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
-  let payload: { interests?: unknown; tags?: unknown };
+function createOpenAI() {
+  const apiKey = OPENAI_API_KEY;
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey });
+}
 
-  try {
-    payload = await request.json();
-  } catch (err) {
-    throw error(400, 'Invalid JSON body');
-  }
-
-  const interests = typeof payload.interests === 'string' ? payload.interests : '';
-  const tags = Array.isArray(payload.tags) ? payload.tags.filter((tag): tag is string => typeof tag === 'string') : [];
-
-  if (!interests.trim() && tags.length === 0) {
-    throw error(400, 'Provide interests or tags to generate a project');
-  }
-
-  const supabase = createSupabaseServerClient(cookies);
-  const {
-    data: { user },
-    error: userError
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    console.error('Failed to verify Supabase user', userError);
-  }
-
-  if (!user?.id || userError) {
-    return json(
-      { message: 'Sign in to claim your free project credit (0 / 1 credits).' },
-      { status: 401 }
-    );
-  }
-
-  const userId = user.id;
-
-  const { data: userRow, error: userFetchError } = await supabase
-    .from('users')
-    .select('credits')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (userFetchError) {
-    console.error('Failed to fetch user credits', userFetchError);
-    throw error(500, 'Unable to check credits');
-  }
-
-  let credits = typeof userRow?.credits === 'number' ? userRow.credits : null;
-
-  if (userRow === null) {
-    const { data: insertedRow, error: insertError } = await supabase
-      .from('users')
-      .insert({ user_id: userId, credits: 1 })
-      .select('credits')
-      .single();
-
-    if (insertError) {
-      if (insertError.code === '23505') {
-        const { data: existingRow } = await supabase
-          .from('users')
-          .select('credits')
-          .eq('user_id', userId)
-          .single();
-        credits = existingRow?.credits ?? 0;
-      } else {
-        console.error('Failed to provision initial credits', insertError);
-        throw error(500, 'Unable to prepare credits');
-      }
-    } else {
-      credits = insertedRow?.credits ?? 0;
-    }
-  }
-
-  if (!credits || credits <= 0) {
-    return json(
-      { message: 'You are out of credits. Visit your profile to review your balance.' },
-      { status: 402 }
-    );
-  }
-
+async function generateProjectWithOpenAI(input: { interests: string; tags: string[] }) {
+  return { project: FALLBACK_PROJECT, source: 'generated' as const, errorMessage: null };
   const client = createOpenAI();
   if (!client) {
-    console.warn('OPENAI_API_KEY missing; returning fallback project.');
-    return json(FALLBACK_PROJECT, {
-      headers: {
-        'x-vector-project-source': 'fallback',
-        'x-vector-user-credits': String(credits)
-      }
-    });
+    return {
+      project: FALLBACK_PROJECT,
+      source: 'fallback' as const,
+      errorMessage: 'OPENAI_API_KEY missing'
+    };
   }
-  const prompt = buildPrompt({ interests, tags });
+
+  const prompt = buildPrompt(input);
 
   try {
     const response = await client.responses.create({
@@ -201,56 +131,189 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
       instructions:
         'You are an expert career mentor generating project briefs. Always respond with valid JSON.',
       input: prompt,
-      text: {
-        format: PROJECT_SCHEMA
-      }
+      text: { format: PROJECT_SCHEMA }
     });
 
     const output = response.output_text;
+    if (!output) throw new Error('No content returned from model');
 
-    if (!output) {
-      throw new Error('No content returned from model');
-    }
+    const parsed = JSON.parse(output) as Project;
+    if (!isProject(parsed)) throw new Error('Model response did not match expected schema');
 
-    let project: Project;
-    try {
-      project = JSON.parse(output) as Project;
-    } catch (err) {
-      throw new Error('Model response was not valid JSON');
-    }
+    return { project: parsed, source: 'generated' as const, errorMessage: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { project: FALLBACK_PROJECT, source: 'fallback' as const, errorMessage: message };
+  }
+}
 
-    if (!isProject(project)) {
-      throw new Error('Model response did not match expected schema');
-    }
+/* --------------------------- Auth/Credits gate --------------------------- */
 
-    const { data: updatedRow, error: updateError } = await supabase
+type GateOk = {
+  ok: true;
+  userId: string | null; // null when auth not required
+  credits: number | null; // null when credits not required
+  supabase: ReturnType<typeof createSupabaseServerClient>;
+  deductOne: () => Promise<number | null>; // returns remaining credits or null when not enforced
+};
+
+type GateBlocked = { ok: false; response: Response };
+
+async function gateUserAndCredits(cookies): Promise<GateOk | GateBlocked> {
+  const supabase = createSupabaseServerClient(cookies);
+
+  // If we don't require auth, we still instantiate supabase for DB access,
+  // but we won't check user or credits.
+  if (!REQUIRE_AUTH && !REQUIRE_CREDITS) {
+    return {
+      ok: true,
+      userId: null,
+      credits: null,
+      supabase,
+      deductOne: async () => null
+    };
+  }
+
+  // Auth check (if required)
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+
+  if (REQUIRE_AUTH && (userError || !user?.id)) {
+    return {
+      ok: false,
+      response: json(
+        { message: 'Sign in to claim your free project credit (0 / 1 credits).' },
+        { status: 401 }
+      )
+    };
+  }
+
+  const userId = user?.id ?? null;
+
+  // Credits check (if required)
+  if (!REQUIRE_CREDITS) {
+    return {
+      ok: true,
+      userId,
+      credits: null,
+      supabase,
+      deductOne: async () => null
+    };
+  }
+
+  // Fetch or provision credits
+  const { data: row, error: fetchErr } = await supabase
+    .from('users')
+    .select('credits')
+    .eq('user_id', userId!)
+    .maybeSingle();
+
+  if (fetchErr) {
+    console.error('Failed to fetch user credits', fetchErr);
+    return { ok: false, response: error(500, 'Unable to check credits') as unknown as Response };
+  }
+
+  let credits = typeof row?.credits === 'number' ? row.credits : null;
+
+  // Provision row if missing
+  if (row === null) {
+    const { data: inserted, error: insertErr } = await supabase
       .from('users')
-      .update({ credits: credits - 1 })
-      .eq('user_id', userId)
+      .insert({ user_id: userId, credits: INITIAL_CREDITS })
       .select('credits')
       .single();
 
-    if (updateError) {
-      console.error('Failed to deduct credit', updateError);
+    if (insertErr) {
+      if ((insertErr as any).code === '23505') {
+        const { data: existing } = await supabase
+          .from('users')
+          .select('credits')
+          .eq('user_id', userId!)
+          .single();
+        credits = existing?.credits ?? 0;
+      } else {
+        console.error('Failed to provision initial credits', insertErr);
+        return { ok: false, response: error(500, 'Unable to prepare credits') as unknown as Response };
+      }
+    } else {
+      credits = inserted?.credits ?? 0;
     }
-
-    const remainingCredits = typeof updatedRow?.credits === 'number' ? updatedRow.credits : credits - 1;
-
-    const validatedProject: Project = project;
-    return json(validatedProject, {
-      headers: {
-        'x-vector-project-source': 'generated',
-        'x-vector-user-credits': String(Math.max(remainingCredits, 0))
-      }
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Failed to generate project, serving fallback.', err);
-    return json(FALLBACK_PROJECT, {
-      headers: {
-        'x-vector-project-source': 'fallback',
-        'x-vector-project-error': encodeURIComponent(message)
-      }
-    });
   }
+
+  if (!credits || credits <= 0) {
+    return {
+      ok: false,
+      response: json(
+        { message: 'You are out of credits. Visit your profile to review your balance.' },
+        { status: 402 }
+      )
+    };
+  }
+
+  // Provide a deduct function to call only on success
+  const deductOne = async () => {
+    const { data: updated, error: updateErr } = await supabase
+      .from('users')
+      .update({ credits: credits! - 1 })
+      .eq('user_id', userId!)
+      .select('credits')
+      .single();
+
+    if (updateErr) {
+      console.error('Failed to deduct credit', updateErr);
+      return (credits! - 1); // best-effort local math
+    }
+    return typeof updated?.credits === 'number' ? updated.credits : credits! - 1;
+  };
+
+  return { ok: true, userId, credits, supabase, deductOne };
+}
+
+/* --------------------------------- Handler --------------------------------- */
+
+export const POST: RequestHandler = async ({ request, cookies }) => {
+  // Parse input
+  let payload: { interests?: unknown; tags?: unknown };
+  try {
+    payload = await request.json();
+  } catch {
+    throw error(400, 'Invalid JSON body');
+  }
+
+  const interests = typeof payload.interests === 'string' ? payload.interests : '';
+  const tags = Array.isArray(payload.tags)
+    ? payload.tags.filter((t): t is string => typeof t === 'string')
+    : [];
+
+  if (!interests.trim() && tags.length === 0) {
+    throw error(400, 'Provide interests or tags to generate a project');
+  }
+
+  // const gate = await gateUserAndCredits(cookies);
+  // if (!gate.ok) return gate.response;
+
+  const { project, source, errorMessage } = await generateProjectWithOpenAI({ interests, tags });
+
+  // let remainingCreditsHeader: string | undefined;
+  // if (REQUIRE_CREDITS) {
+  //   const remaining = await gate.deductOne();
+  //   if (typeof remaining === 'number') {
+  //     remainingCreditsHeader = String(Math.max(remaining, 0));
+  //   }
+  // } else if (gate.credits != null) {
+  //   // If we had a number (rare when REQUIRE_CREDITS=false), send what we saw
+  //   remainingCreditsHeader = String(gate.credits);
+  // }
+
+  const headers: Record<string, string> = {
+    'x-vector-project-source': source
+  };
+  // if (remainingCreditsHeader) headers['x-vector-user-credits'] = remainingCreditsHeader;
+  if (source === 'fallback' && errorMessage) {
+    headers['x-vector-project-error'] = encodeURIComponent(errorMessage);
+  }
+
+  return json(project, { headers });
 };

@@ -1,135 +1,160 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-  import type { Project } from '$lib/types/project';
-  import { difficultyBadgeClasses } from '$lib/styles/difficulty';
+	import { createEventDispatcher } from 'svelte';
+	import type { Project } from '$lib/types/project';
+	import { difficultyBadgeClasses } from '$lib/styles/difficulty';
 
-  const {
-    project,
-    showSaveButton = false,
-    saving = false,
-    saveError = null
-  } = $props<{
-    project: Project;
-    showSaveButton?: boolean;
-    saving?: boolean;
-    saveError?: string | null;
-  }>();
+	const {
+		project,
+		showSaveButton = false,
+		saving = false,
+		saveError = null,
+		saveProject
+	} = $props<{
+		project: Project;
+		showSaveButton?: boolean;
+		saving?: boolean;
+		saveError?: string | null;
+		saveProject?: () => void;
+	}>();
 
-  const dispatch = createEventDispatcher<{ save: void; copy: void }>();
+	const dispatch = createEventDispatcher<{ save: void; copy: void }>();
 
-  function timelineClasses(label: string): string {
-    const normalized = label.toLowerCase();
-    if (normalized.includes('week')) return 'bg-sky-200 text-sky-800';
-    if (normalized.includes('month')) return 'bg-indigo-200 text-indigo-800';
-    return 'bg-stone-200 text-stone-800';
-  }
+	function timelineClasses(label: string): string {
+		const normalized = label.toLowerCase();
+		if (normalized.includes('week')) return 'bg-sky-50 text-sky-600 border-sky-200';
+		if (normalized.includes('month')) return 'bg-indigo-200 text-indigo-800';
+		return 'bg-stone-200 text-stone-800';
+	}
 
-  function openLink(url: string) {
-    if (!url) return;
-    if (typeof window !== 'undefined') {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
-  }
+	function openLink(url: string) {
+		if (!url) return;
+		if (typeof window !== 'undefined') {
+			window.open(url, '_blank', 'noopener,noreferrer');
+		}
+	}
 </script>
 
 <div class="space-y-6">
-  <div class="flex flex-col gap-5 md:flex-row md:items-center">
-    <div class="text-2xl font-semibold tracking-tight text-stone-900 sm:text-2xl lg:text-4xl">
-      {project.title}
-    </div>
+	<div class="flex items-center justify-between">
+		<div class="flex flex-row items-center gap-2">
+			<div class="text-2xl font-semibold tracking-tight text-stone-900 sm:text-2xl lg:text-3xl">
+				{project.title}
+			</div>
 
-    <div class="flex flex-wrap items-center gap-2">
-      <div
-        class={'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ' +
-          difficultyBadgeClasses(project.difficulty)}
-      >
-        {project.difficulty}
-      </div>
-      <div
-        class={'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ' +
-          timelineClasses(project.timeline)}
-      >
-        {project.timeline}
-      </div>
-    </div>
-  </div>
+			<div class="flex flex-wrap items-center gap-2">
+				<div
+					class={'inline-flex items-center rounded-lg border px-3 py-1 text-xs font-medium ' +
+						difficultyBadgeClasses(project.difficulty)}
+				>
+					{project.difficulty}
+				</div>
+				<div
+					class={'inline-flex items-center rounded-lg border px-3 py-1 text-xs font-medium ' +
+						timelineClasses(project.timeline)}
+				>
+					{project.timeline}
+				</div>
+				<div
+					class="inline-flex items-center rounded-lg border border-stone-400 bg-stone-100 px-3 py-1 text-xs font-medium text-stone-500"
+				>
+					Not Started
+				</div>
+			</div>
+		</div>
+		<div
+			class="inline-flex items-center rounded-full bg-stone-800 px-3 py-1 text-xs font-medium text-stone-50"
+		>
+			<svg class="mr-2 h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+				<path
+					d="M12 2C6.477 2 2 6.588 2 12.253c0 4.525 2.865 8.363 6.839 9.72.5.095.683-.22.683-.49 0-.242-.009-.882-.014-1.732-2.782.615-3.369-1.35-3.369-1.35-.455-1.176-1.11-1.49-1.11-1.49-.907-.633.069-.62.069-.62 1.003.072 1.53 1.05 1.53 1.05.892 1.559 2.341 1.109 2.91.848.091-.66.35-1.109.636-1.364-2.221-.257-4.555-1.136-4.555-5.055 0-1.117.388-2.03 1.026-2.747-.103-.258-.445-1.296.098-2.7 0 0 .84-.27 2.75 1.048A9.37 9.37 0 0 1 12 6.84c.852.004 1.709.116 2.511.34 1.909-1.318 2.748-1.048 2.748-1.048.544 1.404.202 2.442.1 2.7.64.717 1.025 1.63 1.025 2.747 0 3.93-2.338 4.795-4.566 5.047.36.317.68.942.68 1.898 0 1.37-.013 2.474-.013 2.812 0 .272.18.589.69.489A10.03 10.03 0 0 0 22 12.253C22 6.588 17.523 2 12 2z"
+				/>
+			</svg>
+			<span>Link GitHub</span>
+		</div>
+	</div>
 
-  <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-    <div class="mb-2 text-sm font-semibold tracking-tight text-stone-900">Project brief</div>
-    <div class="text-[15px] leading-7 text-stone-700">
-      {project.description}
-    </div>
-  </div>
+	<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+		<div class="mb-2 text-sm font-semibold tracking-tight text-stone-900">Project brief</div>
+		<div class="text-[15px] leading-7 text-stone-700">
+			{project.description}
+		</div>
+	</div>
 
-  <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.04)] sm:p-5">
-    <div class="mb-3 flex items-center justify-between">
-      <div class="text-sm font-semibold tracking-tight text-stone-900">Jobs this maps to</div>
-      <div class="text-xs text-stone-500">
-        {project.jobs.length} source{project.jobs.length === 1 ? '' : 's'}
-      </div>
-    </div>
+	<div
+		class="rounded-2xl border border-stone-200 bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.04)] sm:p-5"
+	>
+		<div class="mb-3 flex items-center justify-between">
+			<div class="text-sm font-semibold tracking-tight text-stone-900">Jobs this maps to</div>
+			<div class="text-xs text-stone-500">
+				{project.jobs.length} source{project.jobs.length === 1 ? '' : 's'}
+			</div>
+		</div>
 
-    {#if project.jobs.length === 0}
-      <div class="rounded-lg border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
-        No job links provided. Generate again with listings to make this laser-targeted.
-      </div>
-    {:else}
-      <div class="divide-y divide-stone-200">
-        {#each project.jobs as job}
-          <div class="flex items-center justify-between bg-white px-2 py-3 first:rounded-t-xl last:rounded-b-xl">
-            <div class="min-w-0">
-              <div class="truncate text-[15px] font-medium text-stone-800">
-                {job.title}
-              </div>
-              <div class="truncate text-xs text-stone-500">{job.url}</div>
-            </div>
-            {#if job.url}
-              <button
-                class="shrink-0 rounded-full border border-stone-200 bg-white px-3 py-1 text-xs text-stone-700 transition hover:bg-stone-50"
-                on:click={() => openLink(job.url)}
-              >
-                Open
-              </button>
-            {/if}
-          </div>
-        {/each}
-      </div>
-    {/if}
-  </div>
+		{#if project.jobs.length === 0}
+			<div class="rounded-lg border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
+				No job links provided. Generate again with listings to make this laser-targeted.
+			</div>
+		{:else}
+			<div class="divide-y divide-stone-200">
+				{#each project.jobs as job}
+					<div
+						class="flex items-center justify-between bg-white px-2 py-3 first:rounded-t-xl last:rounded-b-xl"
+					>
+						<div class="min-w-0">
+							<div class="truncate text-[15px] font-medium text-stone-800">
+								{job.title}
+							</div>
+							<div class="truncate text-xs text-stone-500">{job.url}</div>
+						</div>
+						{#if job.url}
+							<button
+								class="shrink-0 rounded-full border border-stone-200 bg-white px-3 py-1 text-xs text-stone-700 transition hover:bg-stone-50"
+								onclick={() => openLink(job.url)}
+							>
+								Open
+							</button>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
 
-  <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-    <div class="mb-3 text-sm font-semibold tracking-tight text-stone-900">
-      Skills you’ll use/learn
-    </div>
+	<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+		<div class="mb-3 text-sm font-semibold tracking-tight text-stone-900">
+			Skills you’ll use/learn
+		</div>
 
-    {#if project.skills.length === 0}
-      <div class="text-sm text-stone-600">
-        No skills attached. Add a skills list when generating.
-      </div>
-    {:else}
-      <div class="flex flex-wrap items-center gap-2">
-        {#each project.skills as skill}
-          <div class="inline-flex items-center rounded-full border border-stone-300 bg-stone-50 px-3 py-1 text-xs text-stone-700">
-            {skill}
-          </div>
-        {/each}
-      </div>
-    {/if}
-  </div>
+		{#if project.skills.length === 0}
+			<div class="text-sm text-stone-600">
+				No skills attached. Add a skills list when generating.
+			</div>
+		{:else}
+			<div class="flex flex-wrap items-center gap-2">
+				{#each project.skills as skill}
+					<div
+						class="inline-flex items-center rounded-full border border-stone-300 bg-stone-50 px-3 py-1 text-xs text-stone-700"
+					>
+						{skill}
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
 
-  {#if showSaveButton}
-    <div class="flex flex-col items-end gap-2">
-      <button
-        type="button"
-        disabled={saving}
-        class="rounded-full bg-stone-800 px-4 py-2 text-sm font-medium text-stone-50 transition hover:bg-stone-900 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-        on:click={() => dispatch('save')}
-      >
-        {saving ? 'Saving…' : 'Save to dashboard'}
-      </button>
-      {#if saveError}
-        <p class="text-xs text-rose-600">{saveError}</p>
-      {/if}
-    </div>
-  {/if}
+	{#if showSaveButton}
+		<div class="flex flex-col items-end gap-2">
+			<button
+				type="button"
+				disabled={saving}
+				class="rounded-full bg-stone-800 px-4 py-2 text-sm font-medium text-stone-50 transition hover:bg-stone-900 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+				onclick={() => saveProject(project)}
+			>
+				{saving ? 'Saving…' : 'Save to dashboard'}
+			</button>
+			{#if saveError}
+				<p class="text-xs text-rose-600">{saveError}</p>
+			{/if}
+		</div>
+	{/if}
 </div>
