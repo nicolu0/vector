@@ -15,6 +15,9 @@
 	type OnboardingUI = {
 		openOnboarding: () => void;
 	};
+	type AuthStateUI = {
+		resetUserState: () => void;
+	};
 
 	let { children } = $props();
 
@@ -39,6 +42,16 @@
 		goal: null,
 		project: null
 	});
+	function resetUserState() {
+		userExists = false;
+		credits = null;
+		showOnboarding = false;
+		onboardingAnswers = {
+			education: null,
+			goal: null,
+			project: null
+		};
+	}
 
 	async function fetchCredits(userId: string) {
 		const { data, error } = await supabase
@@ -170,6 +183,8 @@
 	setContext('auth-ui', authApi);
 	const onboardingApi: OnboardingUI = { openOnboarding };
 	setContext('onboarding-ui', onboardingApi);
+	const authStateApi: AuthStateUI = { resetUserState };
+	setContext('auth-state', authStateApi);
 </script>
 
 <svelte:head>

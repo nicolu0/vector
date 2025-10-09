@@ -2,7 +2,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { fly } from 'svelte/transition';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
 
@@ -18,6 +18,10 @@
 	let signOutError = $state<string | null>(null);
 	let userEmail = $state<string | null>(null);
 	let credits = $state<number | null>(null);
+	type LayoutAuthStateApi = {
+		resetUserState: () => void;
+	};
+	const layoutAuthState = getContext<LayoutAuthStateApi | null>('auth-state');
 
 	type Plan = {
 		name: string;
@@ -175,6 +179,7 @@
 				throw error;
 			}
 			await clearSupabaseSession();
+			layoutAuthState?.resetUserState();
 			userEmail = null;
 			credits = null;
 			await invalidateAll();
