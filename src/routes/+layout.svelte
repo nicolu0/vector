@@ -191,7 +191,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="min-h-screen">
+<div class="flex h-dvh flex-col overflow-hidden">
 	<header
 		class="sticky top-0 z-[70] flex w-full items-center justify-between border border-b-1 border-stone-100 bg-stone-50 px-6 py-4"
 	>
@@ -226,7 +226,9 @@
 		</div>
 	</header>
 
-	{@render children()}
+	<main id="app-main" class="min-h-0 flex-1 overflow-auto">
+		{@render children()}
+	</main>
 
 	{#if showAuthModal}
 		<div

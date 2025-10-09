@@ -149,38 +149,63 @@
 	$effect(() => {
 		chatPanelWidth = clampChatWidth(chatPanelWidth);
 	});
+	$effect(() => {
+		if (typeof document === 'undefined') return;
+		const main = document.getElementById('app-main');
+		if (!main) return;
+
+		const lock = Boolean(selectedProject);
+		main.classList.toggle('overflow-hidden', lock);
+		main.classList.toggle('overflow-auto', !lock);
+
+		// Optional hard lock to prevent overscroll chaining on iOS
+		document.documentElement.classList.toggle('overflow-hidden', lock);
+		document.documentElement.classList.toggle('overscroll-none', lock);
+		document.body.classList.toggle('overflow-hidden', lock);
+		document.body.classList.toggle('overscroll-none', lock);
+	});
 </script>
 
 <svelte:head>
 	<title>Dashboard</title>
 </svelte:head>
 
-<div class="min-h-dvh w-full bg-stone-50 px-6 py-4 text-stone-800">
-	<div class="mx-auto w-full max-w-5xl">
+<div
+	class="w-full bg-stone-50 px-6 py-4 text-stone-800"
+	class:h-full={!!selectedProject}
+	class:overflow-clip={!!selectedProject}
+>
+	<div class="mx-auto w-full max-w-5xl" class:h-full={!!selectedProject}>
 		{#if selectedProject}
-			<button
-				type="button"
-				class="inline-flex items-center gap-2 text-sm text-stone-600 transition hover:text-stone-900"
-				onclick={() => (selectedProject = null)}
-				aria-label="Back to dashboard"
-			>
-				<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
-					<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-				</svg>
-				Back
-			</button>
+			<div class="flex h-full flex-col">
+				<button
+					type="button"
+					class="inline-flex items-center gap-2 text-sm text-stone-600 transition hover:text-stone-900"
+					onclick={() => (selectedProject = null)}
+					aria-label="Back to dashboard"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						class="h-4 w-4"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+					Back
+				</button>
 
-			<div class="mt-6">
 				<div
-					class="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0"
+					class="mt-6 flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0"
 					bind:clientWidth={containerWidth}
 					class:select-none={isResizing}
 				>
-					<div class="lg:min-w-0 lg:flex-1">
+					<div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
 						<ProjectDetail project={selectedProject} />
 					</div>
 					<div
-						class="hidden lg:flex lg:w-6 lg:cursor-col-resize lg:flex-none lg:items-stretch lg:justify-center"
+						class="hidden lg:flex lg:w-6 lg:flex-none lg:cursor-col-resize lg:items-stretch lg:justify-center"
 						onpointerdown={startResize}
 						role="separator"
 						aria-orientation="vertical"
@@ -188,11 +213,15 @@
 					>
 						<div class="my-2 h-full w-px rounded-full bg-stone-200" />
 					</div>
+
+					<!-- Chat panel: fixed width and scrolls itself -->
 					<div
-						class="w-full lg:flex-none lg:[width:var(--chat-panel-width)]"
+						class="min-h-0 w-full lg:[width:var(--chat-panel-width)] lg:flex-none"
 						style={`--chat-panel-width: ${chatPanelWidth}px`}
 					>
-						<ProjectChat />
+						<div class="h-full min-h-0 overflow-y-auto">
+							<ProjectChat />
+						</div>
 					</div>
 				</div>
 			</div>
