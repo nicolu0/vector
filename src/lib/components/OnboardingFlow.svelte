@@ -7,6 +7,25 @@
 		goal: 'full_time' | 'internship' | 'explore' | null;
 		project: 'research' | 'industry' | null;
 	};
+	function clearCurrentAnswer() {
+		if (currentStep.id === 'education') {
+			answers = { ...answers, education: null };
+		} else if (currentStep.id === 'goal') {
+			answers = { ...answers, goal: null };
+		} else if (currentStep.id === 'project') {
+			answers = { ...answers, project: null };
+		}
+	}
+
+	function skip() {
+		if (submitting) return;
+		clearCurrentAnswer();
+		if (stepIndex < totalSteps - 1) {
+			stepIndex += 1;
+		} else {
+			close();
+		}
+	}
 
 	const {
 		onSubmit = (async () => {}) as (answers: {
@@ -16,7 +35,8 @@
 		}) => Promise<void>,
 		submitting = false,
 		error = null as string | null,
-		initialAnswers = {} as Partial<Answers>
+		initialAnswers = {} as Partial<Answers>,
+		close
 	} = $props<{
 		onSubmit?: (answers: {
 			education: 'high_school' | 'college';
@@ -26,6 +46,7 @@
 		submitting?: boolean;
 		error?: string | null;
 		initialAnswers?: Partial<Answers>;
+		close: () => void;
 	}>();
 
 	type StepId = 'education' | 'goal' | 'project';
@@ -189,12 +210,22 @@
 </script>
 
 <div
-	class="fixed inset-x-0 top-[56px] z-[110] flex h-[calc(100vh-56px)] items-center justify-center bg-stone-50 px-4 text-stone-900"
-	in:fly={{ y: 24, duration: 300, easing: cubicOut }}
+	class="fixed inset-x-0 top-[56px] z-[110] flex h-[calc(100vh-56px)] flex-col items-center justify-center bg-stone-50 px-4 text-stone-900"
+	in:fly={{ y: 24, duration: 200, easing: cubicOut, opacity: 1 }}
 	role="dialog"
 	aria-modal="true"
 	aria-label="Vector onboarding"
 >
+	<button
+		type="button"
+		onclick={close}
+		class="absolute top-3 left-3 inline-flex items-center gap-2 p-3 text-sm text-stone-600 transition hover:text-stone-900"
+	>
+		<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
+			<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+		</svg>
+		Back
+	</button>
 	<div class="mb-16 flex max-h-[80vh] min-h-0 w-full max-w-3xl flex-col px-2 sm:px-4">
 		<div class="space-y-3">
 			<p class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">
@@ -351,18 +382,19 @@
 			</div>
 		{/if}
 
-		<div class="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+		<div class="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
 			<button
 				type="button"
-				class="inline-flex items-center justify-center rounded-full border border-stone-300 bg-white px-5 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
-				onclick={back}
-				disabled={stepIndex === 0 || submitting}
+				class="inline-flex items-center justify-center gap-2 rounded-full border border-stone-300 px-6 py-2 text-sm tracking-tight text-stone-400 transition hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:outline-none"
+				onclick={skip}
+				disabled={submitting}
 			>
-				Back
+				Skip
 			</button>
+
 			<button
 				type="button"
-				class={`inline-flex items-center justify-center gap-2 rounded-full px-6 py-2 text-sm font-semibold tracking-tight transition ${
+				class={`inline-flex items-center justify-center gap-2 rounded-full px-6 py-2 text-sm  tracking-tight transition ${
 					canContinue && !submitting
 						? 'bg-stone-900 text-stone-50 hover:bg-stone-800'
 						: 'bg-stone-300 text-stone-600'

@@ -7,7 +7,14 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 	import { isProject, type Project } from '$lib/types/project';
+	import { getContext } from 'svelte';
 
+	type AuthUI = {
+		openAuthModal: () => void;
+		closeAuthModal: () => void;
+	};
+
+	const { openAuthModal } = getContext<AuthUI>('auth-ui');
 	const fallbackProject = projectData as Project;
 	const navigationState = import.meta.env.SSR
 		? undefined
@@ -87,9 +94,10 @@
 		<ProjectDetail
 			{project}
 			showSaveButton={true}
-			saving={saving}
-			saveError={saveError}
+			{saving}
+			{saveError}
 			on:save={saveToDashboard}
+			{openAuthModal}
 		/>
 	</div>
 </div>

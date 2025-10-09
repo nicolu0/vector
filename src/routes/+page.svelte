@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { blur, fly } from 'svelte/transition';
+	import OnboardingFlow from '$lib/components/OnboardingFlow.svelte';
 	import { cubicOut } from 'svelte/easing';
 	import Quiz from '$lib/components/Quiz.svelte';
 	import { onMount, tick } from 'svelte';
@@ -14,12 +15,106 @@
 
 	const { openAuthModal } = getContext<AuthUI>('auth-ui');
 
+	type OnboardingAnswers = {
+		education: 'high_school' | 'college' | null;
+		goal: 'full_time' | 'internship' | 'explore' | null;
+		project: 'research' | 'industry' | null;
+	};
+
+	let showOnboarding = $state(false);
+	let onboardingSubmitting = $state(false);
+	let onboardingError: string | null = $state(null);
+	let onboardingAnswers: OnboardingAnswers = $state({
+		education: null,
+		goal: null,
+		project: null
+	});
+	async function handleOnboardingSubmit(answers: {
+		education: 'high_school' | 'college';
+		goal: 'full_time' | 'internship' | 'explore';
+		project: 'research' | 'industry';
+	}) {
+		const interests = input.trim();
+		const tags = Array.from(picked);
+		const payload = { interests, tags };
+
+		if (onboardingSubmitting) return;
+		onboardingError = null;
+		onboardingSubmitting = true;
+		isGenerating = true;
+		showOnboarding = false;
+		clearPendingGeneration();
+
+		try {
+			const response = await fetch('/api/generate-project', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+
+			if (!response.ok) {
+				let detail: string | null = null;
+				try {
+					const data = await response.json();
+					if (typeof data?.message === 'string') detail = data.message;
+				} catch {
+					const text = await response.text();
+					detail = text || null;
+				}
+
+				if (response.status === 401) {
+					const message = detail ?? 'Sign in to claim your free project credit.';
+					errorMessage = message;
+					savePendingGeneration(payload);
+					window.dispatchEvent(
+						new CustomEvent('vector:auth-required', {
+							detail: { message, reason: 'generate' as const }
+						})
+					);
+					isGenerating = false;
+					return;
+				}
+				if (response.status === 402) {
+					const message =
+						detail ?? 'You are out of credits. Visit your profile to review your balance.';
+					errorMessage = message;
+					window.dispatchEvent(
+						new CustomEvent('vector:credits-updated', { detail: { credits: 0 } })
+					);
+					isGenerating = false;
+					return;
+				}
+
+				errorMessage = detail || 'We ran into an issue generating your project. Please try again.';
+				isGenerating = false;
+				return;
+			}
+
+			const project = await response.json();
+			const creditsHeader = response.headers.get('x-vector-user-credits');
+			if (creditsHeader !== null) {
+				const numericCredits = Number.parseInt(creditsHeader, 10);
+				if (!Number.isNaN(numericCredits)) {
+					window.dispatchEvent(
+						new CustomEvent('vector:credits-updated', { detail: { credits: numericCredits } })
+					);
+				}
+			}
+			const usedFallback = response.headers.get('x-vector-project-source') === 'fallback';
+			clearPendingGeneration();
+			await goto('/project', { state: { project, fallback: usedFallback } });
+		} catch (err) {
+			console.error('Project generation failed', err);
+			errorMessage = 'We ran into an issue generating your project. Please try again.';
+			isGenerating = false;
+		}
+	}
+
 	const {
 		placeholder = 'Tell us your interests… Not sure? Take the interest quiz',
 		headline = 'Applying to college/jobs?',
 		subhead = 'Differentiate yourself with great projects. Vector uses job listings to generate the perfect ones.',
-		quizLabel = 'Take interest quiz',
-		onGenerate = (() => {}) as (p: { interests: string; tags: string[] }) => void
+		quizLabel = 'Take interest quiz'
 	} = $props<{
 		placeholder?: string;
 		headline?: string;
@@ -27,7 +122,6 @@
 		showQuizChip?: boolean;
 		quizLabel?: string;
 		quizHref?: string | null;
-		onGenerate: (p: { interests: string; tags: string[] }) => void;
 	}>();
 
 	let showInterestQuiz = $state(false);
@@ -155,12 +249,7 @@
 		if (typeof window === 'undefined') return;
 		try {
 			sessionStorage.setItem(PENDING_GENERATION_KEY, JSON.stringify(payload));
-		} catch (
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			_err
-		) {
-			// ignore quota / availability issues
-		}
+		} catch (_err) {}
 	}
 
 	function loadPendingGeneration(): { interests: string; tags: string[] } | null {
@@ -252,96 +341,12 @@
 
 		const interests = input.trim();
 		const tags = Array.from(picked);
-		const payload = { interests, tags };
 
 		if (!interests && tags.length === 0) {
 			errorMessage = 'Add a short description or pick at least one tag.';
 			return;
-		}
-
-		// try {
-		// 	const { user, credits } = await ensureSignedInOrPrompt(payload);
-		// 	if (!user) {
-		// 		return;
-		// 	}
-		//
-		// 	if (credits !== null && credits <= 0) {
-		// 		errorMessage = 'You are out of credits. Visit your profile to review your balance.';
-		// 		window.dispatchEvent(new CustomEvent('vector:credits-updated', { detail: { credits: 0 } }));
-		// 		return;
-		// 	}
-		// } catch (e) {
-		// 	openAuthModal();
-		// 	return;
-		// }
-
-		errorMessage = null;
-		isGenerating = true;
-		onGenerate(payload);
-		clearPendingGeneration();
-
-		try {
-			const response = await fetch('/api/generate-project', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-
-			if (!response.ok) {
-				let detail: string | null = null;
-				try {
-					const data = await response.json();
-					if (typeof data?.message === 'string') detail = data.message;
-				} catch {
-					const text = await response.text();
-					detail = text || null;
-				}
-
-				if (response.status === 401) {
-					const message = detail ?? 'Sign in to claim your free project credit.';
-					errorMessage = message;
-					savePendingGeneration(payload);
-					window.dispatchEvent(
-						new CustomEvent('vector:auth-required', {
-							detail: { message, reason: 'generate' as const }
-						})
-					);
-					isGenerating = false;
-					return;
-				}
-				if (response.status === 402) {
-					const message =
-						detail ?? 'You are out of credits. Visit your profile to review your balance.';
-					errorMessage = message;
-					window.dispatchEvent(
-						new CustomEvent('vector:credits-updated', { detail: { credits: 0 } })
-					);
-					isGenerating = false;
-					return;
-				}
-
-				errorMessage = detail || 'We ran into an issue generating your project. Please try again.';
-				isGenerating = false;
-				return;
-			}
-
-			const project = await response.json();
-			const creditsHeader = response.headers.get('x-vector-user-credits');
-			if (creditsHeader !== null) {
-				const numericCredits = Number.parseInt(creditsHeader, 10);
-				if (!Number.isNaN(numericCredits)) {
-					window.dispatchEvent(
-						new CustomEvent('vector:credits-updated', { detail: { credits: numericCredits } })
-					);
-				}
-			}
-			const usedFallback = response.headers.get('x-vector-project-source') === 'fallback';
-			clearPendingGeneration();
-			await goto('/project', { state: { project, fallback: usedFallback } });
-		} catch (err) {
-			console.error('Project generation failed', err);
-			errorMessage = 'We ran into an issue generating your project. Please try again.';
-			isGenerating = false;
+		} else {
+			showOnboarding = true;
 		}
 	}
 
@@ -352,7 +357,6 @@
 		}
 	}
 
-	// Clamp to exactly two wrapped rows (no horizontal scroll)
 	async function clampToTwoRows() {
 		await tick();
 		if (!chipsEl) return;
@@ -393,6 +397,10 @@
 	let mounted = $state(false);
 
 	onMount(async () => {
+		const raw = sessionStorage.getItem('vector:cached-project');
+		const project = raw ? JSON.parse(raw) : null;
+		console.log('after login: ', project);
+
 		mounted = true;
 		await refreshSuggestions();
 		const ro = new ResizeObserver(() => clampToTwoRows());
@@ -522,6 +530,17 @@
 {/if}
 {#if showInterestQuiz}
 	<Quiz {closeQuiz} {finishQuiz} />
+{/if}
+{#if showOnboarding}
+	<OnboardingFlow
+		onSubmit={handleOnboardingSubmit}
+		submitting={onboardingSubmitting}
+		error={onboardingError}
+		initialAnswers={onboardingAnswers}
+		close={() => {
+			showOnboarding = false;
+		}}
+	/>
 {/if}
 
 <style>

@@ -10,7 +10,10 @@
 	import { setContext } from 'svelte';
 
 	type AuthUI = {
-		openAuthModal: (message?: string) => void;
+		openAuthModal: () => void;
+	};
+	type OnboardingUI = {
+		openOnboarding: () => void;
 	};
 
 	let { children } = $props();
@@ -73,8 +76,10 @@
 		showOnboarding = !education || !goal || !project; // mounts -> transitions run
 	}
 
-	function openAuthModal(msg?: string) {
-		authError = msg ?? null;
+	function openOnboarding() {
+		showOnboarding = true;
+	}
+	function openAuthModal() {
 		showAuthModal = true;
 		authLoading = false;
 	}
@@ -90,6 +95,7 @@
 				data: { user }
 			} = await supabase.auth.getUser();
 			userExists = Boolean(user);
+			console.log(userExists);
 			if (user) {
 				await fetchCredits(user.id);
 				await fetchOnboardingFromDB(user.id);
@@ -162,6 +168,8 @@
 	}
 	const authApi: AuthUI = { openAuthModal };
 	setContext('auth-ui', authApi);
+	const onboardingApi: OnboardingUI = { openOnboarding };
+	setContext('onboarding-ui', onboardingApi);
 </script>
 
 <svelte:head>
@@ -204,14 +212,6 @@
 	</header>
 
 	{@render children()}
-	{#if showOnboarding}
-		<OnboardingFlow
-			onSubmit={handleOnboardingSubmit}
-			submitting={onboardingSubmitting}
-			error={onboardingError}
-			initialAnswers={onboardingAnswers}
-		/>
-	{/if}
 
 	{#if showAuthModal}
 		<div
