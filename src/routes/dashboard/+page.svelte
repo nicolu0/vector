@@ -5,6 +5,7 @@
 	import { difficultyBadgeClasses } from '$lib/styles/difficulty';
 	import { fly } from 'svelte/transition';
 	import ProjectDetail from '$lib/components/ProjectDetail.svelte';
+	import ProjectChat from '$lib/components/ProjectChat.svelte';
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 	import type { DashboardProjectsState, StoredProject } from '$lib/stores/dashboardProjects';
 	import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
@@ -103,8 +104,19 @@
 				Back
 			</button>
 
-			<div class="mt-6 space-y-4">
-				<ProjectDetail project={selectedProject} />
+			<div class="mt-6">
+				<div class="flex flex-col gap-6 lg:flex-row lg:items-start">
+					<div class="lg:min-w-0 lg:flex-1">
+						<ProjectDetail project={selectedProject} />
+					</div>
+					<div
+						class="hidden bg-stone-200/80 lg:block lg:h-auto lg:w-px lg:self-stretch"
+						aria-hidden="true"
+					/>
+					<div class="lg:w-[320px] lg:flex-none">
+						<ProjectChat />
+					</div>
+				</div>
 			</div>
 		{:else}
 			<div class="flex items-center justify-between gap-3">
