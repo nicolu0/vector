@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { blur, fly } from 'svelte/transition';
-	import OnboardingFlow from '$lib/components/OnboardingFlow.svelte';
 	import { cubicOut } from 'svelte/easing';
+	import OnboardingFlow from '$lib/components/OnboardingFlow.svelte';
 	import Quiz from '$lib/components/Quiz.svelte';
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
+	import Toast from '$lib/components/Toast.svelte';
 	import { getContext } from 'svelte';
 
 	type AuthUI = {
@@ -21,6 +22,8 @@
 		project: 'research' | 'industry' | null;
 	};
 
+	type ToastTone = 'neutral' | 'success' | 'warning' | 'danger';
+
 	let showOnboarding = $state(false);
 	let onboardingSubmitting = $state(false);
 	let onboardingError: string | null = $state(null);
@@ -29,6 +32,17 @@
 		goal: null,
 		project: null
 	});
+	let toastOpen = $state(false);
+	let toastMessage = $state('');
+	let toastTone = $state<ToastTone>('neutral');
+
+	async function showToast(message: string, tone: ToastTone = 'neutral') {
+		toastMessage = message;
+		toastTone = tone;
+		toastOpen = false;
+		await tick();
+		toastOpen = true;
+	}
 	async function handleOnboardingSubmit(answers: {
 		education: 'high_school' | 'college';
 		goal: 'full_time' | 'internship' | 'explore';
@@ -302,7 +316,6 @@
 		const handleSignedIn = () => {
 			resumePendingGeneration();
 		};
-
 		window.addEventListener('vector:auth-signed-in', handleSignedIn);
 		return () => {
 			window.removeEventListener('vector:auth-signed-in', handleSignedIn);
@@ -399,7 +412,9 @@
 	onMount(async () => {
 		const raw = sessionStorage.getItem('vector:cached-project');
 		const project = raw ? JSON.parse(raw) : null;
+		console.log(project);
 		if (project) {
+			console.log('inserting');
 			const {
 				data: { user }
 			} = await supabase.auth.getUser();
@@ -417,6 +432,9 @@
 			const { error } = await supabase.from('projects').insert([insertPayload]);
 			if (!error) {
 				sessionStorage.removeItem('vector:cached-project');
+				await showToast('Project saved to your dashboard.', 'success');
+			} else {
+				await showToast('We could not save that project. Please try again.', 'danger');
 			}
 		}
 
@@ -532,6 +550,12 @@
 		{/if}
 	</main>
 {/if}
+<Toast
+	message={toastMessage}
+	tone={toastTone}
+	open={toastOpen}
+	on:dismiss={() => (toastOpen = false)}
+/>
 {#if isGenerating}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-stone-50 px-6">
 		<div class="w-full max-w-sm p-8 text-center text-stone-800">
