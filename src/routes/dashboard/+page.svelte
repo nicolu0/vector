@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cubicOut } from 'svelte/easing';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { difficultyBadgeClasses } from '$lib/styles/difficulty';
 	import { fly } from 'svelte/transition';
@@ -12,6 +12,16 @@
 
 	let dashboardState = $state<DashboardProjectsState>(dashboardProjects.getSnapshot());
 	let selectedProject = $state<StoredProject | null>(null);
+	const HANDLE_WIDTH = 24;
+	const MIN_CHAT_WIDTH = 260;
+	const MAX_CHAT_WIDTH = 560;
+	const MIN_DETAIL_WIDTH = 480;
+	let containerWidth = $state(0);
+	let chatPanelWidth = $state(320);
+	let isResizing = $state(false);
+	let dragStartX = 0;
+	let dragStartWidth = 0;
+	let activePointerId: number | null = null;
 
 	const initialLoading = $derived(
 		dashboardState.status === 'loading' && dashboardState.projects.length === 0
@@ -62,6 +72,54 @@
 		void dashboardProjects.refresh();
 	}
 
+	function clampChatWidth(width: number) {
+		if (containerWidth <= 0) {
+			return Math.min(Math.max(width, MIN_CHAT_WIDTH), MAX_CHAT_WIDTH);
+		}
+
+		const available = Math.max(containerWidth - MIN_DETAIL_WIDTH - HANDLE_WIDTH, 0);
+		const maxWidth = Math.min(MAX_CHAT_WIDTH, available);
+		const minWidth = Math.min(MIN_CHAT_WIDTH, maxWidth);
+		const lowerBound = maxWidth > 0 ? minWidth : 0;
+		const upperBound = maxWidth > 0 ? maxWidth : 0;
+		const clamped = Math.min(Math.max(width, lowerBound), upperBound);
+		return Number.isFinite(clamped) ? clamped : lowerBound;
+	}
+
+	const handlePointerMove = (event: PointerEvent) => {
+		if (!isResizing || event.pointerId !== activePointerId) return;
+		const delta = event.clientX - dragStartX;
+		chatPanelWidth = clampChatWidth(dragStartWidth - delta);
+	};
+
+	const stopResize = (event?: PointerEvent) => {
+		if (!isResizing) return;
+		if (event && event.pointerId !== activePointerId) return;
+		isResizing = false;
+		activePointerId = null;
+		window.removeEventListener('pointermove', handlePointerMove);
+		window.removeEventListener('pointerup', stopResize);
+		window.removeEventListener('pointercancel', stopResize);
+		if (typeof document !== 'undefined') {
+			document.body.style.cursor = '';
+		}
+	};
+
+	function startResize(event: PointerEvent) {
+		if (event.button !== 0) return;
+		event.preventDefault();
+		isResizing = true;
+		activePointerId = event.pointerId;
+		dragStartX = event.clientX;
+		dragStartWidth = chatPanelWidth;
+		window.addEventListener('pointermove', handlePointerMove);
+		window.addEventListener('pointerup', stopResize);
+		window.addEventListener('pointercancel', stopResize);
+		if (typeof document !== 'undefined') {
+			document.body.style.cursor = 'col-resize';
+		}
+	}
+
 	$effect(() => {
 		if (!selectedProject) return;
 		const match = dashboardState.projects.find((project) => project.id === selectedProject?.id);
@@ -82,6 +140,14 @@
 		return () => {
 			unsubscribe();
 		};
+	});
+
+	onDestroy(() => {
+		stopResize();
+	});
+
+	$effect(() => {
+		chatPanelWidth = clampChatWidth(chatPanelWidth);
 	});
 </script>
 
@@ -105,15 +171,27 @@
 			</button>
 
 			<div class="mt-6">
-				<div class="flex flex-col gap-6 lg:flex-row lg:items-start">
+				<div
+					class="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0"
+					bind:clientWidth={containerWidth}
+					class:select-none={isResizing}
+				>
 					<div class="lg:min-w-0 lg:flex-1">
 						<ProjectDetail project={selectedProject} />
 					</div>
 					<div
-						class="hidden bg-stone-200/80 lg:block lg:h-auto lg:w-px lg:self-stretch"
-						aria-hidden="true"
-					/>
-					<div class="lg:w-[320px] lg:flex-none">
+						class="hidden lg:flex lg:w-6 lg:cursor-col-resize lg:flex-none lg:items-stretch lg:justify-center"
+						onpointerdown={startResize}
+						role="separator"
+						aria-orientation="vertical"
+						aria-label="Resize project panels"
+					>
+						<div class="my-2 h-full w-px rounded-full bg-stone-200" />
+					</div>
+					<div
+						class="w-full lg:flex-none lg:[width:var(--chat-panel-width)]"
+						style={`--chat-panel-width: ${chatPanelWidth}px`}
+					>
 						<ProjectChat />
 					</div>
 				</div>

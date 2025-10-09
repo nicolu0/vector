@@ -34,19 +34,9 @@
 					<div
 						class={message.role === 'user'
 							? 'self-end rounded-2xl border border-stone-900 bg-stone-900 px-4 py-2 text-stone-50 shadow-sm'
-							: 'rounded-2xl border border-stone-200 bg-white px-4 py-2 text-stone-700 shadow-sm'}
+							: 'px-4 py-2 text-stone-700'}
 					>
-						<div class="text-xs font-medium tracking-wide text-stone-400 uppercase">
-							{message.sender}
-						</div>
 						<p class="mt-1 text-[15px] leading-6 text-current">{message.content}</p>
-					</div>
-					<div
-						class={message.role === 'user'
-							? 'text-right text-[11px] tracking-tight text-stone-400 uppercase'
-							: 'text-[11px] tracking-tight text-stone-400 uppercase'}
-					>
-						{message.time}
 					</div>
 				</div>
 			</div>
