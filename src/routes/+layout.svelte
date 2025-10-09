@@ -193,7 +193,7 @@
 
 <div class="min-h-screen">
 	<header
-		class="sticky top-0 z-[70] flex w-full items-center justify-between bg-stone-50 px-6 py-4"
+		class="sticky top-0 z-[70] flex w-full items-center justify-between border border-b-1 border-stone-100 bg-stone-50 px-6 py-4"
 	>
 		<button class="flex items-center gap-2" onclick={() => goto('/')}>
 			<img src={vectorUrl} alt="vector" class="h-4 w-4" />
@@ -209,7 +209,7 @@
 				>
 				<button
 					onclick={() => goto('/profile')}
-					class="rounded-md bg-stone-800 px-3 py-1 text-xs font-medium text-stone-50 hover:bg-stone-600"
+					class="rounded-md py-1 text-xs font-medium text-stone-700 hover:text-stone-500"
 					>Profile</button
 				>
 			{:else}

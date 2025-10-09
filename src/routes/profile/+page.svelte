@@ -19,6 +19,13 @@
 	let signOutError = $state<string | null>(null);
 	let userEmail = $state<string | null>(null);
 	let credits = $state<number | null>(null);
+	let eduLevel = $state<string | null>(null);
+	let goal = $state<string | null>(null);
+	let projectType = $state<string | null>(null);
+
+	const pretty = (v: string | null) =>
+		v ? v.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'Not set';
+
 	type LayoutAuthStateApi = {
 		resetUserState: () => void;
 	};
@@ -82,42 +89,62 @@
 		await tick();
 		toastOpen = true;
 	}
+	function hydrateOnboarding(
+		row: { edu_level?: string | null; goal?: string | null; project_type?: string | null } | null
+	) {
+		eduLevel = row?.edu_level ?? null;
+		goal = row?.goal ?? null;
+		projectType = row?.project_type ?? null;
+	}
 
 	onMount(() => {
 		const syncAccount = async () => {
 			const {
-				data: { session }
-			} = await supabase.auth.getSession();
+				data: { user }
+			} = await supabase.auth.getUser();
 
-			userEmail = session?.user.email ?? null;
-			if (session?.user?.id) {
-				const { data, error } = await supabase
+			userEmail = user?.email ?? null;
+
+			if (!user?.id) return;
+
+			// 1) Try read
+			const { data, error } = await supabase
+				.from('users')
+				.select('credits, edu_level, goal, project_type')
+				.eq('user_id', user.id)
+				.maybeSingle();
+
+			if (!error && data) {
+				if (typeof data.credits === 'number') credits = data.credits;
+				hydrateOnboarding(data);
+				return;
+			}
+
+			// 2) If row missing, create with defaults
+			if (!error && data === null) {
+				const { data: inserted, error: insertError } = await supabase
 					.from('users')
-					.select('credits')
-					.eq('user_id', session.user.id)
-					.maybeSingle();
+					.insert({ user_id: user.id, credits: 1 }) // minimal bootstrap
+					.select('credits, edu_level, goal, project_type')
+					.single();
 
-				if (!error && data && typeof data.credits === 'number') {
-					credits = data.credits;
-				} else if (!error && data === null) {
-					const { data: inserted, error: insertError } = await supabase
+				if (!insertError && inserted) {
+					credits = typeof inserted.credits === 'number' ? inserted.credits : 1;
+					hydrateOnboarding(inserted);
+					return;
+				}
+
+				// 3) Handle race on unique constraint
+				if (insertError?.code === '23505') {
+					const { data: existing } = await supabase
 						.from('users')
-						.insert({ user_id: session.user.id, credits: 1 })
-						.select('credits')
+						.select('credits, edu_level, goal, project_type')
+						.eq('user_id', user.id)
 						.single();
-					if (insertError) {
-						if (insertError.code === '23505') {
-							const { data: existing } = await supabase
-								.from('users')
-								.select('credits')
-								.eq('user_id', session.user.id)
-								.single();
-							if (typeof existing?.credits === 'number') {
-								credits = existing.credits;
-							}
-						}
-					} else if (typeof inserted?.credits === 'number') {
-						credits = inserted.credits;
+
+					if (existing) {
+						if (typeof existing.credits === 'number') credits = existing.credits;
+						hydrateOnboarding(existing);
 					}
 				}
 			}
@@ -130,9 +157,14 @@
 			}
 		};
 
+		// Initial sync
 		syncAccount();
 		void persistCachedProject();
+
+		// Listen for credits updates from other parts of the app
 		window.addEventListener('vector:credits-updated', handleCreditsUpdated);
+
+		// Handle checkout querystring noise
 		if (typeof window !== 'undefined') {
 			const currentUrl = new URL(window.location.href);
 			const status = currentUrl.searchParams.get('checkout');
@@ -307,7 +339,7 @@
 				<div
 					class="flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50 p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
 					in:fly|global={shouldAnimateProfile
-						? { y: 10, duration: 500, easing: cubicOut, delay: index * 100 }
+						? { y: 10, duration: 500, easing: cubicOut, delay: index * 50 }
 						: undefined}
 				>
 					<div class="space-y-4">
@@ -367,7 +399,7 @@
 		<div
 			class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700"
 			in:fly|global={shouldAnimateProfile
-				? { y: 10, duration: 500, easing: cubicOut, delay: 300 }
+				? { y: 10, duration: 500, easing: cubicOut, delay: 200 }
 				: undefined}
 		>
 			<div class="flex items-center justify-between">
@@ -382,10 +414,63 @@
 				Use one credit to generate a tailored project. Sign in again later to refresh your balance.
 			</p>
 		</div>
+		<div class="mt-6 grid gap-4 md:grid-cols-3">
+			<div
+				class="flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50 p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+				in:fly|global={shouldAnimateProfile
+					? { y: 10, duration: 500, easing: cubicOut, delay: 300 }
+					: undefined}
+			>
+				<div class="flex flex-row items-center justify-between">
+					<p class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">Education</p>
+					<span
+						class="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold tracking-tight text-stone-700"
+					>
+						{pretty(eduLevel)}
+					</span>
+				</div>
+			</div>
+
+			<!-- Goal -->
+			<div
+				class="flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50 p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+				in:fly|global={shouldAnimateProfile
+					? { y: 10, duration: 500, easing: cubicOut, delay: 300 }
+					: undefined}
+			>
+				<div class="flex flex-row items-center justify-between">
+					<p class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">Goal</p>
+					<span
+						class="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold tracking-tight text-stone-700"
+					>
+						{pretty(goal)}
+					</span>
+				</div>
+			</div>
+
+			<div
+				class="flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-stone-50 p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+				in:fly|global={shouldAnimateProfile
+					? { y: 10, duration: 500, easing: cubicOut, delay: 300 }
+					: undefined}
+			>
+				<div class="flex flex-row items-center justify-between">
+					<p class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">
+						Project Type
+					</p>
+					<span
+						class="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold tracking-tight text-stone-700"
+					>
+						{pretty(projectType)}
+					</span>
+				</div>
+			</div>
+		</div>
+
 		<section
 			class="rounded-2xl border border-stone-200 bg-stone-50 p-6 shadow-[0_1px_0_rgba(0,0,0,0.04)]"
 			in:fly|global={shouldAnimateProfile
-				? { y: 10, duration: 500, easing: cubicOut, delay: 400 }
+				? { y: 10, duration: 500, easing: cubicOut, delay: 500 }
 				: undefined}
 		>
 			<h2 class="text-sm font-semibold tracking-tight text-stone-900">Account</h2>

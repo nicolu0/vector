@@ -104,11 +104,6 @@
 			</button>
 
 			<div class="mt-6 space-y-4">
-				{#if selectedProject.created_at}
-					<p class="text-xs text-stone-500">
-						Saved {formatCreatedAt(selectedProject.created_at)}
-					</p>
-				{/if}
 				<ProjectDetail project={selectedProject} />
 			</div>
 		{:else}
@@ -223,12 +218,12 @@
 								</h2>
 								<div class="flex flex-row gap-2 self-end pr-5">
 									<span
-										class={`rounded-md border px-2 py-1 text-[10px] ${difficultyBadgeClasses(project.difficulty)}`}
+										class={`rounded-lg border px-2 py-1 text-[10px] ${difficultyBadgeClasses(project.difficulty)}`}
 									>
 										{project.difficulty}
 									</span>
 									<span
-										class={`shrink-0 rounded-md border border-stone-400 bg-stone-100 px-2 py-1 text-[10px] text-stone-500`}
+										class={`shrink-0 rounded-lg border border-stone-400 bg-stone-100 px-2 py-1 text-[10px] text-stone-500`}
 									>
 										Not Started
 									</span>
