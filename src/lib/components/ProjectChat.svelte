@@ -3,8 +3,9 @@
 	import { fly } from 'svelte/transition';
 	import { supabase } from '$lib/supabaseClient';
 
-	const { conversationId, userId, loading, errorMessage } = $props<{
+	const { conversationId, projectId, userId, loading, errorMessage } = $props<{
 		conversationId: string | null;
+		projectId: string | null;
 		userId: string | null;
 		loading: boolean;
 		errorMessage: string | null;
@@ -66,6 +67,7 @@
 		const trimmed = inputValue.trim();
 		if (!trimmed || sendInFlight) return;
 
+		const shouldUpdateStatus = messages.length === 0;
 		sendInFlight = true;
 		sendError = null;
 
@@ -104,11 +106,29 @@
 			messages = messages.map((message) =>
 				message.id === optimisticMessage.id ? ({ ...data, pending: false } as ChatMessage) : message
 			);
+
+			if (shouldUpdateStatus && projectId) {
+				void updateProjectStatus(projectId);
+			}
 		} catch (err) {
 			messages = messages.filter((message) => message.id !== optimisticMessage.id);
 			sendError = err instanceof Error ? err.message : 'Unable to send message right now.';
 		} finally {
 			sendInFlight = false;
+		}
+	}
+
+	async function updateProjectStatus(projectId: string) {
+		try {
+			const { error } = await supabase
+				.from('projects')
+				.update({ status: 'in_progress' })
+				.eq('id', projectId)
+				.eq('status', 'not_started');
+
+			if (error) throw error;
+		} catch (err) {
+			console.error('Failed to update project status', err);
 		}
 	}
 

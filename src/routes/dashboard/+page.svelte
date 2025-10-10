@@ -227,33 +227,40 @@
 		const el = projectContainer;
 		if (!el) return;
 
-		const { scrollHeight, clientHeight, scrollTop } = el;
-		const trackPadding = 12;
+		const trackPadding = 12; // px at top/bottom inside the viewport
 		el.style.setProperty('--scroll-thumb-track-padding', `${trackPadding}px`);
 
-		if (scrollHeight <= clientHeight + 1 || clientHeight === 0) {
+		const clientH = el.clientHeight; // viewport height of the scroller
+		const scrollH = el.scrollHeight; // total content height
+		const scrollTop = el.scrollTop;
+
+		// No scroll? Hide thumb.
+		if (clientH <= 0 || scrollH <= clientH + 1) {
 			el.style.setProperty('--scroll-thumb-height', '0px');
 			el.style.setProperty('--scroll-thumb-offset', '0px');
 			el.style.setProperty('--scroll-thumb-opacity', '0');
 			return;
 		}
 
-		const trackHeight = Math.max(scrollHeight - trackPadding * 2, 0);
-		if (trackHeight <= 0) {
-			el.style.setProperty('--scroll-thumb-height', '0px');
-			el.style.setProperty('--scroll-thumb-offset', '0px');
-			el.style.setProperty('--scroll-thumb-opacity', '0');
-			return;
-		}
+		// The track is the visible viewport (minus padding), not the whole content.
+		const trackH = Math.max(scrollH - 2 * trackPadding, 0);
 
-		const maxScrollTop = Math.max(scrollHeight - clientHeight, 0);
-		const desiredThumb = Math.max(36, trackHeight * 0.12);
-		const thumbHeight = Math.min(trackHeight * 0.4, Math.min(trackHeight, desiredThumb));
-		const maxThumbOffset = Math.max(trackHeight - thumbHeight, 0);
+		// Thumb size scales with how much is visible.
+		const visibleRatio = clientH / scrollH; // 0..1
+		const rawThumb = trackH * visibleRatio;
+
+		// Clamp so it never gets tiny, and can grow large when there’s little to scroll.
+		const MIN_THUMB_PX = 24; // tweak to taste
+		const MAX_THUMB_PX = trackH * 0.8; // leave a little headroom
+		const thumbH = Math.max(MIN_THUMB_PX, Math.min(rawThumb, MAX_THUMB_PX));
+
+		// Map scrollTop into the track minus the thumb height.
+		const maxScrollTop = scrollH - clientH;
+		const maxThumbOffset = Math.max(trackH - thumbH, 0);
 		const progress = maxScrollTop > 0 ? scrollTop / maxScrollTop : 0;
 		const offset = progress * maxThumbOffset;
 
-		el.style.setProperty('--scroll-thumb-height', `${thumbHeight}px`);
+		el.style.setProperty('--scroll-thumb-height', `${thumbH}px`);
 		el.style.setProperty('--scroll-thumb-offset', `${offset}px`);
 		el.style.setProperty('--scroll-thumb-opacity', '1');
 	}
@@ -339,6 +346,7 @@
 						<div class="h-full min-h-0 overflow-y-auto pl-3">
 							<ProjectChat
 								conversationId={selectedConversationId}
+								projectId={selectedProject?.id ?? null}
 								userId={dashboardState.userId}
 								loading={conversationsLoading}
 								errorMessage={conversationsError}
