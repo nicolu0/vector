@@ -225,11 +225,7 @@
 	<title>Dashboard</title>
 </svelte:head>
 
-<div
-	class="w-full bg-stone-50 text-stone-800"
-	class:h-full={!!selectedProject}
-	class:overflow-clip={!!selectedProject}
->
+<div class="h-full w-full bg-stone-50 text-stone-800" class:overflow-clip={!!selectedProject}>
 	<div class="mx-auto w-full" class:h-full={!!selectedProject}>
 		{#if selectedProject}
 			<div class="flex h-full flex-col">
@@ -369,11 +365,11 @@
 					No saved projects yet. Generate one and hit “Save to dashboard”.
 				</div>
 			{:else}
-				<div class="mt-4 grid gap-4 px-6 sm:grid-cols-2">
+				<div class="mt-4 grid gap-4 px-6 pb-5 sm:grid-cols-2">
 					{#each projects as project, index}
 						<div
 							in:fly|global={shouldAnimateCards
-								? { y: 10, duration: 500, easing: cubicOut, delay: index * 100 }
+								? { y: 10, duration: 180, easing: cubicOut, delay: index * 50 }
 								: undefined}
 							class="flex min-h-[120px] cursor-pointer flex-col items-start justify-between gap-3 rounded-lg border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)] hover:border-stone-300 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-black/10 focus-visible:outline-none"
 							role="button"

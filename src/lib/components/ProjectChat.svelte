@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { cubicOut } from 'svelte/easing';
+	import { fly } from 'svelte/transition';
 	import { supabase } from '$lib/supabaseClient';
 
 	const { conversationId, userId, loading, errorMessage } = $props<{
@@ -135,11 +137,7 @@
 <div class="flex h-full flex-col text-sm leading-6 text-stone-700">
 	<div class="flex-1 space-y-3 overflow-y-auto py-4">
 		{#if loading}
-			<div class="flex justify-center">
-				<div class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-500">
-					Loading conversation…
-				</div>
-			</div>
+			<div class="flex justify-center"></div>
 		{:else if errorMessage}
 			<div class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
 				{errorMessage}
@@ -155,23 +153,20 @@
 				Introduction
 			</div>
 			{#if messagesLoading}
-				<div class="flex justify-center">
-					<div class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-500">
-						Loading messages…
-					</div>
-				</div>
+				<div class="flex justify-center"></div>
 			{:else if messagesError}
 				<div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
 					{messagesError}
 				</div>
 			{:else if messages.length === 0}
-				<div class="rounded-xl border border-stone-200 bg-white p-3 text-xs text-stone-500">
-					No messages yet. Say hello to get started.
-				</div>
+				<div class="p-3 text-xs text-stone-500">No messages yet. Say hello to get started.</div>
 			{:else}
-				{#each messages as message (message.id)}
+				{#each messages as message, index (message.id)}
 					{@const isUser = message.user_id === userId}
-					<div class={isUser ? 'flex justify-end' : 'flex justify-start'}>
+					<div
+						class={isUser ? 'flex justify-end' : 'flex justify-start'}
+						in:fly|global={{ y: 10, duration: 500, easing: cubicOut, delay: index * 50 }}
+					>
 						<div class="flex flex-col gap-1" class:max-w-[75%]={isUser}>
 							<div
 								class={isUser
@@ -188,7 +183,7 @@
 		{/if}
 	</div>
 
-	<footer class="px-2 py-2">
+	<footer class="px-2 py-2 pb-5">
 		<form class="flex flex-col gap-2" onsubmit={handleSubmit} autocomplete="off">
 			<input
 				id="project-chat-input"
