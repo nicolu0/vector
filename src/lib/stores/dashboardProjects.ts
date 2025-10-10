@@ -1,10 +1,12 @@
 import { get, writable } from 'svelte/store';
 import { supabase } from '$lib/supabaseClient';
+import { normalizeProjectStatusValue } from '$lib/utils/projectStatus';
 import type { Project } from '$lib/types/project';
 
 export type StoredProject = Project & {
 	id: string;
 	created_at: string | null;
+	status: string | null;
 };
 
 export type DashboardProjectsState = {
@@ -83,13 +85,19 @@ async function load(options?: { force?: boolean }) {
 
 			const { data, error } = await supabase
 				.from('projects')
-				.select('id, title, difficulty, timeline, description, jobs, skills, created_at')
+				.select('id, title, difficulty, timeline, description, jobs, skills, status, created_at')
 				.eq('user_id', session.user.id)
 				.order('created_at', { ascending: false });
 
 			if (error) throw error;
 
-			const projects = (data ?? []) as StoredProject[];
+			const projects = (data ?? []).map((project) => {
+				const typed = project as StoredProject;
+				return {
+					...typed,
+					status: normalizeProjectStatusValue(typed.status)
+				};
+			}) as StoredProject[];
 
 			store.set({
 				status: 'loaded',
@@ -147,7 +155,16 @@ export const dashboardProjects = {
 	refresh,
 	invalidate,
 	clear,
-	getSnapshot: () => get(store)
+	getSnapshot: () => get(store),
+	setProjectStatus(projectId: string, status: string) {
+		const normalized = normalizeProjectStatusValue(status);
+		store.update((value) => ({
+			...value,
+			projects: value.projects.map((project) =>
+				project.id === projectId ? { ...project, status: normalized } : project
+			)
+		}));
+	}
 };
 
 if (typeof window !== 'undefined') {

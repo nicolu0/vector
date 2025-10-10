@@ -4,11 +4,12 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { difficultyBadgeClasses } from '$lib/styles/difficulty';
 	import { fly } from 'svelte/transition';
-	import ProjectDetail from '$lib/components/ProjectDetail.svelte';
-	import ProjectChat from '$lib/components/ProjectChat.svelte';
-	import { dashboardProjects } from '$lib/stores/dashboardProjects';
-	import type { DashboardProjectsState, StoredProject } from '$lib/stores/dashboardProjects';
-	import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
+import ProjectDetail from '$lib/components/ProjectDetail.svelte';
+import ProjectChat from '$lib/components/ProjectChat.svelte';
+import { dashboardProjects } from '$lib/stores/dashboardProjects';
+import type { DashboardProjectsState, StoredProject } from '$lib/stores/dashboardProjects';
+import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
+import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectStatus';
 
 	let dashboardState = $state<DashboardProjectsState>(dashboardProjects.getSnapshot());
 	let selectedProject = $state<StoredProject | null>(null);
@@ -326,8 +327,8 @@
 								<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
 							</svg>
 							Back
-						</button>
-						<ProjectDetail project={selectedProject} />
+							</button>
+						<ProjectDetail project={selectedProject} status={selectedProject?.status ?? null} />
 					</div>
 					<div
 						class="hidden bg-stone-50 pl-1 lg:flex lg:flex-none lg:cursor-col-resize lg:items-stretch lg:justify-center"
@@ -472,9 +473,9 @@
 										{project.difficulty}
 									</span>
 									<span
-										class={`shrink-0 rounded-lg border border-stone-400 bg-stone-100 px-2 py-1 text-[10px] text-stone-500`}
+										class={`shrink-0 rounded-lg border px-2 py-1 text-[10px] ${projectStatusClasses(project.status)}`}
 									>
-										Not Started
+										{formatProjectStatus(project.status)}
 									</span>
 								</div>
 							</div>

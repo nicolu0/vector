@@ -2,6 +2,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { fly } from 'svelte/transition';
 	import { supabase } from '$lib/supabaseClient';
+	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 
 	const { conversationId, projectId, userId, loading, errorMessage } = $props<{
 		conversationId: string | null;
@@ -122,12 +123,12 @@
 		try {
 			const { error } = await supabase
 				.from('projects')
-				.update({ status: 'In Progress' })
+				.update({ status: 'in_progress' })
 				.eq('id', projectId)
-				.eq('status', 'Not Started');
+				.in('status', ['not_started', 'not started', 'Not Started']);
 
-			console.log('error', error);
 			if (error) throw error;
+			dashboardProjects.setProjectStatus(projectId, 'in_progress');
 		} catch (err) {
 			console.error('Failed to update project status', err);
 		}

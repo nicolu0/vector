@@ -2,15 +2,18 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { Project } from '$lib/types/project';
 	import { difficultyBadgeClasses } from '$lib/styles/difficulty';
+	import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectStatus';
 
 	const {
 		project,
+		status = 'not_started',
 		showSaveButton = false,
 		saving = false,
 		saveError = null,
 		saveProject
 	} = $props<{
 		project: Project;
+		status?: string | null;
 		showSaveButton?: boolean;
 		saving?: boolean;
 		saveError?: string | null;
@@ -32,6 +35,7 @@
 			window.open(url, '_blank', 'noopener,noreferrer');
 		}
 	}
+
 </script>
 
 <div class="space-y-6 pr-5">
@@ -54,9 +58,10 @@
 				{project.timeline}
 			</div>
 			<div
-				class="inline-flex items-center rounded-lg border border-stone-400 bg-stone-100 px-3 py-1 text-xs font-medium text-stone-500"
+				class={'inline-flex items-center rounded-lg border px-3 py-1 text-xs font-medium ' +
+					projectStatusClasses(status)}
 			>
-				Not Started
+				{formatProjectStatus(status)}
 			</div>
 			<div
 				class="inline-flex items-center rounded-full bg-stone-800 px-3 py-1 text-xs font-medium text-stone-50"
