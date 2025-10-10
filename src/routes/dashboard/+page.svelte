@@ -12,6 +12,17 @@
 
 	let dashboardState = $state<DashboardProjectsState>(dashboardProjects.getSnapshot());
 	let selectedProject = $state<StoredProject | null>(null);
+	type Conversation = {
+		id: string;
+		project_id: string;
+		user_id: string;
+		created_at: string | null;
+	};
+	let conversations = $state<Conversation[]>([]);
+	let selectedConversationId = $state<string | null>(null);
+	let conversationsLoading = $state(false);
+	let conversationsError = $state<string | null>(null);
+	let conversationsRequestId = 0;
 	const HANDLE_WIDTH = 24;
 	const MIN_CHAT_WIDTH = 260;
 	const MAX_CHAT_WIDTH = 560;
@@ -64,8 +75,52 @@
 		});
 	}
 
+	function clearSelection() {
+		selectedProject = null;
+		conversations = [];
+		selectedConversationId = null;
+		conversationsError = null;
+		conversationsLoading = false;
+	}
+
+	async function loadConversations(projectId: string) {
+		if (!projectId) return;
+		conversationsError = null;
+		const requestId = ++conversationsRequestId;
+		conversationsLoading = true;
+
+		try {
+			const { data, error } = await supabase
+				.from('conversations')
+				.select('id, project_id, user_id, created_at')
+				.eq('project_id', projectId)
+				.order('created_at', { ascending: true });
+
+			if (error) throw error;
+
+			if (requestId !== conversationsRequestId) return;
+
+			conversations = (data ?? []) as Conversation[];
+			selectedConversationId = conversations[0]?.id ?? null;
+		} catch (err) {
+			if (requestId !== conversationsRequestId) return;
+			conversationsError =
+				err instanceof Error ? err.message : 'Unable to load conversations right now.';
+			conversations = [];
+			selectedConversationId = null;
+		} finally {
+			if (requestId === conversationsRequestId) {
+				conversationsLoading = false;
+			}
+		}
+	}
+
 	function viewProject(project: StoredProject) {
 		selectedProject = project;
+		conversations = [];
+		selectedConversationId = null;
+		conversationsError = null;
+		void loadConversations(project.id);
 	}
 
 	function retryLoading() {
@@ -124,7 +179,7 @@
 		if (!selectedProject) return;
 		const match = dashboardState.projects.find((project) => project.id === selectedProject?.id);
 		if (!match) {
-			selectedProject = null;
+			clearSelection();
 		} else if (match !== selectedProject) {
 			selectedProject = match;
 		}
@@ -187,7 +242,7 @@
 						<button
 							type="button"
 							class="inline-flex items-center gap-2 py-4 text-xs text-stone-400 transition hover:text-stone-900"
-							onclick={() => (selectedProject = null)}
+							onclick={clearSelection}
 							aria-label="Back to dashboard"
 						>
 							<svg
@@ -218,7 +273,12 @@
 						style={`--chat-panel-width: ${chatPanelWidth}px`}
 					>
 						<div class="h-full min-h-0 overflow-y-auto pl-3">
-							<ProjectChat />
+							<ProjectChat
+								conversationId={selectedConversationId}
+								userId={dashboardState.userId}
+								loading={conversationsLoading}
+								errorMessage={conversationsError}
+							/>
 						</div>
 					</div>
 				</div>

@@ -29,6 +29,16 @@
 	let saving = $state(false);
 	let saveError = $state<string | null>(null);
 
+	async function createIntroConversation(projectId: string, userId: string) {
+		const { error } = await supabase
+			.from('conversations')
+			.insert([{ project_id: projectId, user_id: userId, title: 'Introduction' }]);
+
+		if (error) {
+			throw error;
+		}
+	}
+
 	async function saveProject() {
 		if (saving) return;
 		saveError = null;
@@ -55,9 +65,18 @@
 				skills: project.skills
 			};
 
-			const { error } = await supabase.from('projects').insert([insertPayload]);
+			const { data, error } = await supabase
+				.from('projects')
+				.insert([insertPayload])
+				.select('id')
+				.single();
 
 			if (error) throw error;
+			if (!data?.id) {
+				throw new Error('Project saved without an id.');
+			}
+
+			await createIntroConversation(data.id, user.id);
 
 			dashboardProjects.invalidate();
 			saving = false;
