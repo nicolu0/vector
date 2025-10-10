@@ -585,7 +585,7 @@
 </script>
 
 <div class="flex h-full flex-col text-sm leading-6 text-stone-700">
-	<div class="flex w-full flex-row py-2 pt-3 pr-5 pl-1">
+	<div class="flex w-full flex-row py-2 pr-5 pl-1">
 		<div
 			class="w-full justify-center rounded-xl border border-stone-200 bg-stone-50 p-2 text-center text-sm text-stone-600"
 			in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
@@ -619,7 +619,7 @@
 		{:else}
 			<div
 				in:fly|global={{ x: 8, duration: 400, easing: cubicOut }}
-				class="flex flex-col gap-y-2 pl-2"
+				class="flex flex-col gap-y-4 pl-2"
 			>
 				{#each messages as message, i (message.id)}
 					{@const isUser = message.role === 'user'}
