@@ -120,7 +120,7 @@
 		if (!el) return;
 
 		const { scrollHeight, clientHeight, scrollTop } = el;
-		const trackPadding = 40;
+		const trackPadding = 0;
 		el.style.setProperty('--scroll-thumb-track-padding', `${trackPadding}px`);
 
 		if (scrollHeight <= clientHeight + 1 || clientHeight === 0) {
@@ -211,8 +211,16 @@
 </script>
 
 <div class="flex h-full flex-col text-sm leading-6 text-stone-700">
+	<div class="flex w-full flex-row py-2 pt-3 pr-5">
+		<div
+			class="w-full justify-center rounded-xl border border-stone-200 bg-stone-50 p-2 text-center text-sm text-stone-600"
+			in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
+		>
+			Introduction
+		</div>
+	</div>
 	<div
-		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto py-4 pr-5"
+		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto pr-5"
 		bind:this={messagesContainer}
 	>
 		{#if loading}
@@ -225,43 +233,32 @@
 			<div class="rounded-xl border border-stone-200 bg-stone-50 p-3 text-xs text-stone-500">
 				Select a project to view its conversation.
 			</div>
-		{:else}
-			<div
-				class="sticky top-0 z-[999] flex flex-row justify-center rounded-xl border border-stone-200 bg-stone-50 p-2 text-xs text-stone-600"
-				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
-			>
-				Introduction
+		{:else if messagesLoading}
+			<div class="flex justify-center"></div>
+		{:else if messagesError}
+			<div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+				{messagesError}
 			</div>
-			{#if messagesLoading}
-				<div class="flex justify-center"></div>
-			{:else if messagesError}
-				<div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-					{messagesError}
-				</div>
-			{:else if messages.length === 0}
-				<div class="p-3 text-xs text-stone-500">No messages yet. Say hello to get started.</div>
-			{:else}
-				<div
-					in:fly|global={{ x: 8, duration: 400, easing: cubicOut }}
-					class="flex flex-col gap-y-2"
-				>
-					{#each messages as message (message.id)}
-						{@const isUser = message.user_id === userId}
-						<div class={isUser ? 'flex justify-end' : 'flex justify-start'}>
-							<div class="flex flex-col gap-1" class:max-w-[75%]={isUser}>
-								<div
-									class={isUser
-										? 'self-end rounded-xl bg-stone-200 px-4 py-2 text-stone-800'
-										: 'rounded-xl bg-white px-4 py-2 text-stone-700'}
-									class:opacity-60={message.pending}
-								>
-									<p class="text-xs leading-6 break-words text-current">{message.content}</p>
-								</div>
+		{:else if messages.length === 0}
+			<div class="p-3 text-xs text-stone-500"></div>
+		{:else}
+			<div in:fly|global={{ x: 8, duration: 400, easing: cubicOut }} class="flex flex-col gap-y-2">
+				{#each messages as message (message.id)}
+					{@const isUser = message.user_id === userId}
+					<div class={isUser ? 'flex justify-end' : 'flex justify-start'}>
+						<div class="flex flex-col gap-1" class:max-w-[75%]={isUser}>
+							<div
+								class={isUser
+									? 'self-end rounded-xl bg-stone-200 px-4 py-2 text-stone-800'
+									: 'rounded-xl bg-white px-4 py-2 text-stone-700'}
+								class:opacity-60={message.pending}
+							>
+								<p class="text-xs leading-6 break-words text-current">{message.content}</p>
 							</div>
 						</div>
-					{/each}
-				</div>
-			{/if}
+					</div>
+				{/each}
+			</div>
 		{/if}
 	</div>
 
