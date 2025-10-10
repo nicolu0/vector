@@ -221,10 +221,10 @@
 		document.body.classList.toggle('overscroll-none', lock);
 	});
 
-	let messagesContainer = $state<HTMLDivElement | null>(null);
+	let projectContainer = $state<HTMLDivElement | null>(null);
 
 	function updateScrollThumb() {
-		const el = messagesContainer;
+		const el = projectContainer;
 		if (!el) return;
 
 		const { scrollHeight, clientHeight, scrollTop } = el;
@@ -259,7 +259,7 @@
 	}
 
 	$effect(() => {
-		const el = messagesContainer;
+		const el = projectContainer;
 		if (!el) return;
 
 		const handleScroll = () => {
@@ -300,8 +300,8 @@
 					class:select-none={isResizing}
 				>
 					<div
-						class="project-chat-scroll min-h-0 min-w-0 flex-1 overflow-y-auto pb-5 pl-5"
-						bind:this={messagesContainer}
+						class="project-detail-scroll min-h-0 min-w-0 flex-1 overflow-y-auto pb-5 pl-5"
+						bind:this={projectContainer}
 					>
 						<button
 							type="button"
@@ -496,12 +496,12 @@
 </div>
 
 <style>
-	:global(.project-chat-scroll) {
+	:global(.project-detail-scroll) {
 		position: relative;
 		scrollbar-width: none;
 	}
 
-	:global(.project-chat-scroll)::after {
+	:global(.project-detail-scroll)::after {
 		content: '';
 		position: absolute;
 		top: var(--scroll-thumb-track-padding, 0);
@@ -516,12 +516,12 @@
 		will-change: transform, opacity;
 	}
 
-	:global(.project-chat-scroll)::-webkit-scrollbar {
+	:global(.project-detail-scroll)::-webkit-scrollbar {
 		width: 0;
 		height: 0;
 	}
 
-	:global(.project-chat-scroll)::-webkit-scrollbar-thumb {
+	:global(.project-detail-scroll)::-webkit-scrollbar-thumb {
 		background: transparent;
 	}
 </style>
