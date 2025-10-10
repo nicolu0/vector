@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cubicOut } from 'svelte/easing';
-	import { fly, fade } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
 	import { supabase } from '$lib/supabaseClient';
 
 	const { conversationId, userId, loading, errorMessage } = $props<{
@@ -27,6 +27,7 @@
 	let inputValue = $state('');
 	let sendInFlight = $state(false);
 	let messagesRequestId = 0;
+	let messagesContainer = $state<HTMLDivElement | null>(null);
 
 	function getNextSequence() {
 		return (
@@ -61,7 +62,6 @@
 	}
 
 	async function sendMessage() {
-		console.log('sending');
 		if (!conversationId || !userId) return;
 		const trimmed = inputValue.trim();
 		if (!trimmed || sendInFlight) return;
@@ -90,14 +90,12 @@
 						conversation_id: conversationId,
 						user_id: userId,
 						content: trimmed,
-						role: 'user',
 						sequence: optimisticMessage.sequence
 					}
 				])
 				.select('id, conversation_id, user_id, content, sequence, created_at')
 				.single();
 
-			console.log('error: ', error);
 			if (error) throw error;
 			if (!data) throw new Error('Message insert returned no data.');
 
@@ -117,6 +115,41 @@
 		void sendMessage();
 	}
 
+	function updateScrollThumb() {
+		const el = messagesContainer;
+		if (!el) return;
+
+		const { scrollHeight, clientHeight, scrollTop } = el;
+		const trackPadding = 12;
+		el.style.setProperty('--scroll-thumb-track-padding', `${trackPadding}px`);
+
+		if (scrollHeight <= clientHeight + 1 || clientHeight === 0) {
+			el.style.setProperty('--scroll-thumb-height', '0px');
+			el.style.setProperty('--scroll-thumb-offset', '0px');
+			el.style.setProperty('--scroll-thumb-opacity', '0');
+			return;
+		}
+
+		const trackHeight = Math.max(scrollHeight - trackPadding * 2, 0);
+		if (trackHeight <= 0) {
+			el.style.setProperty('--scroll-thumb-height', '0px');
+			el.style.setProperty('--scroll-thumb-offset', '0px');
+			el.style.setProperty('--scroll-thumb-opacity', '0');
+			return;
+		}
+
+		const maxScrollTop = Math.max(scrollHeight - clientHeight, 0);
+		const desiredThumb = Math.max(36, trackHeight * 0.12);
+		const thumbHeight = Math.min(trackHeight * 0.4, Math.min(trackHeight, desiredThumb));
+		const maxThumbOffset = Math.max(trackHeight - thumbHeight, 0);
+		const progress = maxScrollTop > 0 ? scrollTop / maxScrollTop : 0;
+		const offset = progress * maxThumbOffset;
+
+		el.style.setProperty('--scroll-thumb-height', `${thumbHeight}px`);
+		el.style.setProperty('--scroll-thumb-offset', `${offset}px`);
+		el.style.setProperty('--scroll-thumb-opacity', '1');
+	}
+
 	$effect(() => {
 		const id = conversationId;
 		const requestId = ++messagesRequestId;
@@ -132,10 +165,56 @@
 		messagesLoading = true;
 		void fetchMessages(id, requestId);
 	});
+
+	$effect(() => {
+		const container = messagesContainer;
+		const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
+		if (!container) return;
+
+		if (!lastMessageId) {
+			updateScrollThumb();
+			return;
+		}
+
+		queueMicrotask(() => {
+			container.scrollTop = container.scrollHeight;
+			updateScrollThumb();
+		});
+	});
+
+	$effect(() => {
+		const el = messagesContainer;
+		if (!el) return;
+
+		const handleScroll = () => {
+			updateScrollThumb();
+		};
+
+		el.addEventListener('scroll', handleScroll, { passive: true });
+		updateScrollThumb();
+
+		let resizeObserver: ResizeObserver | null = null;
+		if (typeof ResizeObserver !== 'undefined') {
+			resizeObserver = new ResizeObserver(() => {
+				updateScrollThumb();
+			});
+			resizeObserver.observe(el);
+		}
+
+		return () => {
+			el.removeEventListener('scroll', handleScroll);
+			if (resizeObserver) {
+				resizeObserver.disconnect();
+			}
+		};
+	});
 </script>
 
 <div class="flex h-full flex-col text-sm leading-6 text-stone-700">
-	<div class="flex-1 space-y-3 overflow-y-auto py-4">
+	<div
+		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto py-4"
+		bind:this={messagesContainer}
+	>
 		{#if loading}
 			<div class="flex justify-center"></div>
 		{:else if errorMessage}
@@ -166,7 +245,7 @@
 					in:fly|global={{ x: 8, duration: 400, easing: cubicOut }}
 					class="flex flex-col gap-y-2"
 				>
-					{#each messages as message, index (message.id)}
+					{#each messages as message (message.id)}
 						{@const isUser = message.user_id === userId}
 						<div class={isUser ? 'flex justify-end' : 'flex justify-start'}>
 							<div class="flex flex-col gap-1" class:max-w-[75%]={isUser}>
@@ -208,3 +287,34 @@
 		</form>
 	</footer>
 </div>
+
+<style>
+	:global(.project-chat-scroll) {
+		position: relative;
+		scrollbar-width: none;
+	}
+
+	:global(.project-chat-scroll)::after {
+		content: '';
+		position: absolute;
+		top: var(--scroll-thumb-track-padding, 0);
+		right: 0;
+		width: 1px;
+		height: var(--scroll-thumb-height, 0);
+		background-color: #292524;
+		opacity: var(--scroll-thumb-opacity, 0);
+		pointer-events: none;
+		border-radius: 9999px;
+		transform: translateY(var(--scroll-thumb-offset, 0));
+		will-change: transform, opacity;
+	}
+
+	:global(.project-chat-scroll)::-webkit-scrollbar {
+		width: 0;
+		height: 0;
+	}
+
+	:global(.project-chat-scroll)::-webkit-scrollbar-thumb {
+		background: transparent;
+	}
+</style>
