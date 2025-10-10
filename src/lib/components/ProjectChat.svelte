@@ -122,10 +122,11 @@
 		try {
 			const { error } = await supabase
 				.from('projects')
-				.update({ status: 'in_progress' })
+				.update({ status: 'In Progress' })
 				.eq('id', projectId)
-				.eq('status', 'not_started');
+				.eq('status', 'Not Started');
 
+			console.log('error', error);
 			if (error) throw error;
 		} catch (err) {
 			console.error('Failed to update project status', err);
