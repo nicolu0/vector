@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cubicOut } from 'svelte/easing';
-	import { fly } from 'svelte/transition';
+	import { fly, fade } from 'svelte/transition';
 	import { supabase } from '$lib/supabaseClient';
 
 	const { conversationId, userId, loading, errorMessage } = $props<{
@@ -149,6 +149,7 @@
 		{:else}
 			<div
 				class="flex flex-row justify-center rounded-xl border border-stone-200 bg-stone-50 p-2 text-xs text-stone-600"
+				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
 			>
 				Introduction
 			</div>
@@ -161,24 +162,26 @@
 			{:else if messages.length === 0}
 				<div class="p-3 text-xs text-stone-500">No messages yet. Say hello to get started.</div>
 			{:else}
-				{#each messages as message, index (message.id)}
-					{@const isUser = message.user_id === userId}
-					<div
-						class={isUser ? 'flex justify-end' : 'flex justify-start'}
-						in:fly|global={{ y: 10, duration: 500, easing: cubicOut, delay: index * 50 }}
-					>
-						<div class="flex flex-col gap-1" class:max-w-[75%]={isUser}>
-							<div
-								class={isUser
-									? 'self-end rounded-xl bg-stone-200 px-4 py-2 text-stone-800'
-									: 'rounded-xl bg-white px-4 py-2 text-stone-700'}
-								class:opacity-60={message.pending}
-							>
-								<p class="text-xs leading-6 break-words text-current">{message.content}</p>
+				<div
+					in:fly|global={{ x: 8, duration: 400, easing: cubicOut }}
+					class="flex flex-col gap-y-2"
+				>
+					{#each messages as message, index (message.id)}
+						{@const isUser = message.user_id === userId}
+						<div class={isUser ? 'flex justify-end' : 'flex justify-start'}>
+							<div class="flex flex-col gap-1" class:max-w-[75%]={isUser}>
+								<div
+									class={isUser
+										? 'self-end rounded-xl bg-stone-200 px-4 py-2 text-stone-800'
+										: 'rounded-xl bg-white px-4 py-2 text-stone-700'}
+									class:opacity-60={message.pending}
+								>
+									<p class="text-xs leading-6 break-words text-current">{message.content}</p>
+								</div>
 							</div>
 						</div>
-					</div>
-				{/each}
+					{/each}
+				</div>
 			{/if}
 		{/if}
 	</div>

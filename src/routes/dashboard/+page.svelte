@@ -49,7 +49,7 @@
 	if (typeof window !== 'undefined' && initialShouldAnimate) {
 		markRouteVisited(routeVisitKey);
 	}
-	const shouldAnimateCards = initialShouldAnimate;
+	let shouldAnimateCards = $state(initialShouldAnimate);
 
 	function formatCreatedAt(value: string | null): string {
 		if (!value) return '';
@@ -120,6 +120,7 @@
 		conversations = [];
 		selectedConversationId = null;
 		conversationsError = null;
+		shouldAnimateCards = false;
 		void loadConversations(project.id);
 	}
 
