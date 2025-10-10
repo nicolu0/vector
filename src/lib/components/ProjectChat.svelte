@@ -4,6 +4,7 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 	import type { StoredProject } from '$lib/stores/dashboardProjects';
+	import { tick } from 'svelte';
 
 	const { conversationId, projectId, project, userId, loading, errorMessage } = $props<{
 		conversationId: string | null;
@@ -25,6 +26,9 @@
 		pending?: boolean;
 	};
 
+	/* -------- Config -------- */
+	const STICKY_TOP = 10; // px
+
 	let messages = $state<ChatMessage[]>([]);
 	let messagesLoading = $state(false);
 	let messagesError = $state<string | null>(null);
@@ -34,7 +38,45 @@
 	let sendInFlight = $state(false);
 	let mentorInFlight = $state(false);
 	let messagesRequestId = 0;
+
+	// Scroll container + last message element + persistent reply spacer
 	let messagesContainer = $state<HTMLDivElement | null>(null);
+	let lastMessageEl = $state<HTMLDivElement | null>(null);
+	let replySpacerHeight = $state(0);
+
+	// Persist spacer while project view is open
+	let keepReplySpacer = $state<boolean>(!!project);
+
+	function enablePersistentSpacer() {
+		keepReplySpacer = true;
+	}
+
+	function disableSpacer() {
+		replySpacerHeight = 0;
+		keepReplySpacer = false;
+		queueMicrotask(() => updateScrollThumb());
+	}
+
+	async function recomputeSpacer() {
+		if (!keepReplySpacer) return;
+		const el = messagesContainer;
+		const last = lastMessageEl;
+		if (!el || !last) return;
+
+		await tick();
+		const containerH = el.clientHeight;
+		const lastRect = last.getBoundingClientRect();
+		const lastH = Math.max(1, lastRect.height);
+		const desiredBottomGap = Math.max(0, containerH - lastH - STICKY_TOP);
+
+		replySpacerHeight = desiredBottomGap;
+
+		queueMicrotask(() => {
+			if (!el) return;
+			el.scrollTop = el.scrollHeight;
+			updateScrollThumb();
+		});
+	}
 
 	function getNextSequence() {
 		return (
@@ -92,6 +134,10 @@
 		messages = [...messages, optimisticMessage];
 		inputValue = '';
 
+		// Persist spacer and recompute right away
+		enablePersistentSpacer();
+		void recomputeSpacer();
+
 		try {
 			const { data, error } = await supabase
 				.from('messages')
@@ -107,7 +153,6 @@
 				.select('id, conversation_id, user_id, content, sequence, created_at, role')
 				.single();
 
-			console.log('err', error);
 			if (error) throw error;
 			if (!data) throw new Error('Message insert returned no data.');
 
@@ -122,8 +167,9 @@
 				void generateMentorResponse();
 			}
 		} catch (err) {
-			messages = messages.filter((message) => message.id !== optimisticMessage.id);
+			messages = messages.filter((m) => m.id !== optimisticMessage.id);
 			sendError = err instanceof Error ? err.message : 'Unable to send message right now.';
+			// keeping the spacer persistent
 		} finally {
 			sendInFlight = false;
 		}
@@ -185,13 +231,10 @@
 		try {
 			const response = await fetch('/api/project-chat', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
 			});
 
-			console.log('response: ', response.ok);
 			if (!response.ok) {
 				const { error } = (await response.json().catch(() => ({ error: 'Unknown error' }))) as {
 					error?: string;
@@ -200,7 +243,6 @@
 			}
 
 			const { content } = (await response.json()) as { content?: string };
-			console.log('content: ', content);
 			if (!content) throw new Error('Mentor response was empty.');
 
 			optimisticMentor = {
@@ -230,18 +272,20 @@
 				.select('id, conversation_id, user_id, content, sequence, created_at, role')
 				.single();
 
-			console.log('error: ', error);
 			if (error) throw error;
 			if (!data) throw new Error('Mentor insert returned no data.');
 
-			messages = messages.map((message) =>
-				message.id === optimisticMentor?.id ? ({ ...data, pending: false } as ChatMessage) : message
+			messages = messages.map((m) =>
+				m.id === optimisticMentor?.id ? ({ ...data, pending: false } as ChatMessage) : m
 			);
+
+			void recomputeSpacer();
 		} catch (err) {
 			if (optimisticMentor) {
-				messages = messages.filter((message) => message.id !== optimisticMentor?.id);
+				messages = messages.filter((m) => m.id !== optimisticMentor?.id);
 			}
 			mentorError = err instanceof Error ? err.message : 'Unable to generate mentor response.';
+			void recomputeSpacer();
 		} finally {
 			mentorInFlight = false;
 		}
@@ -252,6 +296,7 @@
 		void sendMessage();
 	}
 
+	/* ------- Scroll thumb ------- */
 	function updateScrollThumb() {
 		const el = messagesContainer;
 		if (!el) return;
@@ -287,6 +332,16 @@
 		el.style.setProperty('--scroll-thumb-opacity', '1');
 	}
 
+	/* ------- Effects ------- */
+	$effect(() => {
+		keepReplySpacer = !!project;
+		if (!keepReplySpacer) {
+			disableSpacer();
+		} else {
+			queueMicrotask(() => void recomputeSpacer());
+		}
+	});
+
 	$effect(() => {
 		const id = conversationId;
 		const requestId = ++messagesRequestId;
@@ -307,17 +362,11 @@
 
 	$effect(() => {
 		const container = messagesContainer;
-		const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
 		if (!container) return;
-
-		if (!lastMessageId) {
-			updateScrollThumb();
-			return;
-		}
-
 		queueMicrotask(() => {
 			container.scrollTop = container.scrollHeight;
 			updateScrollThumb();
+			void recomputeSpacer();
 		});
 	});
 
@@ -332,21 +381,45 @@
 		el.addEventListener('scroll', handleScroll, { passive: true });
 		updateScrollThumb();
 
-		let resizeObserver: ResizeObserver | null = null;
+		let roContainer: ResizeObserver | null = null;
+		let roContent: ResizeObserver | null = null;
+
 		if (typeof ResizeObserver !== 'undefined') {
-			resizeObserver = new ResizeObserver(() => {
+			roContainer = new ResizeObserver(() => {
 				updateScrollThumb();
+				void recomputeSpacer();
 			});
-			resizeObserver.observe(el);
+			roContainer.observe(el);
+
+			const content = el.firstElementChild;
+			if (content) {
+				roContent = new ResizeObserver(() => {
+					updateScrollThumb();
+					void recomputeSpacer();
+				});
+				roContent.observe(content);
+			}
 		}
 
 		return () => {
 			el.removeEventListener('scroll', handleScroll);
-			if (resizeObserver) {
-				resizeObserver.disconnect();
-			}
+			roContainer?.disconnect();
+			roContent?.disconnect();
 		};
 	});
+
+	function lastRef(node: HTMLDivElement, isLast: boolean) {
+		if (isLast) lastMessageEl = node;
+		return {
+			update(v: boolean) {
+				if (v) lastMessageEl = node;
+				else if (lastMessageEl === node) lastMessageEl = null;
+			},
+			destroy() {
+				if (lastMessageEl === node) lastMessageEl = null;
+			}
+		};
+	}
 </script>
 
 <div class="flex h-full flex-col text-sm leading-6 text-stone-700">
@@ -358,6 +431,7 @@
 			Introduction
 		</div>
 	</div>
+
 	<div
 		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto pr-5"
 		bind:this={messagesContainer}
@@ -382,10 +456,12 @@
 			<div class="p-3 text-xs text-stone-500"></div>
 		{:else}
 			<div in:fly|global={{ x: 8, duration: 400, easing: cubicOut }} class="flex flex-col gap-y-2">
-				{#each messages as message (message.id)}
+				{#each messages as message, i (message.id)}
 					{@const isUser = message.role === 'user'}
+					{@const isLast = i === messages.length - 1}
+
 					<div class={isUser ? 'flex justify-end' : 'flex justify-start'}>
-						<div class="flex flex-col gap-1" class:max-w-[75%]={isUser}>
+						<div class="flex flex-col gap-1" class:max-w-[75%]={isUser} use:lastRef={isLast}>
 							<div
 								class={isUser
 									? 'self-end rounded-xl bg-stone-200 px-4 py-2 text-stone-800'
@@ -397,6 +473,17 @@
 						</div>
 					</div>
 				{/each}
+
+				{#if mentorInFlight}
+					<div
+						class="pointer-events-none flex h-[calc(100%-0.75rem)] items-start pl-4"
+						role="status"
+						aria-live="polite"
+					>
+						<span class="typing-dot mt-1 inline-block h-2.5 w-2.5 rounded-full bg-stone-800"></span>
+					</div>
+				{/if}
+				<div style={`height:${replySpacerHeight}px`} aria-hidden="true"></div>
 			</div>
 		{/if}
 	</div>
@@ -459,5 +546,19 @@
 
 	:global(.project-chat-scroll)::-webkit-scrollbar-thumb {
 		background: transparent;
+	}
+	@keyframes dot-breathe {
+		0%,
+		100% {
+			transform: scale(1);
+			opacity: 0.9;
+		}
+		50% {
+			transform: scale(1.4);
+			opacity: 0.6;
+		}
+	}
+	.typing-dot {
+		animation: dot-breathe 1.2s ease-in-out infinite;
 	}
 </style>
