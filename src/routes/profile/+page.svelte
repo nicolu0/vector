@@ -53,7 +53,7 @@
 		},
 		{
 			name: 'Plus Weekly',
-			price: '$6',
+			price: '$15',
 			cadence: 'per week',
 			description: 'Stay in rhythm with fresh credits every week.',
 			features: ['1 credit added every week', 'Priority project tuning', 'Cancel anytime'],
@@ -61,10 +61,10 @@
 		},
 		{
 			name: 'Plus Monthly',
-			price: '$20',
+			price: '$50',
 			cadence: 'per month',
 			description: 'Best for consistent builders working on multiple tracks.',
-			compareAtPrice: '$24',
+			compareAtPrice: '$60',
 			features: [
 				'5 credits refreshed monthly',
 				'Email support with quick replies',
