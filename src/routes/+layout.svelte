@@ -193,7 +193,7 @@
 
 <div class="flex h-dvh flex-col overflow-hidden">
 	<header
-		class="sticky top-0 z-[70] flex w-full items-center justify-between border border-b-1 border-stone-100 bg-stone-50 px-6 py-4"
+		class="sticky top-0 z-[70] flex w-full items-center justify-between border border-b-1 border-stone-200 bg-stone-50 px-6 py-4"
 	>
 		<button class="flex items-center gap-2" onclick={() => goto('/')}>
 			<img src={vectorUrl} alt="vector" class="h-4 w-4" />

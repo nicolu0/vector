@@ -4,34 +4,21 @@
 			id: 'mentor-1',
 			sender: 'Project mentor',
 			role: 'mentor',
-			time: '2 min ago',
-			content:
-				'Congrats on picking this project! Ready to map out your first milestone? I pulled a quick outline to get you started.'
+			content: `Let's get started. Any questions on how to set up the project?`
 		},
 		{
 			id: 'user-1',
 			sender: 'You',
 			role: 'user',
-			time: '1 min ago',
-			content: 'I want to build momentum fast. Where should I focus during the first week?'
-		},
-		{
-			id: 'mentor-2',
-			sender: 'Project mentor',
-			role: 'mentor',
-			time: 'Just now',
-			content:
-				'Spend the first 3 days scoping the core feature and setting up the repo. On day 4, ship a small vertical slice and share a progress summary.'
+			content: 'i made a directory for the project what do i do now'
 		}
 	] as const;
 </script>
 
 <div class="flex h-full flex-col">
 	<div class="flex-1 space-y-3 overflow-y-auto py-4 text-sm leading-6 text-stone-700">
-		<div class="flex flex-row justify-between rounded-xl border border-stone-200 bg-stone-50 p-2">
-			<div>-</div>
-			<div>File System</div>
-			<div>x</div>
+		<div class="flex flex-row justify-center rounded-xl border border-stone-200 bg-stone-50 p-2">
+			<div>Introduction</div>
 		</div>
 		{#each messages as message (message.id)}
 			<div class={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>

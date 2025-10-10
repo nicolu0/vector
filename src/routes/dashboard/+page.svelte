@@ -171,11 +171,11 @@
 </svelte:head>
 
 <div
-	class="w-full bg-stone-50 px-6 text-stone-800"
+	class="w-full bg-stone-50 text-stone-800"
 	class:h-full={!!selectedProject}
 	class:overflow-clip={!!selectedProject}
 >
-	<div class="mx-auto w-full max-w-5xl" class:h-full={!!selectedProject}>
+	<div class="mx-auto w-full" class:h-full={!!selectedProject}>
 		{#if selectedProject}
 			<div class="flex h-full flex-col">
 				<div
@@ -183,7 +183,7 @@
 					bind:clientWidth={containerWidth}
 					class:select-none={isResizing}
 				>
-					<div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
+					<div class="min-h-0 min-w-0 flex-1 overflow-y-auto pb-5 pl-5">
 						<button
 							type="button"
 							class="inline-flex items-center gap-2 py-4 text-xs text-stone-400 transition hover:text-stone-900"
@@ -204,28 +204,27 @@
 						<ProjectDetail project={selectedProject} />
 					</div>
 					<div
-						class="hidden lg:flex lg:w-6 lg:flex-none lg:cursor-col-resize lg:items-stretch lg:justify-center"
+						class="hidden bg-stone-50 pl-5 lg:flex lg:flex-none lg:cursor-col-resize lg:items-stretch lg:justify-center"
 						onpointerdown={startResize}
 						role="separator"
 						aria-orientation="vertical"
 						aria-label="Resize project panels"
 					>
-						<div class="h-full w-px rounded-full bg-stone-100" />
+						<div class="h-full w-px rounded-full bg-stone-200" />
 					</div>
 
-					<!-- Chat panel: fixed width and scrolls itself -->
 					<div
-						class="min-h-0 w-full lg:[width:var(--chat-panel-width)] lg:flex-none"
+						class="min-h-0 w-full bg-stone-100 pr-5 lg:[width:var(--chat-panel-width)] lg:flex-none"
 						style={`--chat-panel-width: ${chatPanelWidth}px`}
 					>
-						<div class="h-full min-h-0 overflow-y-auto">
+						<div class="h-full min-h-0 overflow-y-auto pl-3">
 							<ProjectChat />
 						</div>
 					</div>
 				</div>
 			</div>
 		{:else}
-			<div class="flex items-center justify-between gap-3">
+			<div class="flex items-center justify-between gap-3 px-6">
 				<div>
 					<h1 class="mt-4 text-3xl font-semibold tracking-tight text-stone-800">Dashboard</h1>
 				</div>
@@ -310,7 +309,7 @@
 					No saved projects yet. Generate one and hit “Save to dashboard”.
 				</div>
 			{:else}
-				<div class="mt-4 grid gap-4 sm:grid-cols-2">
+				<div class="mt-4 grid gap-4 px-6 sm:grid-cols-2">
 					{#each projects as project, index}
 						<div
 							in:fly|global={shouldAnimateCards
