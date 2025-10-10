@@ -90,12 +90,14 @@
 						conversation_id: conversationId,
 						user_id: userId,
 						content: trimmed,
+						role: 'user',
 						sequence: optimisticMessage.sequence
 					}
 				])
 				.select('id, conversation_id, user_id, content, sequence, created_at')
 				.single();
 
+			console.log('err', error);
 			if (error) throw error;
 			if (!data) throw new Error('Message insert returned no data.');
 

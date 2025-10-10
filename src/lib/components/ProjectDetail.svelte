@@ -34,7 +34,7 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-6 pr-5">
 	<div class="flex flex-col items-start gap-3 lg:gap-4">
 		<div class="min-w-0 flex-1 text-2xl font-semibold tracking-tight text-stone-900">
 			{project.title}

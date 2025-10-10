@@ -220,6 +220,70 @@
 		document.body.classList.toggle('overflow-hidden', lock);
 		document.body.classList.toggle('overscroll-none', lock);
 	});
+
+	let messagesContainer = $state<HTMLDivElement | null>(null);
+
+	function updateScrollThumb() {
+		const el = messagesContainer;
+		if (!el) return;
+
+		const { scrollHeight, clientHeight, scrollTop } = el;
+		const trackPadding = 12;
+		el.style.setProperty('--scroll-thumb-track-padding', `${trackPadding}px`);
+
+		if (scrollHeight <= clientHeight + 1 || clientHeight === 0) {
+			el.style.setProperty('--scroll-thumb-height', '0px');
+			el.style.setProperty('--scroll-thumb-offset', '0px');
+			el.style.setProperty('--scroll-thumb-opacity', '0');
+			return;
+		}
+
+		const trackHeight = Math.max(scrollHeight - trackPadding * 2, 0);
+		if (trackHeight <= 0) {
+			el.style.setProperty('--scroll-thumb-height', '0px');
+			el.style.setProperty('--scroll-thumb-offset', '0px');
+			el.style.setProperty('--scroll-thumb-opacity', '0');
+			return;
+		}
+
+		const maxScrollTop = Math.max(scrollHeight - clientHeight, 0);
+		const desiredThumb = Math.max(36, trackHeight * 0.12);
+		const thumbHeight = Math.min(trackHeight * 0.4, Math.min(trackHeight, desiredThumb));
+		const maxThumbOffset = Math.max(trackHeight - thumbHeight, 0);
+		const progress = maxScrollTop > 0 ? scrollTop / maxScrollTop : 0;
+		const offset = progress * maxThumbOffset;
+
+		el.style.setProperty('--scroll-thumb-height', `${thumbHeight}px`);
+		el.style.setProperty('--scroll-thumb-offset', `${offset}px`);
+		el.style.setProperty('--scroll-thumb-opacity', '1');
+	}
+
+	$effect(() => {
+		const el = messagesContainer;
+		if (!el) return;
+
+		const handleScroll = () => {
+			updateScrollThumb();
+		};
+
+		el.addEventListener('scroll', handleScroll, { passive: true });
+		updateScrollThumb();
+
+		let resizeObserver: ResizeObserver | null = null;
+		if (typeof ResizeObserver !== 'undefined') {
+			resizeObserver = new ResizeObserver(() => {
+				updateScrollThumb();
+			});
+			resizeObserver.observe(el);
+		}
+
+		return () => {
+			el.removeEventListener('scroll', handleScroll);
+			if (resizeObserver) {
+				resizeObserver.disconnect();
+			}
+		};
+	});
 </script>
 
 <svelte:head>
@@ -235,7 +299,10 @@
 					bind:clientWidth={containerWidth}
 					class:select-none={isResizing}
 				>
-					<div class="min-h-0 min-w-0 flex-1 overflow-y-auto pb-5 pl-5">
+					<div
+						class="project-chat-scroll min-h-0 min-w-0 flex-1 overflow-y-auto pb-5 pl-5"
+						bind:this={messagesContainer}
+					>
 						<button
 							type="button"
 							class="inline-flex items-center gap-2 py-4 text-xs text-stone-400 transition hover:text-stone-900"
@@ -256,7 +323,7 @@
 						<ProjectDetail project={selectedProject} />
 					</div>
 					<div
-						class="hidden bg-stone-50 pl-5 lg:flex lg:flex-none lg:cursor-col-resize lg:items-stretch lg:justify-center"
+						class="hidden bg-stone-50 pl-1 lg:flex lg:flex-none lg:cursor-col-resize lg:items-stretch lg:justify-center"
 						onpointerdown={startResize}
 						role="separator"
 						aria-orientation="vertical"
@@ -427,3 +494,34 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	:global(.project-chat-scroll) {
+		position: relative;
+		scrollbar-width: none;
+	}
+
+	:global(.project-chat-scroll)::after {
+		content: '';
+		position: absolute;
+		top: var(--scroll-thumb-track-padding, 0);
+		right: 0px;
+		width: 1px;
+		height: var(--scroll-thumb-height, 0);
+		background-color: #aaa;
+		opacity: var(--scroll-thumb-opacity, 0);
+		pointer-events: none;
+		border-radius: 9999px;
+		transform: translateY(var(--scroll-thumb-offset, 0));
+		will-change: transform, opacity;
+	}
+
+	:global(.project-chat-scroll)::-webkit-scrollbar {
+		width: 0;
+		height: 0;
+	}
+
+	:global(.project-chat-scroll)::-webkit-scrollbar-thumb {
+		background: transparent;
+	}
+</style>
