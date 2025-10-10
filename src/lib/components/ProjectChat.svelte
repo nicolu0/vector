@@ -3,10 +3,12 @@
 	import { fly } from 'svelte/transition';
 	import { supabase } from '$lib/supabaseClient';
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
+	import type { StoredProject } from '$lib/stores/dashboardProjects';
 
-	const { conversationId, projectId, userId, loading, errorMessage } = $props<{
+	const { conversationId, projectId, project, userId, loading, errorMessage } = $props<{
 		conversationId: string | null;
 		projectId: string | null;
+		project: StoredProject | null;
 		userId: string | null;
 		loading: boolean;
 		errorMessage: string | null;
@@ -19,6 +21,7 @@
 		sequence: number | null;
 		content: string;
 		created_at: string | null;
+		role: 'user' | 'mentor' | null;
 		pending?: boolean;
 	};
 
@@ -26,8 +29,10 @@
 	let messagesLoading = $state(false);
 	let messagesError = $state<string | null>(null);
 	let sendError = $state<string | null>(null);
+	let mentorError = $state<string | null>(null);
 	let inputValue = $state('');
 	let sendInFlight = $state(false);
+	let mentorInFlight = $state(false);
 	let messagesRequestId = 0;
 	let messagesContainer = $state<HTMLDivElement | null>(null);
 
@@ -44,7 +49,7 @@
 		try {
 			const { data, error } = await supabase
 				.from('messages')
-				.select('id, conversation_id, user_id, content, sequence, created_at')
+				.select('id, conversation_id, user_id, content, sequence, created_at, role')
 				.eq('conversation_id', id)
 				.order('sequence', { ascending: true });
 
@@ -71,6 +76,7 @@
 		const shouldUpdateStatus = messages.length === 0;
 		sendInFlight = true;
 		sendError = null;
+		mentorError = null;
 
 		const optimisticMessage: ChatMessage = {
 			id: `pending-${Date.now()}`,
@@ -79,6 +85,7 @@
 			content: trimmed,
 			sequence: getNextSequence(),
 			created_at: new Date().toISOString(),
+			role: 'user',
 			pending: true
 		};
 
@@ -97,7 +104,7 @@
 						sequence: optimisticMessage.sequence
 					}
 				])
-				.select('id, conversation_id, user_id, content, sequence, created_at')
+				.select('id, conversation_id, user_id, content, sequence, created_at, role')
 				.single();
 
 			console.log('err', error);
@@ -110,6 +117,9 @@
 
 			if (shouldUpdateStatus && projectId) {
 				void updateProjectStatus(projectId);
+			}
+			if (project) {
+				void generateMentorResponse();
 			}
 		} catch (err) {
 			messages = messages.filter((message) => message.id !== optimisticMessage.id);
@@ -131,6 +141,109 @@
 			dashboardProjects.setProjectStatus(projectId, 'in_progress');
 		} catch (err) {
 			console.error('Failed to update project status', err);
+		}
+	}
+
+	function buildProjectContextPayload(currentProject: StoredProject) {
+		return {
+			title: currentProject.title,
+			description: currentProject.description,
+			difficulty: currentProject.difficulty,
+			timeline: currentProject.timeline,
+			skills: currentProject.skills ?? [],
+			jobs:
+				currentProject.jobs?.map((job) => ({
+					title: job.title,
+					url: job.url
+				})) ?? []
+		};
+	}
+
+	function normalizeMessageRole(message: ChatMessage) {
+		if (message.role === 'mentor' || message.role === 'user') return message.role;
+		return message.user_id === userId ? 'user' : 'mentor';
+	}
+
+	async function generateMentorResponse() {
+		if (!project || !conversationId) return;
+
+		const payload = {
+			project: buildProjectContextPayload(project),
+			messages: messages
+				.filter((message) => !message.pending)
+				.map((message) => ({
+					role: normalizeMessageRole(message),
+					content: message.content
+				}))
+		};
+
+		if (payload.messages.length === 0) return;
+
+		mentorInFlight = true;
+		let optimisticMentor: ChatMessage | null = null;
+
+		try {
+			const response = await fetch('/api/project-chat', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(payload)
+			});
+
+			console.log('response: ', response.ok);
+			if (!response.ok) {
+				const { error } = (await response.json().catch(() => ({ error: 'Unknown error' }))) as {
+					error?: string;
+				};
+				throw new Error(error ?? 'Unable to generate mentor response.');
+			}
+
+			const { content } = (await response.json()) as { content?: string };
+			console.log('content: ', content);
+			if (!content) throw new Error('Mentor response was empty.');
+
+			optimisticMentor = {
+				id: `mentor-pending-${Date.now()}`,
+				conversation_id: conversationId,
+				user_id: null,
+				content,
+				sequence: getNextSequence(),
+				created_at: new Date().toISOString(),
+				role: 'mentor',
+				pending: true
+			};
+
+			messages = [...messages, optimisticMentor];
+
+			const { data, error } = await supabase
+				.from('messages')
+				.insert([
+					{
+						conversation_id: conversationId,
+						user_id: userId,
+						content,
+						role: 'mentor',
+						sequence: optimisticMentor.sequence
+					}
+				])
+				.select('id, conversation_id, user_id, content, sequence, created_at, role')
+				.single();
+
+			console.log('error: ', error);
+			if (error) throw error;
+			if (!data) throw new Error('Mentor insert returned no data.');
+
+			messages = messages.map((message) =>
+				message.id === optimisticMentor?.id ? ({ ...data, pending: false } as ChatMessage) : message
+			);
+		} catch (err) {
+			if (optimisticMentor) {
+				messages = messages.filter((message) => message.id !== optimisticMentor?.id);
+			}
+			mentorError = err instanceof Error ? err.message : 'Unable to generate mentor response.';
+		} finally {
+			mentorInFlight = false;
 		}
 	}
 
@@ -179,6 +292,8 @@
 		const requestId = ++messagesRequestId;
 		messagesError = null;
 		sendError = null;
+		mentorError = null;
+		mentorInFlight = false;
 
 		if (!id) {
 			messages = [];
@@ -268,13 +383,13 @@
 		{:else}
 			<div in:fly|global={{ x: 8, duration: 400, easing: cubicOut }} class="flex flex-col gap-y-2">
 				{#each messages as message (message.id)}
-					{@const isUser = message.user_id === userId}
+					{@const isUser = message.role === 'user'}
 					<div class={isUser ? 'flex justify-end' : 'flex justify-start'}>
 						<div class="flex flex-col gap-1" class:max-w-[75%]={isUser}>
 							<div
 								class={isUser
 									? 'self-end rounded-xl bg-stone-200 px-4 py-2 text-stone-800'
-									: 'rounded-xl bg-white px-4 py-2 text-stone-700'}
+									: 'rounded-xl px-4 py-2 text-stone-700'}
 								class:opacity-60={message.pending}
 							>
 								<p class="text-xs leading-6 break-words text-current">{message.content}</p>
@@ -298,12 +413,19 @@
 				placeholder="Ask anything"
 				bind:value={inputValue}
 				class="w-full flex-1 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 transition outline-none focus:border-stone-300 focus:ring-2 focus:ring-black/5"
-				disabled={!conversationId || !userId || loading || messagesLoading || sendInFlight}
+				disabled={!conversationId ||
+					!userId ||
+					loading ||
+					messagesLoading ||
+					sendInFlight ||
+					mentorInFlight}
 			/>
 			{#if !userId}
 				<p class="text-[10px] text-stone-400">Sign in to send messages.</p>
 			{:else if sendError}
 				<p class="text-[10px] text-rose-600">{sendError}</p>
+			{:else if mentorError}
+				<p class="text-[10px] text-amber-600">{mentorError}</p>
 			{/if}
 		</form>
 	</footer>
