@@ -4,12 +4,12 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { difficultyBadgeClasses } from '$lib/styles/difficulty';
 	import { fly } from 'svelte/transition';
-import ProjectDetail from '$lib/components/ProjectDetail.svelte';
-import ProjectChat from '$lib/components/ProjectChat.svelte';
-import { dashboardProjects } from '$lib/stores/dashboardProjects';
-import type { DashboardProjectsState, StoredProject } from '$lib/stores/dashboardProjects';
-import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
-import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectStatus';
+	import ProjectDetail from '$lib/components/ProjectDetail.svelte';
+	import ProjectChat from '$lib/components/ProjectChat.svelte';
+	import { dashboardProjects } from '$lib/stores/dashboardProjects';
+	import type { DashboardProjectsState, StoredProject } from '$lib/stores/dashboardProjects';
+	import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
+	import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectStatus';
 
 	let dashboardState = $state<DashboardProjectsState>(dashboardProjects.getSnapshot());
 	let selectedProject = $state<StoredProject | null>(null);
@@ -224,6 +224,22 @@ import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectSta
 
 	let projectContainer = $state<HTMLDivElement | null>(null);
 
+	/* ---------- Faux scrollbar: auto-hide visibility + timer ---------- */
+	let thumbVisible = $state(false);
+	let scrollIdleTimer: number | null = null;
+
+	function showThumbTemporarily(ms = 900) {
+		thumbVisible = true;
+		updateScrollThumb();
+		if (scrollIdleTimer) clearTimeout(scrollIdleTimer);
+		scrollIdleTimer = window.setTimeout(() => {
+			thumbVisible = false;
+			console.log('TURNING OFF???');
+			updateScrollThumb();
+			scrollIdleTimer = null;
+		}, ms);
+	}
+
 	function updateScrollThumb() {
 		const el = projectContainer;
 		if (!el) return;
@@ -263,7 +279,7 @@ import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectSta
 
 		el.style.setProperty('--scroll-thumb-height', `${thumbH}px`);
 		el.style.setProperty('--scroll-thumb-offset', `${offset}px`);
-		el.style.setProperty('--scroll-thumb-opacity', '1');
+		el.style.setProperty('--scroll-thumb-opacity', thumbVisible ? '1' : '0');
 	}
 
 	$effect(() => {
@@ -271,25 +287,33 @@ import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectSta
 		if (!el) return;
 
 		const handleScroll = () => {
+			showThumbTemporarily();
+			updateScrollThumb();
+		};
+
+		const handleEnter = () => showThumbTemporarily(1200);
+		const handleLeave = () => {
+			thumbVisible = false;
 			updateScrollThumb();
 		};
 
 		el.addEventListener('scroll', handleScroll, { passive: true });
-		updateScrollThumb();
+		el.addEventListener('mouseenter', handleEnter);
+		el.addEventListener('mouseleave', handleLeave);
 
 		let resizeObserver: ResizeObserver | null = null;
 		if (typeof ResizeObserver !== 'undefined') {
 			resizeObserver = new ResizeObserver(() => {
-				updateScrollThumb();
+				updateScrollThumb(); // position/size updates don’t toggle visibility
 			});
 			resizeObserver.observe(el);
 		}
 
 		return () => {
 			el.removeEventListener('scroll', handleScroll);
-			if (resizeObserver) {
-				resizeObserver.disconnect();
-			}
+			el.removeEventListener('mouseenter', handleEnter);
+			// el.removeEventListener('mouseleave', handleLeave);
+			if (scrollIdleTimer) clearTimeout(scrollIdleTimer);
 		};
 	});
 </script>
@@ -327,7 +351,7 @@ import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectSta
 								<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
 							</svg>
 							Back
-							</button>
+						</button>
 						<ProjectDetail project={selectedProject} status={selectedProject?.status ?? null} />
 					</div>
 					<div
@@ -344,15 +368,15 @@ import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectSta
 						class="min-h-0 w-full bg-stone-100 lg:[width:var(--chat-panel-width)] lg:flex-none"
 						style={`--chat-panel-width: ${chatPanelWidth}px`}
 					>
-							<div class="h-full min-h-0 overflow-y-auto pl-3">
-								<ProjectChat
-									conversationId={selectedConversationId}
-									projectId={selectedProject?.id ?? null}
-									project={selectedProject}
-									userId={dashboardState.userId}
-									loading={conversationsLoading}
-									errorMessage={conversationsError}
-								/>
+						<div class="h-full min-h-0 overflow-y-auto pl-3">
+							<ProjectChat
+								conversationId={selectedConversationId}
+								projectId={selectedProject?.id ?? null}
+								project={selectedProject}
+								userId={dashboardState.userId}
+								loading={conversationsLoading}
+								errorMessage={conversationsError}
+							/>
 						</div>
 					</div>
 				</div>
@@ -524,6 +548,7 @@ import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectSta
 		border-radius: 9999px;
 		transform: translateY(var(--scroll-thumb-offset, 0));
 		will-change: transform, opacity;
+		transition: opacity 220ms ease; /* smooth fade after idle */
 	}
 
 	:global(.project-detail-scroll)::-webkit-scrollbar {

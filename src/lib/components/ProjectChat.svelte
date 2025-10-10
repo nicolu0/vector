@@ -204,6 +204,14 @@
 			updateScrollThumb();
 		});
 	}
+	async function scrollToBottom() {
+		await tick();
+		const el = messagesContainer;
+		if (!el) return;
+		el.scrollTop = el.scrollHeight; // always jump to latest
+		updateScrollThumb();
+		void recomputeSpacer();
+	}
 
 	function getNextSequence() {
 		return (
@@ -424,6 +432,21 @@
 	}
 
 	/* ------- Scroll thumb ------- */
+	// at top with other state
+	let thumbVisible = $state(false);
+	let scrollIdleTimer: number | null = null;
+
+	function showThumbTemporarily(ms = 900) {
+		thumbVisible = true;
+		updateScrollThumb();
+		if (scrollIdleTimer) clearTimeout(scrollIdleTimer);
+		scrollIdleTimer = window.setTimeout(() => {
+			thumbVisible = false;
+			updateScrollThumb();
+			scrollIdleTimer = null;
+		}, ms);
+	}
+
 	function updateScrollThumb() {
 		const el = messagesContainer;
 		if (!el) return;
@@ -456,7 +479,7 @@
 
 		el.style.setProperty('--scroll-thumb-height', `${thumbHeight}px`);
 		el.style.setProperty('--scroll-thumb-offset', `${offset}px`);
-		el.style.setProperty('--scroll-thumb-opacity', '1');
+		el.style.setProperty('--scroll-thumb-opacity', thumbVisible ? '1' : '0');
 	}
 
 	/* ------- Effects ------- */
@@ -488,51 +511,63 @@
 	});
 
 	$effect(() => {
-		const container = messagesContainer;
-		if (!container) return;
-		queueMicrotask(() => {
-			container.scrollTop = container.scrollHeight;
-			updateScrollThumb();
-			void recomputeSpacer();
-		});
-	});
-
-	$effect(() => {
 		const el = messagesContainer;
 		if (!el) return;
 
 		const handleScroll = () => {
+			showThumbTemporarily();
+			updateScrollThumb();
+		};
+
+		const handleEnter = () => showThumbTemporarily(1200);
+		const handleMove = () => showThumbTemporarily(1200);
+		const handleLeave = () => {
+			thumbVisible = false;
 			updateScrollThumb();
 		};
 
 		el.addEventListener('scroll', handleScroll, { passive: true });
+		el.addEventListener('mouseenter', handleEnter);
+		el.addEventListener('mousemove', handleMove);
+		el.addEventListener('mouseleave', handleLeave);
+
+		// show briefly on mount so users discover it
+		showThumbTemporarily(1200);
 		updateScrollThumb();
-
-		let roContainer: ResizeObserver | null = null;
-		let roContent: ResizeObserver | null = null;
-
-		if (typeof ResizeObserver !== 'undefined') {
-			roContainer = new ResizeObserver(() => {
-				updateScrollThumb();
-				void recomputeSpacer();
-			});
-			roContainer.observe(el);
-
-			const content = el.firstElementChild;
-			if (content) {
-				roContent = new ResizeObserver(() => {
-					updateScrollThumb();
-					void recomputeSpacer();
-				});
-				roContent.observe(content);
-			}
-		}
 
 		return () => {
 			el.removeEventListener('scroll', handleScroll);
-			roContainer?.disconnect();
-			roContent?.disconnect();
+			el.removeEventListener('mouseenter', handleEnter);
+			el.removeEventListener('mousemove', handleMove);
+			el.removeEventListener('mouseleave', handleLeave);
+			if (scrollIdleTimer) clearTimeout(scrollIdleTimer);
 		};
+	});
+
+	$effect(() => {
+		const id = conversationId;
+		if (!id) return;
+
+		// when messagesLoading flips from true → false and messages exist, go bottom
+		if (!messagesLoading && messages.length > 0) {
+			void scrollToBottom();
+		}
+	});
+
+	$effect(() => {
+		// depend on the last message id so this reruns on every append/replace
+		const lastMessageId = messages.length ? messages[messages.length - 1]?.id : null;
+		const container = messagesContainer;
+		if (!container) return;
+
+		if (!lastMessageId) {
+			// nothing yet — still sync the thumb
+			updateScrollThumb();
+			return;
+		}
+
+		// wait for DOM to render, then snap to bottom
+		void scrollToBottom();
 	});
 
 	function lastRef(node: HTMLDivElement, isLast: boolean) {
@@ -550,7 +585,7 @@
 </script>
 
 <div class="flex h-full flex-col text-sm leading-6 text-stone-700">
-	<div class="flex w-full flex-row py-2 pt-3 pr-5">
+	<div class="flex w-full flex-row py-2 pt-3 pr-5 pl-1">
 		<div
 			class="w-full justify-center rounded-xl border border-stone-200 bg-stone-50 p-2 text-center text-sm text-stone-600"
 			in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
@@ -582,7 +617,10 @@
 		{:else if messages.length === 0}
 			<div class="p-3 text-xs text-stone-500"></div>
 		{:else}
-			<div in:fly|global={{ x: 8, duration: 400, easing: cubicOut }} class="flex flex-col gap-y-2">
+			<div
+				in:fly|global={{ x: 8, duration: 400, easing: cubicOut }}
+				class="flex flex-col gap-y-2 pl-2"
+			>
 				{#each messages as message, i (message.id)}
 					{@const isUser = message.role === 'user'}
 					{@const isLast = i === messages.length - 1}
@@ -690,5 +728,20 @@
 	}
 	.typing-dot {
 		animation: dot-breathe 1.2s ease-in-out infinite;
+	}
+	:global(.project-chat-scroll)::after {
+		content: '';
+		position: absolute;
+		top: var(--scroll-thumb-track-padding, 0);
+		right: 5px;
+		width: 1px;
+		height: var(--scroll-thumb-height, 0);
+		background-color: #aaa;
+		opacity: var(--scroll-thumb-opacity, 0);
+		pointer-events: none;
+		border-radius: 9999px;
+		transform: translateY(var(--scroll-thumb-offset, 0));
+		will-change: transform, opacity;
+		transition: opacity 220ms ease; /* <— fade out after idle */
 	}
 </style>
