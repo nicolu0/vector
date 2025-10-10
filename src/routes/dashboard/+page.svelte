@@ -266,7 +266,7 @@
 					</div>
 
 					<div
-						class="min-h-0 w-full bg-stone-100 pr-5 lg:[width:var(--chat-panel-width)] lg:flex-none"
+						class="min-h-0 w-full bg-stone-100 lg:[width:var(--chat-panel-width)] lg:flex-none"
 						style={`--chat-panel-width: ${chatPanelWidth}px`}
 					>
 						<div class="h-full min-h-0 overflow-y-auto pl-3">

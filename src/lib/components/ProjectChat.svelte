@@ -120,7 +120,7 @@
 		if (!el) return;
 
 		const { scrollHeight, clientHeight, scrollTop } = el;
-		const trackPadding = 12;
+		const trackPadding = 40;
 		el.style.setProperty('--scroll-thumb-track-padding', `${trackPadding}px`);
 
 		if (scrollHeight <= clientHeight + 1 || clientHeight === 0) {
@@ -212,7 +212,7 @@
 
 <div class="flex h-full flex-col text-sm leading-6 text-stone-700">
 	<div
-		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto py-4"
+		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto py-4 pr-5"
 		bind:this={messagesContainer}
 	>
 		{#if loading}
@@ -227,7 +227,7 @@
 			</div>
 		{:else}
 			<div
-				class="flex flex-row justify-center rounded-xl border border-stone-200 bg-stone-50 p-2 text-xs text-stone-600"
+				class="sticky top-0 z-[999] flex flex-row justify-center rounded-xl border border-stone-200 bg-stone-50 p-2 text-xs text-stone-600"
 				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
 			>
 				Introduction
@@ -298,10 +298,10 @@
 		content: '';
 		position: absolute;
 		top: var(--scroll-thumb-track-padding, 0);
-		right: 0;
+		right: 5px;
 		width: 1px;
 		height: var(--scroll-thumb-height, 0);
-		background-color: #292524;
+		background-color: #aaa;
 		opacity: var(--scroll-thumb-opacity, 0);
 		pointer-events: none;
 		border-radius: 9999px;
