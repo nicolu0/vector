@@ -6,6 +6,133 @@
 	import type { StoredProject } from '$lib/stores/dashboardProjects';
 	import { tick } from 'svelte';
 
+	function stripFormatHeader(text: string) {
+		// If the model echoed the spec name, drop that prefix.
+		return text.replace(/^Vector Chat Markdown v1.*?- /i, '- ').trim();
+	}
+
+	type VCMTokens = {
+		bullets: string[];
+		docTitle?: string | null;
+		actionLabel?: 'Next action' | 'Question';
+		actionText?: string;
+		doneWhen?: string | null;
+	};
+
+	function parseVCM(text: string): VCMTokens | null {
+		const cleaned = stripFormatHeader(text);
+		const lines = cleaned
+			.split(/\r?\n/)
+			.map((l) => l.trim())
+			.filter(Boolean);
+
+		// collect bullets
+		const bullets: string[] = [];
+		let i = 0;
+		while (i < lines.length && /^-\s+/.test(lines[i])) {
+			bullets.push(lines[i].replace(/^-\s+/, ''));
+			i++;
+		}
+		if (bullets.length === 0) return null;
+
+		// optional Doc created: "Title"
+		let docTitle: string | null = null;
+		if (i < lines.length) {
+			const m = /^Doc created:\s*"([^"]+)"\s*$/i.exec(lines[i]);
+			if (m) {
+				docTitle = m[1];
+				i++;
+			}
+		}
+
+		// exactly one of: **Next action:** ... OR **Question:** ...
+		let actionLabel: VCMTokens['actionLabel'] | undefined;
+		let actionText: string | undefined;
+		if (i < lines.length) {
+			const action = /^\*\*(Next action|Question):\*\*\s+(.+)$/.exec(lines[i]);
+			if (action) {
+				actionLabel = action[1] as VCMTokens['actionLabel'];
+				actionText = action[2];
+				i++;
+			}
+		}
+
+		// optional **Done when:** ...
+		let doneWhen: string | null = null;
+		if (i < lines.length) {
+			const done = /^\*\*Done when:\*\*\s+(.+)$/.exec(lines[i]);
+			if (done) {
+				doneWhen = done[1];
+				i++;
+			}
+		}
+
+		// if extra junk lines after, still render best-effort
+		return { bullets, docTitle, actionLabel, actionText, doneWhen };
+	}
+
+	// Turn [text](url) into links, preserve `inline code`, escape the rest
+	function escapeHtml(s: string) {
+		return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	}
+	function renderInline(s: string) {
+		// inline code
+		s = s.replace(/`([^`]+)`/g, (_m, p1) => `<code>${escapeHtml(p1)}</code>`);
+		// links
+		s = s.replace(
+			/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+			(_m, t, u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${escapeHtml(t)}</a>`
+		);
+		// bold **...**
+		s = s.replace(/\*\*([^*]+)\*\*/g, (_m, p1) => `<strong>${escapeHtml(p1)}</strong>`);
+		// basic italics *...* (rare here)
+		s = s.replace(/\*([^*]+)\*/g, (_m, p1) => `<em>${escapeHtml(p1)}</em>`);
+		return s;
+	}
+
+	function renderMentorMarkdown(text: string): string {
+		const tokens = parseVCM(text);
+		if (!tokens) {
+			// fallback: keep linebreaks and links
+			return `<div class="vcmd-fallback">${renderInline(escapeHtml(text)).replace(/\n/g, '<br/>')}</div>`;
+		}
+
+		const parts: string[] = [];
+
+		// bullets
+		parts.push('<ul class="vcmd-list">');
+		for (const b of tokens.bullets) {
+			parts.push(`<li>${renderInline(b)}</li>`);
+		}
+		parts.push('</ul>');
+
+		// optional doc pill
+		if (tokens.docTitle) {
+			parts.push(
+				`<div class="vcmd-doc">
+				<span class="vcmd-doc-dot" aria-hidden="true"></span>
+				<span>Doc created: </span>
+				<span class="vcmd-doc-title">"${escapeHtml(tokens.docTitle)}"</span>
+			</div>`
+			);
+		}
+
+		// action or question
+		if (tokens.actionLabel && tokens.actionText) {
+			parts.push(
+				`<div class="vcmd-action"><strong>${tokens.actionLabel}:</strong> ${renderInline(tokens.actionText)}</div>`
+			);
+		}
+
+		// optional done when
+		if (tokens.doneWhen) {
+			parts.push(
+				`<div class="vcmd-done"><strong>Done when:</strong> ${renderInline(tokens.doneWhen)}</div>`
+			);
+		}
+
+		return parts.join('');
+	}
 	const { conversationId, projectId, project, userId, loading, errorMessage } = $props<{
 		conversationId: string | null;
 		projectId: string | null;
@@ -27,7 +154,7 @@
 	};
 
 	/* -------- Config -------- */
-	const STICKY_TOP = 10; // px
+	const STICKY_TOP = 180; // px
 
 	let messages = $state<ChatMessage[]>([]);
 	let messagesLoading = $state(false);
@@ -462,14 +589,17 @@
 
 					<div class={isUser ? 'flex justify-end' : 'flex justify-start'}>
 						<div class="flex flex-col gap-1" class:max-w-[75%]={isUser} use:lastRef={isLast}>
-							<div
-								class={isUser
-									? 'self-end rounded-xl bg-stone-200 px-4 py-2 text-stone-800'
-									: 'rounded-xl px-4 py-2 text-stone-700'}
-								class:opacity-60={message.pending}
-							>
-								<p class="text-xs leading-6 break-words text-current">{message.content}</p>
-							</div>
+							{#if isUser}
+								<p
+									class="rounded-lg bg-stone-200 p-3 py-2 text-xs leading-6 break-words whitespace-pre-wrap text-current"
+								>
+									{message.content}
+								</p>
+							{:else}
+								<div class="vcmd text-xs leading-6">
+									{@html renderMentorMarkdown(String(message.content ?? ''))}
+								</div>
+							{/if}
 						</div>
 					</div>
 				{/each}
