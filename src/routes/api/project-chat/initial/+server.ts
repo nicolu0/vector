@@ -3,8 +3,8 @@ import type { RequestHandler } from './$types';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { isProject, type Project, type Milestone, type Metadata } from '$lib/types/project';
 
-const MIN_RATING = 0.6;
-const MIN_CONFIDENCE = 0.5;
+const MIN_RATING = 0;
+const MIN_CONFIDENCE = 0;
 
 function normalizeTopic(value: string) {
 	return value.trim().toLowerCase();

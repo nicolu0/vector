@@ -152,6 +152,7 @@
 		created_at: string | null;
 		role: 'user' | 'mentor' | null;
 		pending?: boolean;
+		action?: Record<string, unknown> | null;
 	};
 
 	/* -------- Config -------- */
@@ -229,7 +230,7 @@
 		try {
 			const { data, error } = await supabase
 				.from('messages')
-				.select('id, conversation_id, user_id, content, sequence, created_at, role')
+				.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
 				.eq('conversation_id', id)
 				.order('sequence', { ascending: true });
 
@@ -266,7 +267,8 @@
 			sequence: getNextSequence(),
 			created_at: new Date().toISOString(),
 			role: 'user',
-			pending: true
+			pending: true,
+			action: null
 		};
 
 		messages = [...messages, optimisticMessage];
@@ -285,10 +287,11 @@
 						user_id: userId,
 						content: trimmed,
 						role: 'user',
-						sequence: optimisticMessage.sequence
+						sequence: optimisticMessage.sequence,
+						action: null
 					}
 				])
-				.select('id, conversation_id, user_id, content, sequence, created_at, role')
+				.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
 				.single();
 
 			if (error) throw error;
@@ -298,9 +301,16 @@
 				message.id === optimisticMessage.id ? ({ ...data, pending: false } as ChatMessage) : message
 			);
 
+			const insertedMessage = messages.find((message) => message.id === data.id) ?? null;
+
 			if (shouldUpdateStatus && projectId) {
 				void updateProjectStatus(projectId);
 			}
+
+			if (project && insertedMessage) {
+				void processUserKnowledge(insertedMessage);
+			}
+
 			if (project) {
 				void generateMentorResponse();
 			}
@@ -415,7 +425,8 @@
 				sequence: getNextSequence(),
 				created_at: new Date().toISOString(),
 				role: 'mentor',
-				pending: true
+				pending: true,
+				action: null
 			};
 
 			messages = [...messages, optimisticMentor];
@@ -428,10 +439,11 @@
 						user_id: userId,
 						content,
 						role: 'mentor',
-						sequence: optimisticMentor.sequence
+						sequence: optimisticMentor.sequence,
+						action: null
 					}
 				])
-				.select('id, conversation_id, user_id, content, sequence, created_at, role')
+				.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
 				.single();
 
 			if (error) throw error;
@@ -501,6 +513,57 @@
 		} finally {
 			introInFlight = false;
 			introInitialized = true;
+		}
+	}
+
+	async function processUserKnowledge(newMessage: ChatMessage) {
+		if (!project || !conversationId || !userId) return;
+		if (newMessage.role !== 'user') return;
+
+		try {
+			const recentHistory = messages
+				.filter((message) => !message.pending)
+				.slice(-6)
+				.map((message) => ({
+					role: normalizeMessageRole(message),
+					content: String(message.content ?? '')
+				}));
+
+			const requestPayload = {
+				conversation_id: conversationId,
+				message: {
+					id: newMessage.id,
+					content: newMessage.content,
+					action: newMessage.action ?? null
+				},
+				project: buildProjectContextPayload(project),
+				history: recentHistory
+			};
+
+			const response = await fetch('/api/project-chat/knowledge', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(requestPayload)
+			});
+
+			const result = (await response.json().catch(() => null)) as
+				| { action?: Record<string, unknown> | null }
+				| null;
+
+			if (!response.ok) {
+				const message = result && 'error' in result ? String(result.error) : 'Knowledge update failed.';
+				console.error('[ProjectChat] knowledge update failed', message);
+				return;
+			}
+
+			if (result?.action) {
+				const actionPayload = result.action;
+				messages = messages.map((message) =>
+					message.id === newMessage.id ? { ...message, action: actionPayload } : message
+				);
+			}
+		} catch (err) {
+			console.error('[ProjectChat] knowledge processing error', err);
 		}
 	}
 

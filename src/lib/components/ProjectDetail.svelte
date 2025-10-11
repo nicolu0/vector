@@ -21,6 +21,7 @@
 	}>();
 
 	const dispatch = createEventDispatcher<{ save: void; copy: void }>();
+	console.log('project: ', project);
 
 	function timelineClasses(label: string): string {
 		const normalized = label.toLowerCase();
@@ -35,7 +36,6 @@
 			window.open(url, '_blank', 'noopener,noreferrer');
 		}
 	}
-
 </script>
 
 <div class="space-y-6 pr-5">
