@@ -62,7 +62,9 @@
 				timeline: project.timeline,
 				description: project.description,
 				jobs: project.jobs,
-				skills: project.skills
+				skills: project.skills,
+				prerequisites: project.prerequisites,
+				metadata: project.metadata
 			};
 
 			const { data, error } = await supabase

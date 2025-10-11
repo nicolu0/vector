@@ -4,14 +4,69 @@
   "timeline": "6-8 weeks",
   "description": "Design and implement a Linux-style OS core in C and x86 Assembly. Build a minimal kernel that boots, manages memory, schedules threads, and exposes a syscall interface. Implement key device drivers (PIC/interrupts, terminal/TTY, RTC, audio, basic file system) and integrate tasking, preemption, and multithreading. Target real hardware and an emulator (QEMU/Bochs) with a reproducible build.",
   "jobs": [
-    { "title": "Operating Systems / Kernel Engineer", "url": "https://example.com/jobs/kernel-engineer" },
-    { "title": "Device Driver Engineer (x86/Embedded)", "url": "https://example.com/jobs/driver-enginee" }
+    {
+      "title": "Operating Systems / Kernel Engineer",
+      "url": "https://example.com/jobs/kernel-engineer"
+    },
+    {
+      "title": "Device Driver Engineer (x86/Embedded)",
+      "url": "https://example.com/jobs/driver-engineer"
+    }
   ],
-"skills": ["C","x86 assembly","bootloaders (MBR/ELF, GRUB)","interrupts & PIC/APIC","context switching & scheduling","syscall ABI design",
-"virtual memory & paging",
-"kernel heap/allocator",
-"concurrency & synchronization",
-"device drivers",
-"file systems"
-]
+  "skills": [
+    "C",
+    "x86 assembly",
+    "bootloaders (MBR/ELF, GRUB)",
+    "interrupts & PIC/APIC",
+    "context switching & scheduling",
+    "syscall ABI design",
+    "virtual memory & paging",
+    "kernel heap/allocator",
+    "concurrency & synchronization",
+    "device drivers",
+    "file systems"
+  ],
+  "prerequisites": [
+    "Comfortable with C build tooling",
+    "Familiarity with x86 architecture basics",
+    "Experience using QEMU or hardware emulators"
+  ],
+  "metadata": {
+    "milestones": [
+      {
+        "name": "Project Bootstrapping",
+        "objective": "Set up the development toolchain, scaffold the bootloader, and document the target hardware baseline.",
+        "success_metrics": [
+          "Reproducible cross-compilation environment configured and shared",
+          "Bootloader prototype boots to known checkpoint on QEMU"
+        ]
+      },
+      {
+        "name": "Kernel Core",
+        "objective": "Implement memory management, threading primitives, and the syscall boundary required for user programs.",
+        "success_metrics": [
+          "Virtual memory manager passes manual stress tests",
+          "Scheduler demo shows multiple cooperative tasks executing"
+        ]
+      },
+      {
+        "name": "Device Integration",
+        "objective": "Build essential drivers for interrupts, terminal IO, storage, and verify stability.",
+        "success_metrics": [
+          "Interrupt controller test suite reports zero regressions",
+          "Interactive terminal session available with basic filesystem access",
+          "Driver documentation updated with troubleshooting steps"
+        ]
+      },
+      {
+        "name": "Release & Showcase",
+        "objective": "Prepare a polished final image, produce launch documentation, and rehearse a demo for stakeholders.",
+        "success_metrics": [
+          "Release artifact boots on emulator and physical hardware without intervention",
+          "Demo script recorded or delivered live with walkthrough of capabilities",
+          "Postmortem outlines readiness to share on portfolio and with hiring teams"
+        ]
+      }
+    ]
+  }
 }

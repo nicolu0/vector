@@ -55,6 +55,7 @@
 	}
 
 	async function generateProject() {
+		isGenerating = true;
 		const interests = input.trim();
 		const tags = Array.from(picked);
 		const payload = { interests, tags };

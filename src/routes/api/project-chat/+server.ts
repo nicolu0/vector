@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import OpenAI from 'openai';
 import { OPENAI_API_KEY } from '$env/static/private';
+import type { Metadata, Milestone } from '$lib/types/project';
 import type { RequestHandler } from './$types';
 
 const MODEL_ID = 'gpt-5-nano-2025-08-07';
@@ -18,6 +19,8 @@ type ProjectPayload = {
 	difficulty: string;
 	timeline: string;
 	skills: string[];
+	prerequisites: string[];
+	metadata: Metadata;
 	jobs: Array<{ title: string; url: string }>;
 };
 
@@ -71,14 +74,42 @@ Additional Rules:
 
 
 function formatProjectContext(project: ProjectPayload) {
+	const prerequisites = (project.prerequisites ?? []).filter(
+		(item) => typeof item === 'string' && item.trim().length > 0
+	);
+
+	const milestoneLines = (project.metadata?.milestones ?? []).map((milestone, index) => {
+		if (!milestone || typeof milestone !== 'object') return null;
+		const { name, objective, success_metrics } = milestone as Milestone;
+		if (!name || !objective) return null;
+
+		const metrics = (success_metrics ?? [])
+			.filter((metric) => typeof metric === 'string' && metric.trim().length > 0)
+			.map((metric) => `    - ${metric}`)
+			.join('\n');
+
+		const pieces = [
+			`${index + 1}. ${name}`,
+			`   Objective: ${objective}`,
+			metrics ? `   Success metrics:\n${metrics}` : null
+		].filter(Boolean);
+
+		return pieces.join('\n');
+	});
+	const formattedMilestones = milestoneLines.filter(Boolean) as string[];
+
 	const lines = [
 		`Title: ${project.title}`,
 		`Difficulty: ${project.difficulty}`,
 		`Timeline: ${project.timeline}`,
 		`Description: ${project.description}`,
 		project.skills.length ? `Key skills:\n- ${project.skills.join('\n- ')}` : null,
+		prerequisites.length ? `Baseline prerequisites:\n${prerequisites.map((p) => `- ${p}`).join('\n')}` : null,
 		project.jobs.length
 			? `Related roles:\n${project.jobs.map((j) => `- ${j.title} (${j.url})`).join('\n')}`
+			: null,
+		formattedMilestones.length
+			? `Milestone plan:\n${formattedMilestones.join('\n\n')}`
 			: null
 	].filter(Boolean);
 	return lines.join('\n\n');
@@ -191,6 +222,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		VECTOR_CHAT_MD_SPEC,
 		'Project context:',
 		formatProjectContext(project),
+		'Leverage prerequisites to gauge readiness, and anchor guidance to the next milestone name and its success metrics before advancing.',
 		'Conversation so far:',
 		formatConversation(messages),
 		'Respond to the latest user message using the exact format.'

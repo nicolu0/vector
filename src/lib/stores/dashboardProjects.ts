@@ -1,7 +1,7 @@
 import { get, writable } from 'svelte/store';
 import { supabase } from '$lib/supabaseClient';
 import { normalizeProjectStatusValue } from '$lib/utils/projectStatus';
-import type { Project } from '$lib/types/project';
+import type { Project, Milestone, Metadata } from '$lib/types/project';
 
 export type StoredProject = Project & {
 	id: string;
@@ -36,6 +36,37 @@ let inFlight: Promise<StoredProject[] | null> | null = null;
 function isCacheFresh(state: DashboardProjectsState) {
 	if (!state.lastLoadedAt) return false;
 	return Date.now() - state.lastLoadedAt < CACHE_TTL;
+}
+
+function ensureStringArray(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value.filter((item): item is string => typeof item === 'string');
+}
+
+function sanitizeJobs(value: unknown): Project['jobs'] {
+	if (!Array.isArray(value)) return [];
+	return value
+		.map((item) => {
+			if (!item || typeof item !== 'object') return null;
+			const { title, url } = item as Record<string, unknown>;
+			if (typeof title !== 'string' || typeof url !== 'string') return null;
+			return { title, url };
+		})
+		.filter(Boolean) as Project['jobs'];
+}
+
+function sanitizeMilestones(value: unknown): Milestone[] {
+	if (!Array.isArray(value)) return [];
+	return value
+		.map((item) => {
+			if (!item || typeof item !== 'object') return null;
+			const { name, objective, success_metrics } = item as Record<string, unknown>;
+			if (typeof name !== 'string' || typeof objective !== 'string') return null;
+			const metrics = ensureStringArray(success_metrics);
+			if (metrics.length === 0) return null;
+			return { name, objective, success_metrics: metrics };
+		})
+		.filter(Boolean) as Milestone[];
 }
 
 async function load(options?: { force?: boolean }) {
@@ -85,17 +116,28 @@ async function load(options?: { force?: boolean }) {
 
 			const { data, error } = await supabase
 				.from('projects')
-				.select('id, title, difficulty, timeline, description, jobs, skills, status, created_at')
+				.select(
+					'id, title, difficulty, timeline, description, jobs, skills, prerequisites, metadata, status, created_at'
+				)
 				.eq('user_id', session.user.id)
 				.order('created_at', { ascending: false });
 
 			if (error) throw error;
 
 			const projects = (data ?? []).map((project) => {
-				const typed = project as StoredProject;
+				const typed = project as Partial<StoredProject> & {
+					metadata?: { milestones?: unknown } | Metadata | null;
+				};
+
+				const sanitizedMilestones = sanitizeMilestones((typed.metadata as Metadata | null)?.milestones);
+
 				return {
 					...typed,
-					status: normalizeProjectStatusValue(typed.status)
+					jobs: sanitizeJobs(typed.jobs),
+					skills: ensureStringArray(typed.skills),
+					prerequisites: ensureStringArray(typed.prerequisites),
+					metadata: { milestones: sanitizedMilestones },
+					status: normalizeProjectStatusValue(typed.status ?? null)
 				};
 			}) as StoredProject[];
 

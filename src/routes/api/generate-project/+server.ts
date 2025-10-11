@@ -6,13 +6,6 @@ import {
 import type { RequestHandler } from './$types';
 import { isProject, type Project } from '$lib/types/project';
 import sampleProject from '$lib/mock/project.sample.json';
-import { createSupabaseServerClient } from '$lib/server/supabase';
-
-const REQUIRE_AUTH = false;
-const REQUIRE_CREDITS = false;
-const INITIAL_CREDITS = Number.isFinite(Number(1))
-  ? Number(1)
-  : 1;
 
 const FALLBACK_PROJECT = sampleProject as Project;
 
@@ -23,7 +16,16 @@ const PROJECT_SCHEMA = {
   schema: {
     type: 'object',
     additionalProperties: false,
-    required: ['title', 'difficulty', 'timeline', 'description', 'jobs', 'skills'],
+    required: [
+      'title',
+      'difficulty',
+      'timeline',
+      'description',
+      'jobs',
+      'skills',
+      'prerequisites',
+      'metadata'
+    ],
     properties: {
       title: {
         type: 'string',
@@ -66,6 +68,56 @@ const PROJECT_SCHEMA = {
           maxLength: 40,
           pattern: '^[A-Za-z0-9][A-Za-z0-9\\-/ ]{0,39}$'
         }
+      },
+      prerequisites: {
+        type: 'array',
+        minItems: 2,
+        maxItems: 6,
+        items: {
+          type: 'string',
+          minLength: 6,
+          maxLength: 80,
+          pattern: '^[A-Za-z0-9][A-Za-z0-9\\-/&(),. ]{5,79}$'
+        }
+      },
+      metadata: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['milestones'],
+        properties: {
+          milestones: {
+            type: 'array',
+            minItems: 3,
+            maxItems: 6,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['name', 'objective', 'success_metrics'],
+              properties: {
+                name: {
+                  type: 'string',
+                  minLength: 3,
+                  maxLength: 80
+                },
+                objective: {
+                  type: 'string',
+                  minLength: 12,
+                  maxLength: 240
+                },
+                success_metrics: {
+                  type: 'array',
+                  minItems: 2,
+                  maxItems: 3,
+                  items: {
+                    type: 'string',
+                    minLength: 8,
+                    maxLength: 160
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -85,7 +137,8 @@ function buildPrompt({ interests, tags }: { interests: string; tags: string[] })
     `Generate a single standout technical project tailored to the candidate. ` +
     `Align it closely with the interests, highlight relevant industry context, and ensure it feels ` +
     `practical to execute within 4-8 weeks. Include concrete deliverables, measurable outcomes, and ` +
-    `references to real-world tools or datasets when possible.`;
+    `references to real-world tools or datasets when possible. Provide structured mentor-ready metadata ` +
+    `to underpin the guidance journey for this project.`;
 
   return [
     guidance,
@@ -97,9 +150,13 @@ function buildPrompt({ interests, tags }: { interests: string; tags: string[] })
     '- Difficulty must be one of: Easy, Medium, Hard, Expert.',
     '- Timeline must be a short estimate like "4-6 weeks" or "2 months". Do not exceed four words.',
     '- Jobs array should list real or plausible job titles. Provide the best guess URLs if unknown.',
-    '- Skills list should cover technologies, methodologies, or frameworks needed.',
+    '- Skills array must capture the 4-12 core capabilities the learner will gain from completing the project. Focus on learnings, not prerequisites.',
     '- Skills must be concise (≤40 chars), alphanumeric with optional spaces, hyphen, or slash. Avoid punctuation like colons or parentheses.',
+    '- Include a prerequisites array (2-6 items) covering the critical knowledge or tooling the learner must already possess before starting milestone one. Keep them short, concrete, and outcome-oriented.',
     '- Description should read like a concise brief (3-5 sentences) and must NOT mention timeframes or duration.',
+    '- Include a metadata object with a milestones array (3-6 items). Each milestone needs a short name, a concise objective, and 2-3 success metrics describing observable learner achievements.',
+    '- Ensure the final milestone explicitly captures the learner completing and delivering the project, including proof of readiness to showcase the work.',
+    '- Milestones should progress logically—from setup and research, through build-out, to validation and final delivery—so mentors can track learner momentum.',
     '- Do not include markdown, commentary, or explanations outside of the JSON response.'
   ]
     .filter(Boolean)
@@ -113,7 +170,7 @@ function createOpenAI() {
 }
 
 async function generateProjectWithOpenAI(input: { interests: string; tags: string[] }) {
-  return { project: FALLBACK_PROJECT, source: 'generated' as const, errorMessage: null };
+  // return { project: FALLBACK_PROJECT, source: 'generated' as const, errorMessage: null };
   const client = createOpenAI();
   if (!client) {
     return {
@@ -147,133 +204,9 @@ async function generateProjectWithOpenAI(input: { interests: string; tags: strin
   }
 }
 
-/* --------------------------- Auth/Credits gate --------------------------- */
-
-type GateOk = {
-  ok: true;
-  userId: string | null; // null when auth not required
-  credits: number | null; // null when credits not required
-  supabase: ReturnType<typeof createSupabaseServerClient>;
-  deductOne: () => Promise<number | null>; // returns remaining credits or null when not enforced
-};
-
-type GateBlocked = { ok: false; response: Response };
-
-async function gateUserAndCredits(cookies): Promise<GateOk | GateBlocked> {
-  const supabase = createSupabaseServerClient(cookies);
-
-  // If we don't require auth, we still instantiate supabase for DB access,
-  // but we won't check user or credits.
-  if (!REQUIRE_AUTH && !REQUIRE_CREDITS) {
-    return {
-      ok: true,
-      userId: null,
-      credits: null,
-      supabase,
-      deductOne: async () => null
-    };
-  }
-
-  // Auth check (if required)
-  const {
-    data: { user },
-    error: userError
-  } = await supabase.auth.getUser();
-
-  if (REQUIRE_AUTH && (userError || !user?.id)) {
-    return {
-      ok: false,
-      response: json(
-        { message: 'Sign in to claim your free project credit (0 / 1 credits).' },
-        { status: 401 }
-      )
-    };
-  }
-
-  const userId = user?.id ?? null;
-
-  // Credits check (if required)
-  if (!REQUIRE_CREDITS) {
-    return {
-      ok: true,
-      userId,
-      credits: null,
-      supabase,
-      deductOne: async () => null
-    };
-  }
-
-  // Fetch or provision credits
-  const { data: row, error: fetchErr } = await supabase
-    .from('users')
-    .select('credits')
-    .eq('user_id', userId!)
-    .maybeSingle();
-
-  if (fetchErr) {
-    console.error('Failed to fetch user credits', fetchErr);
-    return { ok: false, response: error(500, 'Unable to check credits') as unknown as Response };
-  }
-
-  let credits = typeof row?.credits === 'number' ? row.credits : null;
-
-  // Provision row if missing
-  if (row === null) {
-    const { data: inserted, error: insertErr } = await supabase
-      .from('users')
-      .insert({ user_id: userId, credits: INITIAL_CREDITS })
-      .select('credits')
-      .single();
-
-    if (insertErr) {
-      if ((insertErr as any).code === '23505') {
-        const { data: existing } = await supabase
-          .from('users')
-          .select('credits')
-          .eq('user_id', userId!)
-          .single();
-        credits = existing?.credits ?? 0;
-      } else {
-        console.error('Failed to provision initial credits', insertErr);
-        return { ok: false, response: error(500, 'Unable to prepare credits') as unknown as Response };
-      }
-    } else {
-      credits = inserted?.credits ?? 0;
-    }
-  }
-
-  if (!credits || credits <= 0) {
-    return {
-      ok: false,
-      response: json(
-        { message: 'You are out of credits. Visit your profile to review your balance.' },
-        { status: 402 }
-      )
-    };
-  }
-
-  // Provide a deduct function to call only on success
-  const deductOne = async () => {
-    const { data: updated, error: updateErr } = await supabase
-      .from('users')
-      .update({ credits: credits! - 1 })
-      .eq('user_id', userId!)
-      .select('credits')
-      .single();
-
-    if (updateErr) {
-      console.error('Failed to deduct credit', updateErr);
-      return (credits! - 1); // best-effort local math
-    }
-    return typeof updated?.credits === 'number' ? updated.credits : credits! - 1;
-  };
-
-  return { ok: true, userId, credits, supabase, deductOne };
-}
-
 /* --------------------------------- Handler --------------------------------- */
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async ({ request }) => {
   // Parse input
   let payload: { interests?: unknown; tags?: unknown };
   try {
@@ -291,26 +224,11 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     throw error(400, 'Provide interests or tags to generate a project');
   }
 
-  // const gate = await gateUserAndCredits(cookies);
-  // if (!gate.ok) return gate.response;
-
   const { project, source, errorMessage } = await generateProjectWithOpenAI({ interests, tags });
-
-  // let remainingCreditsHeader: string | undefined;
-  // if (REQUIRE_CREDITS) {
-  //   const remaining = await gate.deductOne();
-  //   if (typeof remaining === 'number') {
-  //     remainingCreditsHeader = String(Math.max(remaining, 0));
-  //   }
-  // } else if (gate.credits != null) {
-  //   // If we had a number (rare when REQUIRE_CREDITS=false), send what we saw
-  //   remainingCreditsHeader = String(gate.credits);
-  // }
 
   const headers: Record<string, string> = {
     'x-vector-project-source': source
   };
-  // if (remainingCreditsHeader) headers['x-vector-user-credits'] = remainingCreditsHeader;
   if (source === 'fallback' && errorMessage) {
     headers['x-vector-project-error'] = encodeURIComponent(errorMessage);
   }

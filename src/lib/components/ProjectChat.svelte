@@ -4,6 +4,7 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 	import type { StoredProject } from '$lib/stores/dashboardProjects';
+	import type { Milestone } from '$lib/types/project';
 	import { tick } from 'svelte';
 
 	function stripFormatHeader(text: string) {
@@ -164,6 +165,8 @@
 	let inputValue = $state('');
 	let sendInFlight = $state(false);
 	let mentorInFlight = $state(false);
+	let introInFlight = $state(false);
+	let introInitialized = $state(false);
 	let messagesRequestId = 0;
 
 	// Scroll container + last message element + persistent reply spacer
@@ -326,12 +329,36 @@
 	}
 
 	function buildProjectContextPayload(currentProject: StoredProject) {
+		const prerequisites =
+			currentProject.prerequisites?.filter(
+				(item): item is string => typeof item === 'string' && item.trim().length > 0
+			) ?? [];
+
+		const rawMilestones =
+			currentProject.metadata?.milestones?.map((milestone) => {
+				if (!milestone || typeof milestone !== 'object') return null;
+				const { name, objective, success_metrics } = milestone as typeof milestone & {
+					success_metrics?: unknown;
+				};
+				if (typeof name !== 'string' || typeof objective !== 'string') return null;
+				const metrics = Array.isArray(success_metrics)
+					? success_metrics.filter(
+							(metric): metric is string => typeof metric === 'string' && metric.trim().length > 0
+						)
+					: [];
+				if (metrics.length === 0) return null;
+				return { name, objective, success_metrics: metrics };
+			}) ?? [];
+		const milestones = rawMilestones.filter((item): item is Milestone => Boolean(item));
+
 		return {
 			title: currentProject.title,
 			description: currentProject.description,
 			difficulty: currentProject.difficulty,
 			timeline: currentProject.timeline,
 			skills: currentProject.skills ?? [],
+			prerequisites,
+			metadata: { milestones },
 			jobs:
 				currentProject.jobs?.map((job) => ({
 					title: job.title,
@@ -431,6 +458,52 @@
 		void sendMessage();
 	}
 
+	async function ensureIntroMessage() {
+		if (!project || !conversationId || !userId) return;
+		if (introInFlight) return;
+
+		introInFlight = true;
+		mentorError = null;
+		try {
+			const payload = {
+				conversation_id: conversationId,
+				project: buildProjectContextPayload(project)
+			};
+
+			const response = await fetch('/api/project-chat/initial', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+
+			const result = (await response.json().catch(() => null)) as
+				| {
+						message?: ChatMessage;
+						error?: string;
+				  }
+				| null;
+
+			if (!response.ok) {
+				const message = result?.error ?? 'Unable to prepare mentor introduction.';
+				throw new Error(message);
+			}
+
+			if (result?.message) {
+				const newMessage = result.message as ChatMessage;
+				messages = [...messages, newMessage];
+				enablePersistentSpacer();
+				void recomputeSpacer();
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Unable to prepare mentor introduction.';
+			mentorError = message;
+			console.error('[ProjectChat] intro message error', err);
+		} finally {
+			introInFlight = false;
+			introInitialized = true;
+		}
+	}
+
 	/* ------- Scroll thumb ------- */
 	// at top with other state
 	let thumbVisible = $state(false);
@@ -499,6 +572,8 @@
 		sendError = null;
 		mentorError = null;
 		mentorInFlight = false;
+		introInitialized = false;
+		introInFlight = false;
 
 		if (!id) {
 			messages = [];
@@ -568,6 +643,14 @@
 
 		// wait for DOM to render, then snap to bottom
 		void scrollToBottom();
+	});
+
+	$effect(() => {
+		if (!conversationId || !project || !userId) return;
+		if (messagesLoading) return;
+		if (messages.length > 0) return;
+		if (introInitialized || introInFlight) return;
+		void ensureIntroMessage();
 	});
 
 	function lastRef(node: HTMLDivElement, isLast: boolean) {
