@@ -31,7 +31,7 @@ const PROJECT_SCHEMA = {
         type: 'string',
         minLength: 4,
         maxLength: 64,
-        pattern: '^[A-Za-z0-9-]+(?:\\s+[A-Za-z0-9-]+){0,3}$'
+        pattern: '^[A-Za-z0-9+\\-]+(?:\\s+[A-Za-z0-9+\\-]+){0,3}$'
       },
       difficulty: {
         type: 'string',
@@ -60,24 +60,24 @@ const PROJECT_SCHEMA = {
       },
       skills: {
         type: 'array',
-        minItems: 4,
+        minItems: 3,
         maxItems: 12,
         items: {
           type: 'string',
           minLength: 2,
           maxLength: 40,
-          pattern: '^[A-Za-z0-9][A-Za-z0-9\\-/ ]{0,39}$'
+          pattern: '^[A-Za-z0-9][A-Za-z0-9+\\-/ ]{0,4}$'
         }
       },
       prerequisites: {
         type: 'array',
-        minItems: 2,
-        maxItems: 6,
+        minItems: 3,
+        maxItems: 12,
         items: {
           type: 'string',
-          minLength: 6,
+          minLength: 2,
           maxLength: 80,
-          pattern: '^[A-Za-z0-9][A-Za-z0-9\\-/&(),. ]{5,79}$'
+          pattern: '^[A-Za-z0-9][A-Za-z0-9+\\-/ ]{0,4}$'
         }
       },
       metadata: {
@@ -125,39 +125,48 @@ const PROJECT_SCHEMA = {
 } as const;
 
 function buildPrompt({ interests, tags }: { interests: string; tags: string[] }) {
-  const focus = interests ? interests.trim() : '';
-  const tagList = tags.filter(Boolean);
+  const focus = (interests ?? '').trim();
+  const tagList = (tags ?? []).filter(Boolean);
 
   const interestSection = focus ? `Primary interests or goals:\n${focus}\n` : '';
   const tagSection = tagList.length
-    ? `Key focus tags:\n${tagList.map((tag) => `- ${tag}`).join('\n')}\n`
+    ? `Key focus tags:\n${tagList.map((t) => `- ${t}`).join('\n')}\n`
     : '';
 
+  // Core guidance: one-feature, atomic skills, standardized milestones
   const guidance =
-    `Generate a single standout technical project tailored to the candidate. ` +
-    `Align it closely with the interests, highlight relevant industry context, and ensure it feels ` +
-    `practical to execute within 4-8 weeks. Include concrete deliverables, measurable outcomes, and ` +
-    `references to real-world tools or datasets when possible. Provide structured mentor-ready metadata ` +
-    `to underpin the guidance journey for this project.`;
+    [
+      'Generate ONE standout technical project tailored to the candidate.',
+      'Scope: single feature only, deliverable as a minimal working demo. No multi-part or stretch goals.',
+      'Fit: assume the learner can complete it in 1 week.',
+      'Quality bars: concrete deliverables, measurable outcomes, and realistic tools/datasets.',
+    ].join(' ');
+
+  const rules = [
+    'Title: ≤4 words, descriptive technical terms only.',
+    'Difficulty: one of Easy, Medium, Hard, Expert.',
+    'Timeline: short estimate like "1-2 weeks". (Weeks or months only.)',
+    'Description: a concise high level overview (3-5 sentences) that does NOT mention timeframes or duration.',
+    'Jobs: 1–6 realistic job titles with best-guess URLs if unknown.',
+    'Skills array: 3 atomic skills described in 1-5 words. At least one should be the tech stack: "C++". Example: "Threading". No vague tokens: basics, fundamentals.',
+    'Prerequisites array: 3 prerequisite skills. Use the same atomic style. Example: "Matrix Multiplication"',
+    'Milestones: EXACTLY 5 in this order and with these names — Introduction; Setup; Core Feature; Measure & Optimize; Conclusion.',
+    'Each milestone must include: (a) objective (≤1 sentence) and (b) 2–3 success_metrics that are observable and testable (true/false style or concrete checks).',
+    'Milestone semantics:',
+    ' - Introduction: check knowledge of prerequisites. teach user if necessary. make sure all prerequisites are understood before continuing',
+    ' - Setup: toolchain, repo, libraries. then give high level overview of what we will build. teach any new concepts before continuing.',
+    ' - Core Feature: implement the single feature end-to-end. make sure concepts are understood and feature is built before continuing.',
+    ' - Measure & Optimize: instrument ONE metric, apply ONE optimization, and report before/after.',
+    ' - Conclusion: summarize concrete skills learned and include a measurable results sentence: "Increased <metric> by <Y>% via <Z>".',
+    'Output strictly valid JSON per the schema. No markdown, no extra keys, no explanations.'
+  ].join('\n- ');
 
   return [
     guidance,
     interestSection,
     tagSection,
     'Follow these additional rules:',
-    '- Title must be four words or fewer, composed only of descriptive technical terms (letters, numbers, hyphen). No branding, marketing, or suffixes.',
-    '- Title must be four words or fewer. Keep it punchy and branded.',
-    '- Difficulty must be one of: Easy, Medium, Hard, Expert.',
-    '- Timeline must be a short estimate like "4-6 weeks" or "2 months". Do not exceed four words.',
-    '- Jobs array should list real or plausible job titles. Provide the best guess URLs if unknown.',
-    '- Skills array must capture the 4-12 core capabilities the learner will gain from completing the project. Focus on learnings, not prerequisites.',
-    '- Skills must be concise (≤40 chars), alphanumeric with optional spaces, hyphen, or slash. Avoid punctuation like colons or parentheses.',
-    '- Include a prerequisites array (2-6 items) covering the critical knowledge or tooling the learner must already possess before starting milestone one. Keep them short, concrete, and outcome-oriented.',
-    '- Description should read like a concise brief (3-5 sentences) and must NOT mention timeframes or duration.',
-    '- Include a metadata object with a milestones array (3-6 items). Each milestone needs a short name, a concise objective, and 2-3 success metrics describing observable learner achievements.',
-    '- Ensure the final milestone explicitly captures the learner completing and delivering the project, including proof of readiness to showcase the work.',
-    '- Milestones should progress logically—from setup and research, through build-out, to validation and final delivery—so mentors can track learner momentum.',
-    '- Do not include markdown, commentary, or explanations outside of the JSON response.'
+    `- ${rules}`
   ]
     .filter(Boolean)
     .join('\n\n');
