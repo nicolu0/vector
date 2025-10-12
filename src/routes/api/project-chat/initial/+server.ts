@@ -168,10 +168,27 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 	if (unknownPrereqs.length > 0) {
 		const target = unknownPrereqs[0];
-		const highlightPrefix = knownPrereqs.length
-			? `I noticed you're already confident with ${formatList(knownPrereqs.slice(0, 2))}. `
-			: '';
-		message = `Hi! ${highlightPrefix}Before we dive into "${project.title}", ${prerequisitePrompt(target)}`;
+		const highlightNote = knownPrereqs.length
+			? `I noticed you're already confident with ${formatList(knownPrereqs.slice(0, 2))}.`
+			: null;
+
+		const priorEntry = ratingMap.get(normalizeTopic(target));
+		const ratingDescriptor =
+			typeof priorEntry?.rating === 'number' ? ` around rating ${Math.round(priorEntry.rating)}` : '';
+		const priorNote = priorEntry
+			? `I remember we last logged ${target}${ratingDescriptor}.`
+			: null;
+		const followUp = priorEntry ? 'Have you made any fresh progress there recently?' : null;
+
+		const parts = [
+			'Hi!',
+			highlightNote,
+			priorNote,
+			`Before we dive into "${project.title}", ${prerequisitePrompt(target)}`,
+			followUp
+		];
+
+		message = parts.filter(Boolean).join(' ');
 	} else if (prerequisites.length > 0) {
 		const firstMilestone = project.metadata?.milestones?.[0];
 		const milestoneName = firstMilestone?.name ?? (unknownMilestones[0] ?? knownMilestones[0] ?? null);

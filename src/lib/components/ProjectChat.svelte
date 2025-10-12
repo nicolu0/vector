@@ -156,7 +156,7 @@
 	};
 
 	/* -------- Config -------- */
-	const STICKY_TOP = 180; // px
+	const PERSISTENT_SPACER_HEIGHT = 160; // px
 
 	let messages = $state<ChatMessage[]>([]);
 	let messagesLoading = $state(false);
@@ -170,51 +170,57 @@
 	let introInitialized = $state(false);
 	let messagesRequestId = 0;
 
-	// Scroll container + last message element + persistent reply spacer
+	// Scroll container + persistent reply spacer
 	let messagesContainer = $state<HTMLDivElement | null>(null);
-	let lastMessageEl = $state<HTMLDivElement | null>(null);
 	let replySpacerHeight = $state(0);
+	let spacerLocked = $state(false);
 
-	// Persist spacer while project view is open
-	let keepReplySpacer = $state<boolean>(!!project);
-
-	function enablePersistentSpacer() {
-		keepReplySpacer = true;
-	}
-
-	function disableSpacer() {
-		replySpacerHeight = 0;
-		keepReplySpacer = false;
+	function recomputeSpacer() {
+		replySpacerHeight = spacerLocked ? PERSISTENT_SPACER_HEIGHT : 0;
 		queueMicrotask(() => updateScrollThumb());
 	}
 
-	async function recomputeSpacer() {
-		if (!keepReplySpacer) return;
-		const el = messagesContainer;
-		const last = lastMessageEl;
-		if (!el || !last) return;
-
-		await tick();
-		const containerH = el.clientHeight;
-		const lastRect = last.getBoundingClientRect();
-		const lastH = Math.max(1, lastRect.height);
-		const desiredBottomGap = Math.max(0, containerH - lastH - STICKY_TOP);
-
-		replySpacerHeight = desiredBottomGap;
-
+	function lockSpacer() {
+		if (spacerLocked) return;
+		spacerLocked = true;
+		replySpacerHeight = PERSISTENT_SPACER_HEIGHT;
 		queueMicrotask(() => {
+			const el = messagesContainer;
 			if (!el) return;
 			el.scrollTop = el.scrollHeight;
 			updateScrollThumb();
 		});
 	}
+
+	function resetSpacerState() {
+		spacerLocked = false;
+		replySpacerHeight = 0;
+		queueMicrotask(() => updateScrollThumb());
+	}
+
+	function maybeLockSpacer() {
+		if (spacerLocked) return;
+		const userCount = messages.filter((message) => message.role === 'user').length;
+		const mentorCount = messages.filter((message) => message.role === 'mentor').length;
+		if (userCount >= 2 && mentorCount >= 1) {
+			lockSpacer();
+		}
+	}
+
 	async function scrollToBottom() {
 		await tick();
 		const el = messagesContainer;
 		if (!el) return;
 		el.scrollTop = el.scrollHeight; // always jump to latest
 		updateScrollThumb();
-		void recomputeSpacer();
+		recomputeSpacer();
+		if (spacerLocked) {
+			queueMicrotask(() => {
+				if (!messagesContainer) return;
+				messagesContainer.scrollTop = messagesContainer.scrollHeight;
+				updateScrollThumb();
+			});
+		}
 	}
 
 	function getNextSequence() {
@@ -274,9 +280,7 @@
 		messages = [...messages, optimisticMessage];
 		inputValue = '';
 
-		// Persist spacer and recompute right away
-		enablePersistentSpacer();
-		void recomputeSpacer();
+		recomputeSpacer();
 
 		try {
 			const { data, error } = await supabase
@@ -453,13 +457,13 @@
 				m.id === optimisticMentor?.id ? ({ ...data, pending: false } as ChatMessage) : m
 			);
 
-			void recomputeSpacer();
+			recomputeSpacer();
 		} catch (err) {
 			if (optimisticMentor) {
 				messages = messages.filter((m) => m.id !== optimisticMentor?.id);
 			}
 			mentorError = err instanceof Error ? err.message : 'Unable to generate mentor response.';
-			void recomputeSpacer();
+			recomputeSpacer();
 		} finally {
 			mentorInFlight = false;
 		}
@@ -488,12 +492,10 @@
 				body: JSON.stringify(payload)
 			});
 
-			const result = (await response.json().catch(() => null)) as
-				| {
-						message?: ChatMessage;
-						error?: string;
-				  }
-				| null;
+			const result = (await response.json().catch(() => null)) as {
+				message?: ChatMessage;
+				error?: string;
+			} | null;
 
 			if (!response.ok) {
 				const message = result?.error ?? 'Unable to prepare mentor introduction.';
@@ -503,8 +505,7 @@
 			if (result?.message) {
 				const newMessage = result.message as ChatMessage;
 				messages = [...messages, newMessage];
-				enablePersistentSpacer();
-				void recomputeSpacer();
+				recomputeSpacer();
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Unable to prepare mentor introduction.';
@@ -546,12 +547,14 @@
 				body: JSON.stringify(requestPayload)
 			});
 
-			const result = (await response.json().catch(() => null)) as
-				| { action?: Record<string, unknown> | null }
-				| null;
+			const result = (await response.json().catch(() => null)) as {
+				action?: Record<string, unknown> | null;
+			} | null;
 
+			console.log('response: ', response);
 			if (!response.ok) {
-				const message = result && 'error' in result ? String(result.error) : 'Knowledge update failed.';
+				const message =
+					result && 'error' in result ? String(result.error) : 'Knowledge update failed.';
 				console.error('[ProjectChat] knowledge update failed', message);
 				return;
 			}
@@ -620,12 +623,11 @@
 
 	/* ------- Effects ------- */
 	$effect(() => {
-		keepReplySpacer = !!project;
-		if (!keepReplySpacer) {
-			disableSpacer();
-		} else {
-			queueMicrotask(() => void recomputeSpacer());
+		if (!project) {
+			resetSpacerState();
+			return;
 		}
+		recomputeSpacer();
 	});
 
 	$effect(() => {
@@ -637,6 +639,7 @@
 		mentorInFlight = false;
 		introInitialized = false;
 		introInFlight = false;
+		resetSpacerState();
 
 		if (!id) {
 			messages = [];
@@ -716,18 +719,10 @@
 		void ensureIntroMessage();
 	});
 
-	function lastRef(node: HTMLDivElement, isLast: boolean) {
-		if (isLast) lastMessageEl = node;
-		return {
-			update(v: boolean) {
-				if (v) lastMessageEl = node;
-				else if (lastMessageEl === node) lastMessageEl = null;
-			},
-			destroy() {
-				if (lastMessageEl === node) lastMessageEl = null;
-			}
-		};
-	}
+	$effect(() => {
+		if (messages.length === 0) return;
+		maybeLockSpacer();
+	});
 </script>
 
 <div class="flex h-full flex-col text-sm leading-6 text-stone-700">
@@ -767,12 +762,11 @@
 				in:fly|global={{ x: 8, duration: 400, easing: cubicOut }}
 				class="flex flex-col gap-y-4 pl-2"
 			>
-				{#each messages as message, i (message.id)}
+				{#each messages as message (message.id)}
 					{@const isUser = message.role === 'user'}
-					{@const isLast = i === messages.length - 1}
 
 					<div class={isUser ? 'flex justify-end' : 'flex justify-start'}>
-						<div class="flex flex-col gap-1" class:max-w-[75%]={isUser} use:lastRef={isLast}>
+						<div class="flex flex-col gap-1" class:max-w-[75%]={isUser}>
 							{#if isUser}
 								<p
 									class="rounded-lg bg-stone-200 p-3 py-2 text-xs leading-6 break-words whitespace-pre-wrap text-current"

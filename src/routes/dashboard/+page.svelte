@@ -234,7 +234,6 @@
 		if (scrollIdleTimer) clearTimeout(scrollIdleTimer);
 		scrollIdleTimer = window.setTimeout(() => {
 			thumbVisible = false;
-			console.log('TURNING OFF???');
 			updateScrollThumb();
 			scrollIdleTimer = null;
 		}, ms);

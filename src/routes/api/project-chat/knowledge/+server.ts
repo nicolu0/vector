@@ -41,8 +41,8 @@ const KNOWLEDGE_SCHEMA = {
 	strict: true
 } as const;
 
-const RATING_FLOOR = 400;
-const RATING_CEILING = 1600;
+const RATING_FLOOR = 100;
+const RATING_CEILING = 2000;
 
 type HistoryMessage = {
 	role: 'user' | 'mentor';
@@ -264,12 +264,12 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 	const historyMessages = Array.isArray(history)
 		? history
-				.filter(
-					(entry): entry is HistoryMessage =>
-						entry != null &&
-						(entry.role === 'user' || entry.role === 'mentor') &&
-						typeof entry.content === 'string'
-				)
+			.filter(
+				(entry): entry is HistoryMessage =>
+					entry != null &&
+					(entry.role === 'user' || entry.role === 'mentor') &&
+					typeof entry.content === 'string'
+			)
 		: [];
 
 	let updates = await runLLMAnalysis({

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import type { Project } from '$lib/types/project';
 	import { difficultyBadgeClasses } from '$lib/styles/difficulty';
 	import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectStatus';
@@ -20,7 +19,6 @@
 		saveProject?: () => void;
 	}>();
 
-	const dispatch = createEventDispatcher<{ save: void; copy: void }>();
 	console.log('project: ', project);
 
 	function timelineClasses(label: string): string {
