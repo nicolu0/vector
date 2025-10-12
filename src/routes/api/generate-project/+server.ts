@@ -66,7 +66,7 @@ const PROJECT_SCHEMA = {
           type: 'string',
           minLength: 2,
           maxLength: 40,
-          pattern: '^[A-Za-z0-9][A-Za-z0-9+\\-/ ]{0,4}$'
+          pattern: '^[A-Za-z0-9][A-Za-z0-9+\\-/ ]{0,50}$'
         }
       },
       prerequisites: {
@@ -77,7 +77,7 @@ const PROJECT_SCHEMA = {
           type: 'string',
           minLength: 2,
           maxLength: 80,
-          pattern: '^[A-Za-z0-9][A-Za-z0-9+\\-/ ]{0,4}$'
+          pattern: '^[A-Za-z0-9][A-Za-z0-9+\\-/ ]{0,50}$'
         }
       },
       metadata: {
@@ -133,12 +133,9 @@ function buildPrompt({ interests, tags }: { interests: string; tags: string[] })
     ? `Key focus tags:\n${tagList.map((t) => `- ${t}`).join('\n')}\n`
     : '';
 
-  // Core guidance: one-feature, atomic skills, standardized milestones
   const guidance =
     [
       'Generate ONE standout technical project tailored to the candidate.',
-      'Scope: single feature only, deliverable as a minimal working demo. No multi-part or stretch goals.',
-      'Fit: assume the learner can complete it in 1 week.',
       'Quality bars: concrete deliverables, measurable outcomes, and realistic tools/datasets.',
     ].join(' ');
 
@@ -148,8 +145,8 @@ function buildPrompt({ interests, tags }: { interests: string; tags: string[] })
     'Timeline: short estimate like "1-2 weeks". (Weeks or months only.)',
     'Description: a concise high level overview (3-5 sentences) that does NOT mention timeframes or duration.',
     'Jobs: 1–6 realistic job titles with best-guess URLs if unknown.',
-    'Skills array: 3 atomic skills described in 1-5 words. At least one should be the tech stack: "C++". Example: "Threading". No vague tokens: basics, fundamentals.',
-    'Prerequisites array: 3 prerequisite skills. Use the same atomic style. Example: "Matrix Multiplication"',
+    'Skills array: Specific technical concepts described in 1-5 words. At least one should be the tech stack: "C++", "Monte Carlo Simulation". Example: "Black-Scholes formula". Avoid umbrella skills: "pandas fundamentals"',
+    'Prerequisites array: Specific technical concepts the user should know. Example: "Matrix Multiplication", "Threading". No umbrella prerequisites: "C++ basics"',
     'Milestones: EXACTLY 5 in this order and with these names — Introduction; Setup; Core Feature; Measure & Optimize; Conclusion.',
     'Each milestone must include: (a) objective (≤1 sentence) and (b) 2–3 success_metrics that are observable and testable (true/false style or concrete checks).',
     'Milestone semantics:',
