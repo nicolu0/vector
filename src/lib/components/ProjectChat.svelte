@@ -28,7 +28,7 @@
 		action?: Record<string, unknown> | null;
 	};
 
-	type Stage = 'Introduction' | 'Implementation';
+	type MentorPacket = { title: string; content: string; action?: Record<string, unknown> | null };
 
 	/* -------- Config -------- */
 	const PERSISTENT_SPACER_HEIGHT = 160; // px
@@ -43,8 +43,7 @@
 	let mentorInFlight = $state(false);
 	let messagesRequestId = 0;
 
-	// Current stage shown in header (derived from latest mentor message)
-	let currentStage: Stage = 'Introduction';
+	let currentTitle = $state('Mentor');
 
 	// Scroll container + persistent reply spacer
 	let messagesContainer = $state<HTMLDivElement | null>(null);
@@ -55,7 +54,6 @@
 		replySpacerHeight = spacerLocked ? PERSISTENT_SPACER_HEIGHT : 0;
 		queueMicrotask(() => updateScrollThumb());
 	}
-
 	function lockSpacer() {
 		if (spacerLocked) return;
 		spacerLocked = true;
@@ -67,27 +65,22 @@
 			updateScrollThumb();
 		});
 	}
-
 	function resetSpacerState() {
 		spacerLocked = false;
 		replySpacerHeight = 0;
 		queueMicrotask(() => updateScrollThumb());
 	}
-
 	function maybeLockSpacer() {
 		if (spacerLocked) return;
-		const userCount = messages.filter((message) => message.role === 'user').length;
-		const mentorCount = messages.filter((message) => message.role === 'mentor').length;
-		if (userCount >= 2 && mentorCount >= 1) {
-			lockSpacer();
-		}
+		const userCount = messages.filter((m) => m.role === 'user').length;
+		const mentorCount = messages.filter((m) => m.role === 'mentor').length;
+		if (userCount >= 2 && mentorCount >= 1) lockSpacer();
 	}
-
 	async function scrollToBottom() {
 		await tick();
 		const el = messagesContainer;
 		if (!el) return;
-		el.scrollTop = el.scrollHeight; // always jump to latest
+		el.scrollTop = el.scrollHeight;
 		updateScrollThumb();
 		recomputeSpacer();
 		if (spacerLocked) {
@@ -98,12 +91,11 @@
 			});
 		}
 	}
-
 	function getNextSequence() {
 		return (
-			messages.reduce((max, message) => {
-				const value = typeof message.sequence === 'number' ? message.sequence : 0;
-				return value > max ? value : max;
+			messages.reduce((max, m) => {
+				const v = typeof m.sequence === 'number' ? m.sequence : 0;
+				return v > max ? v : max;
 			}, 0) + 1
 		);
 	}
@@ -115,19 +107,15 @@
 				.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
 				.eq('conversation_id', id)
 				.order('sequence', { ascending: true });
-
 			if (error) throw error;
 			if (requestId !== messagesRequestId) return;
-
 			messages = (data ?? []) as ChatMessage[];
 		} catch (err) {
 			if (requestId !== messagesRequestId) return;
 			messagesError = err instanceof Error ? err.message : 'Unable to load messages right now.';
 			messages = [];
 		} finally {
-			if (requestId === messagesRequestId) {
-				messagesLoading = false;
-			}
+			if (requestId === messagesRequestId) messagesLoading = false;
 		}
 	}
 
@@ -141,7 +129,7 @@
 		sendError = null;
 		mentorError = null;
 
-		const optimisticMessage: ChatMessage = {
+		const optimistic: ChatMessage = {
 			id: `pending-${Date.now()}`,
 			conversation_id: conversationId,
 			user_id: userId,
@@ -152,10 +140,8 @@
 			pending: true,
 			action: null
 		};
-
-		messages = [...messages, optimisticMessage];
+		messages = [...messages, optimistic];
 		inputValue = '';
-
 		recomputeSpacer();
 
 		try {
@@ -167,29 +153,21 @@
 						user_id: userId,
 						content: trimmed,
 						role: 'user',
-						sequence: optimisticMessage.sequence,
+						sequence: optimistic.sequence,
 						action: null
 					}
 				])
 				.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
 				.single();
-
 			if (error) throw error;
 			if (!data) throw new Error('Message insert returned no data.');
-
-			messages = messages.map((message) =>
-				message.id === optimisticMessage.id ? ({ ...data, pending: false } as ChatMessage) : message
+			messages = messages.map((m) =>
+				m.id === optimistic.id ? ({ ...data, pending: false } as ChatMessage) : m
 			);
-
-			if (shouldUpdateStatus && projectId) {
-				void updateProjectStatus(projectId);
-			}
-
-			if (project) {
-				void generateMentorResponse();
-			}
+			if (shouldUpdateStatus && projectId) void updateProjectStatus(projectId);
+			if (project) void generateMentorResponse();
 		} catch (err) {
-			messages = messages.filter((m) => m.id !== optimisticMessage.id);
+			messages = messages.filter((m) => m.id !== optimistic.id);
 			sendError = err instanceof Error ? err.message : 'Unable to send message right now.';
 		} finally {
 			sendInFlight = false;
@@ -203,7 +181,6 @@
 				.update({ status: 'in_progress' })
 				.eq('id', projectId)
 				.in('status', ['not_started', 'not started', 'Not Started']);
-
 			if (error) throw error;
 			dashboardProjects.setProjectStatus(projectId, 'in_progress');
 		} catch (err) {
@@ -213,21 +190,18 @@
 
 	function buildProjectContextPayload(currentProject: StoredProject) {
 		const rawMilestones =
-			currentProject.metadata?.milestones?.map((milestone) => {
-				if (!milestone || typeof milestone !== 'object') return null;
-				const { name, objective, success_metrics } = milestone as typeof milestone & {
+			currentProject.metadata?.milestones?.map((ms) => {
+				if (!ms || typeof ms !== 'object') return null;
+				const { name, objective, success_metrics } = ms as typeof ms & {
 					success_metrics?: unknown;
 				};
 				if (typeof name !== 'string' || typeof objective !== 'string') return null;
 				const metrics = Array.isArray(success_metrics)
-					? success_metrics.filter(
-							(metric): metric is string => typeof metric === 'string' && metric.trim().length > 0
-						)
+					? success_metrics.filter((x): x is string => typeof x === 'string' && x.trim())
 					: [];
-				if (metrics.length === 0) return null;
 				return { name, objective, success_metrics: metrics };
 			}) ?? [];
-		const milestones = rawMilestones.filter((item): item is Milestone => Boolean(item));
+		const milestones = rawMilestones.filter(Boolean) as Milestone[];
 
 		return {
 			title: currentProject.title,
@@ -236,44 +210,41 @@
 			timeline: currentProject.timeline,
 			skills: currentProject.skills ?? [],
 			metadata: { milestones },
-			jobs:
-				currentProject.jobs?.map((job) => ({
-					title: job.title,
-					url: job.url
-				})) ?? []
+			jobs: currentProject.jobs?.map((j) => ({ title: j.title, url: j.url })) ?? []
 		};
 	}
 
-	function normalizeMessageRole(message: ChatMessage) {
-		if (message.role === 'mentor' || message.role === 'user') return message.role;
-		return message.user_id === userId ? 'user' : 'mentor';
+	function normalizeMessageRole(m: ChatMessage) {
+		if (m.role === 'mentor' || m.role === 'user') return m.role;
+		return m.user_id === userId ? 'user' : 'mentor';
 	}
 
-	// Parse mentor JSON message content into { content, stage }
-	function parseMentorJson(s: string): { content: string; stage: Stage } {
+	// Parse mentor JSON content into { title, content, action }
+	function parseMentorPacket(s: string): MentorPacket {
 		try {
 			const o = JSON.parse(String(s ?? '{}'));
-			const stage: Stage = o?.stage === 'Implementation' ? 'Implementation' : 'Introduction';
-			const content = typeof o?.content === 'string' ? o.content : '';
-			return { content, stage };
+			return {
+				title: typeof o?.title === 'string' && o.title.trim() ? o.title : 'Mentor',
+				content: typeof o?.content === 'string' ? o.content : '',
+				action: o && typeof o.action === 'object' ? o.action : null
+			};
 		} catch {
-			return { content: String(s ?? ''), stage: 'Introduction' };
+			return { title: 'Mentor', content: String(s ?? ''), action: null };
 		}
 	}
 
-	function computeLatestStage(): Stage {
+	function computeLatestTitle(): string {
 		for (let i = messages.length - 1; i >= 0; i--) {
 			const m = messages[i];
 			if (m.role !== 'mentor') continue;
 			try {
 				const o = JSON.parse(String(m.content ?? '{}'));
-				if (o?.stage === 'Implementation') return 'Implementation';
-				if (o?.stage === 'Introduction') return 'Introduction';
+				if (o?.title && typeof o.title === 'string') return o.title;
 			} catch {
 				/* ignore non-JSON mentor content */
 			}
 		}
-		return 'Introduction';
+		return 'Mentor';
 	}
 
 	async function generateMentorResponse() {
@@ -282,10 +253,10 @@
 		const payload = {
 			project: buildProjectContextPayload(project),
 			messages: messages
-				.filter((message) => !message.pending)
-				.map((message) => ({
-					role: normalizeMessageRole(message),
-					content: message.content
+				.filter((m) => !m.pending)
+				.map((m) => ({
+					role: normalizeMessageRole(m),
+					content: m.content
 				}))
 		};
 
@@ -295,7 +266,7 @@
 		let optimisticMentor: ChatMessage | null = null;
 
 		try {
-			const response = await fetch('/api/project-chat', {
+			const response = await fetch('/api/mentor', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
@@ -308,11 +279,14 @@
 				throw new Error(error ?? 'Unable to generate mentor response.');
 			}
 
-			const result = (await response.json()) as { content?: string; stage?: Stage };
-			if (!result?.content || !result?.stage) throw new Error('Mentor response was empty.');
+			const result = (await response.json()) as MentorPacket;
+			if (!result?.content) throw new Error('Mentor response was empty.');
 
-			// Store the mentor message as a JSON string
-			const contentJson = JSON.stringify({ content: result.content, stage: result.stage });
+			const contentJson = JSON.stringify({
+				title: result.title ?? 'Mentor',
+				content: result.content,
+				action: result.action ?? null
+			});
 
 			optimisticMentor = {
 				id: `mentor-pending-${Date.now()}`,
@@ -345,16 +319,14 @@
 
 			if (error) throw error;
 			if (!data) throw new Error('Mentor insert returned no data.');
-
 			messages = messages.map((m) =>
 				m.id === optimisticMentor?.id ? ({ ...data, pending: false } as ChatMessage) : m
 			);
 
+			currentTitle = computeLatestTitle();
 			recomputeSpacer();
 		} catch (err) {
-			if (optimisticMentor) {
-				messages = messages.filter((m) => m.id !== optimisticMentor?.id);
-			}
+			if (optimisticMentor) messages = messages.filter((m) => m.id !== optimisticMentor?.id);
 			mentorError = err instanceof Error ? err.message : 'Unable to generate mentor response.';
 			recomputeSpacer();
 		} finally {
@@ -370,7 +342,6 @@
 	/* ------- Scroll thumb ------- */
 	let thumbVisible = $state(false);
 	let scrollIdleTimer: number | null = null;
-
 	function showThumbTemporarily(ms = 900) {
 		thumbVisible = true;
 		updateScrollThumb();
@@ -381,22 +352,18 @@
 			scrollIdleTimer = null;
 		}, ms);
 	}
-
 	function updateScrollThumb() {
 		const el = messagesContainer;
 		if (!el) return;
-
 		const { scrollHeight, clientHeight, scrollTop } = el;
 		const trackPadding = 0;
 		el.style.setProperty('--scroll-thumb-track-padding', `${trackPadding}px`);
-
 		if (scrollHeight <= clientHeight + 1 || clientHeight === 0) {
 			el.style.setProperty('--scroll-thumb-height', '0px');
 			el.style.setProperty('--scroll-thumb-offset', '0px');
 			el.style.setProperty('--scroll-thumb-opacity', '0');
 			return;
 		}
-
 		const trackHeight = Math.max(scrollHeight - trackPadding * 2, 0);
 		if (trackHeight <= 0) {
 			el.style.setProperty('--scroll-thumb-height', '0px');
@@ -404,14 +371,12 @@
 			el.style.setProperty('--scroll-thumb-opacity', '0');
 			return;
 		}
-
 		const maxScrollTop = Math.max(scrollHeight - clientHeight, 0);
 		const desiredThumb = Math.max(36, trackHeight * 0.12);
 		const thumbHeight = Math.min(trackHeight * 0.4, Math.min(trackHeight, desiredThumb));
 		const maxThumbOffset = Math.max(trackHeight - thumbHeight, 0);
 		const progress = maxScrollTop > 0 ? scrollTop / maxScrollTop : 0;
 		const offset = progress * maxThumbOffset;
-
 		el.style.setProperty('--scroll-thumb-height', `${thumbHeight}px`);
 		el.style.setProperty('--scroll-thumb-offset', `${offset}px`);
 		el.style.setProperty('--scroll-thumb-opacity', thumbVisible ? '1' : '0');
@@ -419,8 +384,7 @@
 
 	/* ------- Effects ------- */
 	$effect(() => {
-		// keep header up to date with the latest stage
-		currentStage = computeLatestStage();
+		currentTitle = computeLatestTitle();
 	});
 
 	$effect(() => {
@@ -453,28 +417,22 @@
 	$effect(() => {
 		const el = messagesContainer;
 		if (!el) return;
-
 		const handleScroll = () => {
 			showThumbTemporarily();
 			updateScrollThumb();
 		};
-
 		const handleEnter = () => showThumbTemporarily(1200);
 		const handleMove = () => showThumbTemporarily(1200);
 		const handleLeave = () => {
 			thumbVisible = false;
 			updateScrollThumb();
 		};
-
 		el.addEventListener('scroll', handleScroll, { passive: true });
 		el.addEventListener('mouseenter', handleEnter);
 		el.addEventListener('mousemove', handleMove);
 		el.addEventListener('mouseleave', handleLeave);
-
-		// show briefly on mount so users discover it
 		showThumbTemporarily(1200);
 		updateScrollThumb();
-
 		return () => {
 			el.removeEventListener('scroll', handleScroll);
 			el.removeEventListener('mouseenter', handleEnter);
@@ -488,18 +446,18 @@
 		const id = conversationId;
 		if (!id) return;
 
-		// when messagesLoading flips from true → false and messages exist, go bottom
 		if (!messagesLoading && messages.length > 0) {
 			void scrollToBottom();
 		}
 
-		// Seed initial mentor message if there are no messages yet
+		// Seed initial mentor message if no history
 		if (!messagesLoading && messages.length === 0 && id && userId) {
-			const seedContent = JSON.stringify({
+			const seed: MentorPacket = {
+				title: 'Assessment',
 				content: 'How experienced are you with Python?',
-				stage: 'Introduction' as Stage
-			});
-
+				action: null
+			};
+			const seedContent = JSON.stringify(seed);
 			const optimisticId = `mentor-seed-${Date.now()}`;
 			const nextSeq = getNextSequence();
 
@@ -539,6 +497,7 @@
 						messages = messages.map((m) =>
 							m.id === optimisticId ? ({ ...data, pending: false } as ChatMessage) : m
 						);
+						currentTitle = computeLatestTitle();
 						void scrollToBottom();
 					}
 				} catch {
@@ -549,18 +508,13 @@
 	});
 
 	$effect(() => {
-		// depend on the last message id so this reruns on every append/replace
-		const lastMessageId = messages.length ? messages[messages.length - 1]?.id : null;
+		const lastId = messages.length ? messages[messages.length - 1]?.id : null;
 		const container = messagesContainer;
 		if (!container) return;
-
-		if (!lastMessageId) {
-			// nothing yet — still sync the thumb
+		if (!lastId) {
 			updateScrollThumb();
 			return;
 		}
-
-		// wait for DOM to render, then snap to bottom
 		void scrollToBottom();
 	});
 
@@ -576,7 +530,7 @@
 			class="w-full justify-center rounded-xl border border-stone-200 bg-stone-50 p-2 text-center text-sm text-stone-600"
 			in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
 		>
-			{currentStage}
+			{currentTitle}
 		</div>
 	</div>
 
@@ -609,7 +563,6 @@
 			>
 				{#each messages as message (message.id)}
 					{@const isUser = message.role === 'user'}
-
 					<div class={isUser ? 'flex justify-end' : 'flex justify-start'}>
 						<div class="flex flex-col gap-1" class:max-w-[75%]={isUser}>
 							{#if isUser}
@@ -619,7 +572,7 @@
 									{message.content}
 								</p>
 							{:else}
-								{@const parsed = parseMentorJson(String(message.content ?? ''))}
+								{@const parsed = parseMentorPacket(String(message.content ?? ''))}
 								<p class="p-3 py-2 text-xs leading-6 break-words whitespace-pre-wrap text-current">
 									{parsed.content}
 								</p>
@@ -677,7 +630,6 @@
 		position: relative;
 		scrollbar-width: none;
 	}
-
 	:global(.project-chat-scroll)::after {
 		content: '';
 		position: absolute;
@@ -692,16 +644,13 @@
 		transform: translateY(var(--scroll-thumb-offset, 0));
 		will-change: transform, opacity;
 	}
-
 	:global(.project-chat-scroll)::-webkit-scrollbar {
 		width: 0;
 		height: 0;
 	}
-
 	:global(.project-chat-scroll)::-webkit-scrollbar-thumb {
 		background: transparent;
 	}
-
 	@keyframes dot-breathe {
 		0%,
 		100% {
@@ -716,20 +665,7 @@
 	.typing-dot {
 		animation: dot-breathe 1.2s ease-in-out infinite;
 	}
-
 	:global(.project-chat-scroll)::after {
-		content: '';
-		position: absolute;
-		top: var(--scroll-thumb-track-padding, 0);
-		right: 5px;
-		width: 1px;
-		height: var(--scroll-thumb-height, 0);
-		background-color: #aaa;
-		opacity: var(--scroll-thumb-opacity, 0);
-		pointer-events: none;
-		border-radius: 9999px;
-		transform: translateY(var(--scroll-thumb-offset, 0));
-		will-change: transform, opacity;
-		transition: opacity 220ms ease; /* fade out after idle */
+		transition: opacity 220ms ease;
 	}
 </style>

@@ -1,57 +1,25 @@
 {
-  "title": "Tetris (Python)",
+  "title": "WASD Ball (Python)",
   "difficulty": "Easy",
-  "timeline": "1-2 weeks",
-  "description": "Build a polished Tetris clone in Python with a clean game loop, deterministic tetromino logic, wall-kick rotation, scoring, level speed-up, pause, and persistent high scores. Emphasize readable architecture, unit-tested scoring/rotation, and basic performance instrumentation.",
+  "timeline": "0.5-1 weeks",
+  "description": "Build a tiny Python game where you move a ball with WASD. Focus on a clean game loop, responsive input, basic collision with window bounds, and simple polish (speed tuning, frame pacing). Keep the architecture minimal so you can test the full chat + mentor loop end-to-end.",
   "jobs": [
     {
-      "title": "Gameplay Engineer (Entry)",
-      "url": "https://example.com/jobs/gameplay"
+      "title": "Python Developer — Entry",
+      "url": "https://example.com/jobs/python-entry"
     },
     {
-      "title": "Python Developer — Tools/UI",
-      "url": "https://example.com/jobs/python-ui"
+      "title": "Gameplay Prototyper (Intern)",
+      "url": "https://example.com/jobs/gameplay-intern"
     }
   ],
   "skills": [
     "Python",
     "Pygame or PySDL2",
     "Game loop & timing",
-    "State machines",
-    "Collision detection",
-    "SRS-style rotation & wall kicks",
-    "Unit testing (pytest)",
-    "Basic profiling"
-  ],
-  "metadata": {
-    "milestones": [
-      {
-        "name": "Introduction",
-        "objective": "Assess the user's current Python skills and align scope based on demonstrated gaps.",
-        "success_metrics": [
-          "Skill check recorded (syntax, functions, classes, file I/O, basic OOP)",
-          "Agreed scope notes saved (libraries, testing, stretch goals)",
-          "Mentor plan created mapping skills to upcoming tasks"
-        ]
-      },
-      {
-        "name": "Setup",
-        "objective": "Bootstrap the project, establish the game loop, and explain the end-to-end architecture the user will build.",
-        "success_metrics": [
-          "Project scaffold created with run script and dependency lockfile",
-          "Window renders 10x20 grid; tick/update/draw loop stable at target FPS",
-          "Architecture overview doc committed (modules, data flow, responsibilities)"
-        ]
-      },
-      {
-        "name": "Implementation & Guidance",
-        "objective": "Guide the user through implementing core gameplay and teach concepts as needed, adjusting pace to their understanding.",
-        "success_metrics": [
-          "All tetrominoes spawn, move, rotate with wall kicks; lock and gravity implemented",
-          "Line clear, scoring, level speed-up, pause, and game-over complete with tests for rotation and scoring",
-          "High scores persist; README includes run/build/test instructions and a short demo GIF"
-        ]
-      }
-    ]
-  }
+    "Keyboard input handling",
+    "Basic collision (bounds clamp)",
+    "Simple state & constants",
+    "Lightweight profiling (FPS)"
+  ]
 }
