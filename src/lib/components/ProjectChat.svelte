@@ -7,133 +7,6 @@
 	import type { Milestone } from '$lib/types/project';
 	import { tick } from 'svelte';
 
-	function stripFormatHeader(text: string) {
-		// If the model echoed the spec name, drop that prefix.
-		return text.replace(/^Vector Chat Markdown v1.*?- /i, '- ').trim();
-	}
-
-	type VCMTokens = {
-		bullets: string[];
-		docTitle?: string | null;
-		actionLabel?: 'Next action' | 'Question';
-		actionText?: string;
-		doneWhen?: string | null;
-	};
-
-	function parseVCM(text: string): VCMTokens | null {
-		const cleaned = stripFormatHeader(text);
-		const lines = cleaned
-			.split(/\r?\n/)
-			.map((l) => l.trim())
-			.filter(Boolean);
-
-		// collect bullets
-		const bullets: string[] = [];
-		let i = 0;
-		while (i < lines.length && /^-\s+/.test(lines[i])) {
-			bullets.push(lines[i].replace(/^-\s+/, ''));
-			i++;
-		}
-		if (bullets.length === 0) return null;
-
-		// optional Doc created: "Title"
-		let docTitle: string | null = null;
-		if (i < lines.length) {
-			const m = /^Doc created:\s*"([^"]+)"\s*$/i.exec(lines[i]);
-			if (m) {
-				docTitle = m[1];
-				i++;
-			}
-		}
-
-		// exactly one of: **Next action:** ... OR **Question:** ...
-		let actionLabel: VCMTokens['actionLabel'] | undefined;
-		let actionText: string | undefined;
-		if (i < lines.length) {
-			const action = /^\*\*(Next action|Question):\*\*\s+(.+)$/.exec(lines[i]);
-			if (action) {
-				actionLabel = action[1] as VCMTokens['actionLabel'];
-				actionText = action[2];
-				i++;
-			}
-		}
-
-		// optional **Done when:** ...
-		let doneWhen: string | null = null;
-		if (i < lines.length) {
-			const done = /^\*\*Done when:\*\*\s+(.+)$/.exec(lines[i]);
-			if (done) {
-				doneWhen = done[1];
-				i++;
-			}
-		}
-
-		// if extra junk lines after, still render best-effort
-		return { bullets, docTitle, actionLabel, actionText, doneWhen };
-	}
-
-	// Turn [text](url) into links, preserve `inline code`, escape the rest
-	function escapeHtml(s: string) {
-		return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-	}
-	function renderInline(s: string) {
-		// inline code
-		s = s.replace(/`([^`]+)`/g, (_m, p1) => `<code>${escapeHtml(p1)}</code>`);
-		// links
-		s = s.replace(
-			/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-			(_m, t, u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${escapeHtml(t)}</a>`
-		);
-		// bold **...**
-		s = s.replace(/\*\*([^*]+)\*\*/g, (_m, p1) => `<strong>${escapeHtml(p1)}</strong>`);
-		// basic italics *...* (rare here)
-		s = s.replace(/\*([^*]+)\*/g, (_m, p1) => `<em>${escapeHtml(p1)}</em>`);
-		return s;
-	}
-
-	function renderMentorMarkdown(text: string): string {
-		const tokens = parseVCM(text);
-		if (!tokens) {
-			// fallback: keep linebreaks and links
-			return `<div class="vcmd-fallback">${renderInline(escapeHtml(text)).replace(/\n/g, '<br/>')}</div>`;
-		}
-
-		const parts: string[] = [];
-
-		// bullets
-		parts.push('<ul class="vcmd-list">');
-		for (const b of tokens.bullets) {
-			parts.push(`<li>${renderInline(b)}</li>`);
-		}
-		parts.push('</ul>');
-
-		// optional doc pill
-		if (tokens.docTitle) {
-			parts.push(
-				`<div class="vcmd-doc">
-				<span class="vcmd-doc-dot" aria-hidden="true"></span>
-				<span>Doc created: </span>
-				<span class="vcmd-doc-title">"${escapeHtml(tokens.docTitle)}"</span>
-			</div>`
-			);
-		}
-
-		// action or question
-		if (tokens.actionLabel && tokens.actionText) {
-			parts.push(
-				`<div class="vcmd-action"><strong>${tokens.actionLabel}:</strong> ${renderInline(tokens.actionText)}</div>`
-			);
-		}
-
-		// optional done when
-		if (tokens.doneWhen) {
-			parts.push(
-				`<div class="vcmd-done"><strong>Done when:</strong> ${renderInline(tokens.doneWhen)}</div>`
-			);
-		}
-
-		return parts.join('');
-	}
 	const { conversationId, projectId, project, userId, loading, errorMessage } = $props<{
 		conversationId: string | null;
 		projectId: string | null;
@@ -155,6 +28,8 @@
 		action?: Record<string, unknown> | null;
 	};
 
+	type Stage = 'Introduction' | 'Implementation';
+
 	/* -------- Config -------- */
 	const PERSISTENT_SPACER_HEIGHT = 160; // px
 
@@ -166,9 +41,10 @@
 	let inputValue = $state('');
 	let sendInFlight = $state(false);
 	let mentorInFlight = $state(false);
-	let introInFlight = $state(false);
-	let introInitialized = $state(false);
 	let messagesRequestId = 0;
+
+	// Current stage shown in header (derived from latest mentor message)
+	let currentStage: Stage = 'Introduction';
 
 	// Scroll container + persistent reply spacer
 	let messagesContainer = $state<HTMLDivElement | null>(null);
@@ -305,14 +181,8 @@
 				message.id === optimisticMessage.id ? ({ ...data, pending: false } as ChatMessage) : message
 			);
 
-			const insertedMessage = messages.find((message) => message.id === data.id) ?? null;
-
 			if (shouldUpdateStatus && projectId) {
 				void updateProjectStatus(projectId);
-			}
-
-			if (project && insertedMessage) {
-				void processUserKnowledge(insertedMessage);
 			}
 
 			if (project) {
@@ -321,7 +191,6 @@
 		} catch (err) {
 			messages = messages.filter((m) => m.id !== optimisticMessage.id);
 			sendError = err instanceof Error ? err.message : 'Unable to send message right now.';
-			// keeping the spacer persistent
 		} finally {
 			sendInFlight = false;
 		}
@@ -343,11 +212,6 @@
 	}
 
 	function buildProjectContextPayload(currentProject: StoredProject) {
-		const prerequisites =
-			currentProject.prerequisites?.filter(
-				(item): item is string => typeof item === 'string' && item.trim().length > 0
-			) ?? [];
-
 		const rawMilestones =
 			currentProject.metadata?.milestones?.map((milestone) => {
 				if (!milestone || typeof milestone !== 'object') return null;
@@ -371,7 +235,6 @@
 			difficulty: currentProject.difficulty,
 			timeline: currentProject.timeline,
 			skills: currentProject.skills ?? [],
-			prerequisites,
 			metadata: { milestones },
 			jobs:
 				currentProject.jobs?.map((job) => ({
@@ -384,6 +247,33 @@
 	function normalizeMessageRole(message: ChatMessage) {
 		if (message.role === 'mentor' || message.role === 'user') return message.role;
 		return message.user_id === userId ? 'user' : 'mentor';
+	}
+
+	// Parse mentor JSON message content into { content, stage }
+	function parseMentorJson(s: string): { content: string; stage: Stage } {
+		try {
+			const o = JSON.parse(String(s ?? '{}'));
+			const stage: Stage = o?.stage === 'Implementation' ? 'Implementation' : 'Introduction';
+			const content = typeof o?.content === 'string' ? o.content : '';
+			return { content, stage };
+		} catch {
+			return { content: String(s ?? ''), stage: 'Introduction' };
+		}
+	}
+
+	function computeLatestStage(): Stage {
+		for (let i = messages.length - 1; i >= 0; i--) {
+			const m = messages[i];
+			if (m.role !== 'mentor') continue;
+			try {
+				const o = JSON.parse(String(m.content ?? '{}'));
+				if (o?.stage === 'Implementation') return 'Implementation';
+				if (o?.stage === 'Introduction') return 'Introduction';
+			} catch {
+				/* ignore non-JSON mentor content */
+			}
+		}
+		return 'Introduction';
 	}
 
 	async function generateMentorResponse() {
@@ -418,14 +308,17 @@
 				throw new Error(error ?? 'Unable to generate mentor response.');
 			}
 
-			const { content } = (await response.json()) as { content?: string };
-			if (!content) throw new Error('Mentor response was empty.');
+			const result = (await response.json()) as { content?: string; stage?: Stage };
+			if (!result?.content || !result?.stage) throw new Error('Mentor response was empty.');
+
+			// Store the mentor message as a JSON string
+			const contentJson = JSON.stringify({ content: result.content, stage: result.stage });
 
 			optimisticMentor = {
 				id: `mentor-pending-${Date.now()}`,
 				conversation_id: conversationId,
 				user_id: null,
-				content,
+				content: contentJson,
 				sequence: getNextSequence(),
 				created_at: new Date().toISOString(),
 				role: 'mentor',
@@ -441,7 +334,7 @@
 					{
 						conversation_id: conversationId,
 						user_id: userId,
-						content,
+						content: contentJson,
 						role: 'mentor',
 						sequence: optimisticMentor.sequence,
 						action: null
@@ -474,104 +367,7 @@
 		void sendMessage();
 	}
 
-	async function ensureIntroMessage() {
-		if (!project || !conversationId || !userId) return;
-		if (introInFlight) return;
-
-		introInFlight = true;
-		mentorError = null;
-		try {
-			const payload = {
-				conversation_id: conversationId,
-				project: buildProjectContextPayload(project)
-			};
-
-			const response = await fetch('/api/project-chat/initial', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-
-			const result = (await response.json().catch(() => null)) as {
-				message?: ChatMessage;
-				error?: string;
-			} | null;
-
-			if (!response.ok) {
-				const message = result?.error ?? 'Unable to prepare mentor introduction.';
-				throw new Error(message);
-			}
-
-			if (result?.message) {
-				const newMessage = result.message as ChatMessage;
-				messages = [...messages, newMessage];
-				recomputeSpacer();
-			}
-		} catch (err) {
-			const message = err instanceof Error ? err.message : 'Unable to prepare mentor introduction.';
-			mentorError = message;
-			console.error('[ProjectChat] intro message error', err);
-		} finally {
-			introInFlight = false;
-			introInitialized = true;
-		}
-	}
-
-	async function processUserKnowledge(newMessage: ChatMessage) {
-		if (!project || !conversationId || !userId) return;
-		if (newMessage.role !== 'user') return;
-
-		try {
-			const recentHistory = messages
-				.filter((message) => !message.pending)
-				.slice(-6)
-				.map((message) => ({
-					role: normalizeMessageRole(message),
-					content: String(message.content ?? '')
-				}));
-
-			const requestPayload = {
-				conversation_id: conversationId,
-				message: {
-					id: newMessage.id,
-					content: newMessage.content,
-					action: newMessage.action ?? null
-				},
-				project: buildProjectContextPayload(project),
-				history: recentHistory
-			};
-
-			const response = await fetch('/api/project-chat/knowledge', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(requestPayload)
-			});
-
-			const result = (await response.json().catch(() => null)) as {
-				action?: Record<string, unknown> | null;
-			} | null;
-
-			console.log('response: ', response);
-			if (!response.ok) {
-				const message =
-					result && 'error' in result ? String(result.error) : 'Knowledge update failed.';
-				console.error('[ProjectChat] knowledge update failed', message);
-				return;
-			}
-
-			if (result?.action) {
-				const actionPayload = result.action;
-				messages = messages.map((message) =>
-					message.id === newMessage.id ? { ...message, action: actionPayload } : message
-				);
-			}
-		} catch (err) {
-			console.error('[ProjectChat] knowledge processing error', err);
-		}
-	}
-
 	/* ------- Scroll thumb ------- */
-	// at top with other state
 	let thumbVisible = $state(false);
 	let scrollIdleTimer: number | null = null;
 
@@ -623,6 +419,11 @@
 
 	/* ------- Effects ------- */
 	$effect(() => {
+		// keep header up to date with the latest stage
+		currentStage = computeLatestStage();
+	});
+
+	$effect(() => {
 		if (!project) {
 			resetSpacerState();
 			return;
@@ -637,8 +438,6 @@
 		sendError = null;
 		mentorError = null;
 		mentorInFlight = false;
-		introInitialized = false;
-		introInFlight = false;
 		resetSpacerState();
 
 		if (!id) {
@@ -693,6 +492,60 @@
 		if (!messagesLoading && messages.length > 0) {
 			void scrollToBottom();
 		}
+
+		// Seed initial mentor message if there are no messages yet
+		if (!messagesLoading && messages.length === 0 && id && userId) {
+			const seedContent = JSON.stringify({
+				content: 'How experienced are you with Python?',
+				stage: 'Introduction' as Stage
+			});
+
+			const optimisticId = `mentor-seed-${Date.now()}`;
+			const nextSeq = getNextSequence();
+
+			messages = [
+				...messages,
+				{
+					id: optimisticId,
+					conversation_id: id,
+					user_id: null,
+					content: seedContent,
+					sequence: nextSeq,
+					created_at: new Date().toISOString(),
+					role: 'mentor',
+					pending: true,
+					action: null
+				}
+			];
+
+			(async () => {
+				try {
+					const { data, error } = await supabase
+						.from('messages')
+						.insert([
+							{
+								conversation_id: id,
+								user_id: userId,
+								content: seedContent,
+								role: 'mentor',
+								sequence: nextSeq,
+								action: null
+							}
+						])
+						.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
+						.single();
+
+					if (!error && data) {
+						messages = messages.map((m) =>
+							m.id === optimisticId ? ({ ...data, pending: false } as ChatMessage) : m
+						);
+						void scrollToBottom();
+					}
+				} catch {
+					/* non-fatal */
+				}
+			})();
+		}
 	});
 
 	$effect(() => {
@@ -712,14 +565,6 @@
 	});
 
 	$effect(() => {
-		if (!conversationId || !project || !userId) return;
-		if (messagesLoading) return;
-		if (messages.length > 0) return;
-		if (introInitialized || introInFlight) return;
-		void ensureIntroMessage();
-	});
-
-	$effect(() => {
 		if (messages.length === 0) return;
 		maybeLockSpacer();
 	});
@@ -731,7 +576,7 @@
 			class="w-full justify-center rounded-xl border border-stone-200 bg-stone-50 p-2 text-center text-sm text-stone-600"
 			in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
 		>
-			Introduction
+			{currentStage}
 		</div>
 	</div>
 
@@ -774,9 +619,10 @@
 									{message.content}
 								</p>
 							{:else}
-								<div class="vcmd text-xs leading-6">
-									{@html renderMentorMarkdown(String(message.content ?? ''))}
-								</div>
+								{@const parsed = parseMentorJson(String(message.content ?? ''))}
+								<p class="p-3 py-2 text-xs leading-6 break-words whitespace-pre-wrap text-current">
+									{parsed.content}
+								</p>
 							{/if}
 						</div>
 					</div>
@@ -855,6 +701,7 @@
 	:global(.project-chat-scroll)::-webkit-scrollbar-thumb {
 		background: transparent;
 	}
+
 	@keyframes dot-breathe {
 		0%,
 		100% {
@@ -869,6 +716,7 @@
 	.typing-dot {
 		animation: dot-breathe 1.2s ease-in-out infinite;
 	}
+
 	:global(.project-chat-scroll)::after {
 		content: '';
 		position: absolute;
@@ -882,6 +730,6 @@
 		border-radius: 9999px;
 		transform: translateY(var(--scroll-thumb-offset, 0));
 		will-change: transform, opacity;
-		transition: opacity 220ms ease; /* <— fade out after idle */
+		transition: opacity 220ms ease; /* fade out after idle */
 	}
 </style>

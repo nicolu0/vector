@@ -176,7 +176,7 @@ function createOpenAI() {
 }
 
 async function generateProjectWithOpenAI(input: { interests: string; tags: string[] }) {
-  // return { project: FALLBACK_PROJECT, source: 'generated' as const, errorMessage: null };
+  return { project: FALLBACK_PROJECT, source: 'generated' as const, errorMessage: null };
   const client = createOpenAI();
   if (!client) {
     return {

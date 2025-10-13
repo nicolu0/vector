@@ -7,11 +7,7 @@ import type { RequestHandler } from './$types';
 const MODEL_ID = 'gpt-5-nano-2025-08-07';
 
 type ChatRole = 'user' | 'mentor';
-
-type ChatMessage = {
-	role: ChatRole;
-	content: string;
-};
+type ChatMessage = { role: ChatRole; content: string };
 
 type ProjectPayload = {
 	title: string;
@@ -19,245 +15,166 @@ type ProjectPayload = {
 	difficulty: string;
 	timeline: string;
 	skills: string[];
-	prerequisites: string[];
+	prerequisites?: string[];
 	metadata: Metadata;
 	jobs: Array<{ title: string; url: string }>;
 };
 
-/* -------------------------------------------------------------------------- */
-/*                          Tutor + Navigator Instructions                    */
-/* -------------------------------------------------------------------------- */
+type Stage = 'Introduction' | 'Implementation';
 
-const BASE_INSTRUCTIONS = `
-You are a **Tutor + Navigator** for software projects. Diagnose quickly, choose a path, and direct the user with one perfectly tuned step. Teach them to build it themselves (lego-set mindset).
-
-Behavior:
-- Be terse. ≤ 60 words total.
-- Use 3–5 bullets (each ≤ 12 words, imperative, neutral).
-- Prefer one decisive step over broad planning. Favor vertical slices.
-- Ask at most one clarifying question only when essential.
-- Include acceptance criteria when proposing work.
-- Up to 2 links; prefer official docs.
-- If a concept/setup would exceed ~90 words or is foundational/risky, create a mini-doc and keep chat short. Emit exactly: Doc created: "TITLE"
-- **Do not provide working code snippets**. Do not paste runnable functions, full components, or long commands. Teach the approach, call out file names, APIs, or docs instead.
-- No preambles, apologies, restating the question, or meta commentary.
-
-Formatting: Follow the rules below exactly. Nothing else.
-`;
-
-/**
- * Strict output format the model must follow.
- * We forbid fenced code; only tiny inline identifiers/commands are allowed.
- */
-const VECTOR_CHAT_MD_SPEC = `
-Formatting rules:
-1) Respond to the user's main question or concern in a short, helpful, human-like response. 1 sentence.
-2) Bullets first: 3–5 lines, each starts with "- " (dash + space). ≤ 12 words each. Imperative voice.
-3) Optional mini-doc line (exact form):
-   Doc created: "TITLE"
-4) Then exactly ONE of:
-   **Next action:** ...
-   **Question:** ...
-5) Optional acceptance criteria line:
-   **Done when:** ...
-
-Additional Rules:
-- ONLY REPLY WITH helpful material. Every word should be somehow related to responding usefully to the user's input.
-- DO NOT make the user learn multiple things at once. 
-- Each message should have ONE action or takeaway UNLESS SPECIFICALLY PROMPTED for a summary or timeline.
-- Total reply ≤ 60 words (excluding link URLs).
-- Max 2 markdown links: [text](https://...)
-- Inline code allowed only for short identifiers/commands (e.g., \`svelte:store\`, \`npm init\`). **No fenced code blocks** and no multi-line code. If code would be required, create a doc instead.
-- No headings, greetings, emoji, blockquotes, tables, footers, or extra sections.
-- Do not add any text before bullets or after the final line.
-`;
-
+const MENTOR_REPLY_SCHEMA = {
+	type: 'json_schema',
+	name: 'mentor_reply',
+	strict: true,
+	schema: {
+		type: 'object',
+		additionalProperties: false,
+		required: ['content', 'stage'],
+		properties: {
+			content: {
+				type: 'string',
+				minLength: 1,
+				maxLength: 600 // ~100–120 words; keeps answers concise but useful
+			},
+			stage: {
+				type: 'string',
+				enum: ['Introduction', 'Implementation']
+			}
+		}
+	}
+} as const;
 
 function formatProjectContext(project: ProjectPayload) {
-	const prerequisites = (project.prerequisites ?? []).filter(
-		(item) => typeof item === 'string' && item.trim().length > 0
-	);
-
-	const milestoneLines = (project.metadata?.milestones ?? []).map((milestone, index) => {
-		if (!milestone || typeof milestone !== 'object') return null;
-		const { name, objective, success_metrics } = milestone as Milestone;
-		if (!name || !objective) return null;
-
-		const metrics = (success_metrics ?? [])
-			.filter((metric) => typeof metric === 'string' && metric.trim().length > 0)
-			.map((metric) => `    - ${metric}`)
-			.join('\n');
-
-		const pieces = [
-			`${index + 1}. ${name}`,
-			`   Objective: ${objective}`,
-			metrics ? `   Success metrics:\n${metrics}` : null
-		].filter(Boolean);
-
-		return pieces.join('\n');
+	const prereqs = (project.prerequisites ?? []).filter((p) => typeof p === 'string' && p.trim());
+	const milestones = (project.metadata?.milestones ?? []).map((m: Milestone, i: number) => {
+		const metrics = (m.success_metrics ?? []).map((s) => `- ${s}`).join('\n');
+		return `${i + 1}. ${m.name}\nObjective: ${m.objective}\n${metrics ? `Success:\n${metrics}` : ''}`;
 	});
-	const formattedMilestones = milestoneLines.filter(Boolean) as string[];
-
-	const lines = [
+	return [
 		`Title: ${project.title}`,
 		`Difficulty: ${project.difficulty}`,
 		`Timeline: ${project.timeline}`,
 		`Description: ${project.description}`,
-		project.skills.length ? `Key skills:\n- ${project.skills.join('\n- ')}` : null,
-		prerequisites.length ? `Baseline prerequisites:\n${prerequisites.map((p) => `- ${p}`).join('\n')}` : null,
-		project.jobs.length
-			? `Related roles:\n${project.jobs.map((j) => `- ${j.title} (${j.url})`).join('\n')}`
-			: null,
-		formattedMilestones.length
-			? `Milestone plan:\n${formattedMilestones.join('\n\n')}`
-			: null
-	].filter(Boolean);
-	return lines.join('\n\n');
+		project.skills.length ? `Skills:\n- ${project.skills.join('\n- ')}` : null,
+		prereqs.length ? `Prerequisites:\n- ${prereqs.join('\n- ')}` : null,
+		milestones.length ? `Milestones:\n${milestones.join('\n\n')}` : null
+	]
+		.filter(Boolean)
+		.join('\n\n');
 }
 
 function formatConversation(messages: ChatMessage[]) {
-	return messages
-		.map((m) => `${m.role === 'mentor' ? 'Mentor' : 'User'}: ${m.content}`)
-		.join('\n');
+	return messages.map((m) => `${m.role === 'mentor' ? 'Mentor' : 'User'}: ${m.content}`).join('\n');
 }
 
-/* -------------------------------------------------------------------------- */
-/*                       Minimal server-side format guard                      */
-/* -------------------------------------------------------------------------- */
-
-function validateVectorChatMarkdown(text: string) {
-	const trimmed = text.trim();
-
-	// Hard block: fenced code (we don't allow runnable code)
-	if (/```/.test(trimmed)) {
-		return { ok: false, reason: 'fenced_code_block_forbidden' };
-	}
-
-	const lines = trimmed.split(/\r?\n/);
-
-	// Must start with 3–5 bullet lines
-	const bulletLines: string[] = [];
-	for (const line of lines) {
-		if (/^-\s+/.test(line)) bulletLines.push(line);
-		else break;
-	}
-	if (bulletLines.length < 3 || bulletLines.length > 5) {
-		return { ok: false, reason: 'bullet_count' };
-	}
-
-	// After bullets: optional doc line
-	let idx = bulletLines.length;
-	let sawDoc = false;
-	if (idx < lines.length && /^Doc created:\s+"[^"]+"\s*$/.test(lines[idx])) {
-		sawDoc = true;
-		idx += 1;
-	}
-
-	// Then exactly one of Next action / Question
-	if (idx >= lines.length) return { ok: false, reason: 'missing_action_or_question' };
-
-	const actionRe = /^\*\*Next action:\*\*\s+.+$/;
-	const questionRe = /^\*\*Question:\*\*\s+.+$/;
-
-	const hasAction = actionRe.test(lines[idx]);
-	const hasQuestion = questionRe.test(lines[idx]);
-	const exactlyOne = hasAction !== hasQuestion;
-	if (!exactlyOne) {
-		return { ok: false, reason: 'bad_action_or_question' };
-	}
-	idx += 1;
-
-	// Optional Done when
-	if (idx < lines.length) {
-		const doneWhenRe = /^\*\*Done when:\*\*\s+.+$/;
-		if (!doneWhenRe.test(lines[idx])) {
-			// If there is another line, it must be Done when; otherwise invalid
-			return { ok: false, reason: 'trailing_garbage' };
+function extractStageFromLastMentor(messages: ChatMessage[]): Stage | null {
+	for (let i = messages.length - 1; i >= 0; i--) {
+		const m = messages[i];
+		if (m.role !== 'mentor') continue;
+		try {
+			const o = JSON.parse(m.content) as { content?: string; stage?: Stage };
+			if (o && (o.stage === 'Introduction' || o.stage === 'Implementation')) return o.stage;
+		} catch {
+			// ignore legacy/non-JSON mentor content
 		}
-		idx += 1;
 	}
-
-	// No extra lines after optional Done when
-	if (idx !== lines.length) {
-		return { ok: false, reason: 'extra_lines' };
-	}
-
-	// Soft word-limit check (approx) excluding link URLs
-	const wordCount = trimmed.replace(/\(https?:\/\/[^\s)]+\)/g, '').split(/\s+/).filter(Boolean).length;
-	if (wordCount > 70) {
-		return { ok: false, reason: 'too_long' };
-	}
-
-	return { ok: true, sawDoc };
+	return null;
 }
-
-/* -------------------------------------------------------------------------- */
-/*                                   Route                                    */
-/* -------------------------------------------------------------------------- */
 
 export const POST: RequestHandler = async ({ request }) => {
-	if (!OPENAI_API_KEY) {
-		return json({ error: 'OPENAI_API_KEY is not configured.' }, { status: 500 });
-	}
+	if (!OPENAI_API_KEY) return json({ error: 'OPENAI_API_KEY is not configured.' }, { status: 500 });
 
 	const body = await request.json().catch(() => null);
-	if (!body) {
-		return json({ error: 'Invalid JSON payload.' }, { status: 400 });
-	}
+	if (!body) return json({ error: 'Invalid JSON payload.' }, { status: 400 });
 
 	const { project, messages } = body as {
 		project: ProjectPayload | null;
 		messages: ChatMessage[];
 	};
 
-	if (!project || !messages || !Array.isArray(messages) || messages.length === 0) {
+	if (!project || !Array.isArray(messages) || messages.length === 0) {
 		return json({ error: 'Project context and messages are required.' }, { status: 400 });
 	}
 
+	const currentStage: Stage = extractStageFromLastMentor(messages) ?? 'Introduction';
+
 	const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-	const promptSections = [
-		BASE_INSTRUCTIONS,
-		'Use the following output format rules EXACTLY (Vector Chat Markdown v1):',
-		VECTOR_CHAT_MD_SPEC,
+	const instructions = [
+		'You are a concise, practical mentor for a Python Tetris project.',
+		'Return ONLY JSON matching the provided schema. No extra text.',
+		'Guidelines:',
+		'- Keep content 1–3 short sentences.',
+		'- Ask at most one question if needed.',
+		'- Introduction: assess Python experience; guide setup to completion if needed.',
+		'- Switch to Implementation once env ready (Python installed, venv created, deps installed, run loop scaffolded).',
+		'- Implementation: guide concrete feature steps (loop, input, gravity, rotation, scoring).'
+	].join('\n');
+
+	const prompt = [
+		instructions,
+		'',
+		`Current stage: ${currentStage}`,
+		'',
 		'Project context:',
 		formatProjectContext(project),
-		'Leverage prerequisites to gauge readiness, and anchor guidance to the next milestone name and its success metrics before advancing.',
-		'Conversation so far:',
-		formatConversation(messages),
-		'Respond to the latest user message using the exact format.'
-	];
-
-	// If last turn not by user, nudge model to be proactive.
-	if (messages[messages.length - 1]?.role !== 'user') {
-		promptSections.push(
-			'Note: The last message was not from the user. If no user question remains, provide proactive guidance (still using the strict format).'
-		);
-	}
-
-	const prompt = promptSections.join('\n\n');
+		'',
+		'Conversation:',
+		formatConversation(messages)
+	].join('\n');
 
 	try {
-		const response = await client.responses.create({
+		const res = await client.responses.create({
 			model: MODEL_ID,
-			instructions: 'Use Vector Chat Markdown v1 exactly. No extra sections. No working code.',
-			input: prompt
+			instructions: 'Follow the schema exactly. No prose outside the JSON.',
+			input: prompt,
+			text: { format: MENTOR_REPLY_SCHEMA }
 		});
 
-		const raw = response.output_text?.trim() ?? '';
+		// With text.format + strict schema, this should already be valid JSON.
+		const output = (res.output_text ?? '').trim();
 
-		// Validate the model output so the UI can rely on the contract.
-		const valid = validateVectorChatMarkdown(raw);
-		if (!valid.ok) {
+		if (!output) {
+			// graceful fallback keeps UX moving
 			return json(
-				{ content: raw, format_ok: false, reason: valid.reason ?? 'invalid' },
+				currentStage === 'Introduction'
+					? {
+						content:
+							'Do you have Python installed and can you create a virtual environment?',
+						stage: 'Introduction' as Stage,
+						format_ok: false
+					}
+					: {
+						content:
+							'Let’s implement the game loop: window, tick/update/draw. Ready?',
+						stage: 'Implementation' as Stage,
+						format_ok: false
+					},
 				{ status: 200 }
 			);
 		}
 
-		return json({ content: raw, format_ok: true }, { status: 200 });
+		// Parse to return fields as primitives (client stores stringified already)
+		const parsed = JSON.parse(output) as { content: string; stage: Stage };
+		return json(parsed, { status: 200 });
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Unknown error';
-		return json({ error: message }, { status: 502 });
+		// Fallback keeps conversation usable
+		return json(
+			currentStage === 'Introduction'
+				? {
+					content:
+						'Do you have Python installed and can you create a virtual environment?',
+					stage: 'Introduction' as Stage,
+					error: message
+				}
+				: {
+					content:
+						'Let’s implement the game loop: window, tick/update/draw. Ready?',
+					stage: 'Implementation' as Stage,
+					error: message
+				},
+			{ status: 200 }
+		);
 	}
 };

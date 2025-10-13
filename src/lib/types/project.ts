@@ -22,7 +22,6 @@ export type Project = {
   description: string;
   jobs: Job[];
   skills: string[];
-  prerequisites: string[];
   metadata: Metadata;
 };
 

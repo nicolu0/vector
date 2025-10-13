@@ -1,70 +1,55 @@
 {
-  "title": "Linux-Like Operating System",
-  "difficulty": "Expert",
-  "timeline": "6-8 weeks",
-  "description": "Design and implement a Linux-style OS core in C and x86 Assembly. Build a minimal kernel that boots, manages memory, schedules threads, and exposes a syscall interface. Implement key device drivers (PIC/interrupts, terminal/TTY, RTC, audio, basic file system) and integrate tasking, preemption, and multithreading. Target real hardware and an emulator (QEMU/Bochs) with a reproducible build.",
+  "title": "Tetris (Python)",
+  "difficulty": "Easy",
+  "timeline": "1-2 weeks",
+  "description": "Build a polished Tetris clone in Python with a clean game loop, deterministic tetromino logic, wall-kick rotation, scoring, level speed-up, pause, and persistent high scores. Emphasize readable architecture, unit-tested scoring/rotation, and basic performance instrumentation.",
   "jobs": [
     {
-      "title": "Operating Systems / Kernel Engineer",
-      "url": "https://example.com/jobs/kernel-engineer"
+      "title": "Gameplay Engineer (Entry)",
+      "url": "https://example.com/jobs/gameplay"
     },
     {
-      "title": "Device Driver Engineer (x86/Embedded)",
-      "url": "https://example.com/jobs/driver-engineer"
+      "title": "Python Developer — Tools/UI",
+      "url": "https://example.com/jobs/python-ui"
     }
   ],
   "skills": [
-    "C",
-    "x86 assembly",
-    "bootloaders (MBR/ELF, GRUB)",
-    "interrupts & PIC/APIC",
-    "context switching & scheduling",
-    "syscall ABI design",
-    "virtual memory & paging",
-    "kernel heap/allocator",
-    "concurrency & synchronization",
-    "device drivers",
-    "file systems"
-  ],
-  "prerequisites": [
-    "Comfortable with C build tooling",
-    "Familiarity with x86 architecture basics",
-    "Experience using QEMU or hardware emulators"
+    "Python",
+    "Pygame or PySDL2",
+    "Game loop & timing",
+    "State machines",
+    "Collision detection",
+    "SRS-style rotation & wall kicks",
+    "Unit testing (pytest)",
+    "Basic profiling"
   ],
   "metadata": {
     "milestones": [
       {
-        "name": "Project Bootstrapping",
-        "objective": "Set up the development toolchain, scaffold the bootloader, and document the target hardware baseline.",
+        "name": "Introduction",
+        "objective": "Assess the user's current Python skills and align scope based on demonstrated gaps.",
         "success_metrics": [
-          "Reproducible cross-compilation environment configured and shared",
-          "Bootloader prototype boots to known checkpoint on QEMU"
+          "Skill check recorded (syntax, functions, classes, file I/O, basic OOP)",
+          "Agreed scope notes saved (libraries, testing, stretch goals)",
+          "Mentor plan created mapping skills to upcoming tasks"
         ]
       },
       {
-        "name": "Kernel Core",
-        "objective": "Implement memory management, threading primitives, and the syscall boundary required for user programs.",
+        "name": "Setup",
+        "objective": "Bootstrap the project, establish the game loop, and explain the end-to-end architecture the user will build.",
         "success_metrics": [
-          "Virtual memory manager passes manual stress tests",
-          "Scheduler demo shows multiple cooperative tasks executing"
+          "Project scaffold created with run script and dependency lockfile",
+          "Window renders 10x20 grid; tick/update/draw loop stable at target FPS",
+          "Architecture overview doc committed (modules, data flow, responsibilities)"
         ]
       },
       {
-        "name": "Device Integration",
-        "objective": "Build essential drivers for interrupts, terminal IO, storage, and verify stability.",
+        "name": "Implementation & Guidance",
+        "objective": "Guide the user through implementing core gameplay and teach concepts as needed, adjusting pace to their understanding.",
         "success_metrics": [
-          "Interrupt controller test suite reports zero regressions",
-          "Interactive terminal session available with basic filesystem access",
-          "Driver documentation updated with troubleshooting steps"
-        ]
-      },
-      {
-        "name": "Release & Showcase",
-        "objective": "Prepare a polished final image, produce launch documentation, and rehearse a demo for stakeholders.",
-        "success_metrics": [
-          "Release artifact boots on emulator and physical hardware without intervention",
-          "Demo script recorded or delivered live with walkthrough of capabilities",
-          "Postmortem outlines readiness to share on portfolio and with hiring teams"
+          "All tetrominoes spawn, move, rotate with wall kicks; lock and gravity implemented",
+          "Line clear, scoring, level speed-up, pause, and game-over complete with tests for rotation and scoring",
+          "High scores persist; README includes run/build/test instructions and a short demo GIF"
         ]
       }
     ]
