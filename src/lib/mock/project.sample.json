@@ -1,25 +1,164 @@
 {
-  "title": "WASD Ball (Python)",
-  "difficulty": "Easy",
-  "timeline": "0.5-1 weeks",
-  "description": "Build a tiny Python game where you move a ball with WASD. Focus on a clean game loop, responsive input, basic collision with window bounds, and simple polish (speed tuning, frame pacing). Keep the architecture minimal so you can test the full chat + mentor loop end-to-end.",
+  "title": "Building the GPT Tokenizer from Scratch",
+  "difficulty": "Medium",
+  "timeline": "1–2 weeks",
+  "description": "This project aims to implement a Byte Pair Encoding (BPE) tokenizer from scratch, similar to those used in large language models like GPT-2 and GPT-4. The tokenizer translates raw text into sequences of numerical tokens, which are then fed into a language model for training or inference. Understanding tokenization is crucial because it's at the heart of many unexpected behaviors and limitations in large language models, such as spelling difficulties, issues with non-English languages, and arithmetic problems.",
   "jobs": [
-    {
-      "title": "Python Developer — Entry",
-      "url": "https://example.com/jobs/python-entry"
-    },
-    {
-      "title": "Gameplay Prototyper (Intern)",
-      "url": "https://example.com/jobs/gameplay-intern"
-    }
+    { "title": "Machine Learning Engineer — NLP (Intern/Entry)", "url": "https://example.com/jobs/ml-nlp-intern" },
+    { "title": "Research Engineer — Tokenization/Preprocessing", "url": "https://example.com/jobs/research-engineer-tokenization" },
+    { "title": "Data Engineer — Text Processing", "url": "https://example.com/jobs/data-engineer-text" }
   ],
   "skills": [
-    "Python",
-    "Pygame or PySDL2",
-    "Game loop & timing",
-    "Keyboard input handling",
-    "Basic collision (bounds clamp)",
-    "Simple state & constants",
-    "Lightweight profiling (FPS)"
+    "Python (intermediate)",
+    "Unicode & UTF-8 fundamentals",
+    "Algorithms and data structures",
+    "Regular expressions",
+    "Performance profiling and memory awareness",
+    "Reproducible experimentation",
+    "Testing and edge-case handling"
+  ],
+  "sections": [
+    {
+      "name": "Introduction to Tokenization and Character-Level Tokenization",
+      "overview": "Define tokenization, build a minimal character-level tokenizer as a baseline, and connect tokens to embeddings.",
+      "required_skills": ["Basic Python", "Strings and indexing"],
+      "learning_materials": [
+        "What is tokenization; why LLMs consume integer IDs",
+        "Character-level tokenization and vocabulary concepts",
+        "Embedding table as a token-ID → vector lookup"
+      ],
+      "code_snippets": [
+        "Load text (e.g., Shakespeare) into a Python string",
+        "Create a char vocabulary; map char↔id",
+        "Encode/decode a sample string"
+      ],
+      "python_functions": ["str", "set()", "dict()", "list.append()", "for"],
+      "deliverables": [
+        "char_vocab.json (id↔char)",
+        "encode_char.py / decode_char.py",
+        "README: baseline tokenizer tradeoffs"
+      ]
+    },
+    {
+      "name": "Understanding Unicode and UTF-8 Encoding",
+      "overview": "Explain Unicode code points and UTF-8 variable-length encoding; motivate byte-level processing.",
+      "required_skills": ["Basic encodings", "Python string/bytes"],
+      "learning_materials": [
+        "Unicode code points vs. encodings (UTF-8/16/32)",
+        "Why raw code points are too large; why raw bytes are too long"
+      ],
+      "code_snippets": [
+        "Get code points with ord()/chr()",
+        "Encode to bytes via str.encode('utf-8')",
+        "bytes → list[int] and back with bytes.decode('utf-8', errors='replace')"
+      ],
+      "python_functions": ["ord()", "chr()", "str.encode()", "bytes.decode()", "list()"],
+      "deliverables": [
+        "utf8_demo.py showcasing round-trips and error handling",
+        "Notes on tradeoffs: code points vs. bytes"
+      ]
+    },
+    {
+      "name": "Implementing the Byte Pair Encoding (BPE) Algorithm",
+      "overview": "Train a byte-level BPE by repeatedly merging the most frequent adjacent pair to grow the vocabulary.",
+      "required_skills": ["Intermediate Python", "Algorithmic thinking"],
+      "learning_materials": [
+        "BPE merges and vocabulary expansion",
+        "Choosing a target vocab size as a hyperparameter"
+      ],
+      "code_snippets": [
+        "get_stats(ids) → pair frequency dict",
+        "merge(ids, pair, new_idx) applying one merge",
+        "Training loop until desired vocab size; record merges and vocab"
+      ],
+      "python_functions": ["dict.items()", "max(key=...)", "list comprehensions", "while"],
+      "deliverables": [
+        "merges.txt (ordered list of merges)",
+        "vocab.json (token-id → byte string)",
+        "train_bpe.py with CLI args: --vocab_size, --input_path, --output_dir"
+      ]
+    },
+    {
+      "name": "Encoding and Decoding with the Trained Tokenizer",
+      "overview": "Use trained merges/vocab to convert text↔tokens deterministically.",
+      "required_skills": ["Dict lookups", "Byte concatenation"],
+      "learning_materials": [
+        "Apply merges in training order for encoding",
+        "Byte concatenation and UTF-8 decode for decoding",
+        "Edge cases: empty strings, singletons"
+      ],
+      "code_snippets": [
+        "decode(ids) → bytes → string via vocab and bytes.decode()",
+        "encode(text) → utf8 bytes → iterative merges",
+        "Handle invalid/unknown sequences gracefully"
+      ],
+      "python_functions": ["dict.get()", "min(key=...)", "bytes.join()", "list.copy()"],
+      "deliverables": [
+        "tokenizer.py with encode()/decode() API",
+        "unit_tests.py covering round-trips and corner cases"
+      ]
+    },
+    {
+      "name": "Advanced Tokenization Considerations (GPT-2/GPT-4 Specifics)",
+      "overview": "Explore regex pre-splitting, whitespace/case rules, and special tokens used in production tokenizers.",
+      "required_skills": ["Regex (re module)"],
+      "learning_materials": [
+        "Regex pre-splitting to constrain merges",
+        "Case sensitivity choices; whitespace handling in code",
+        "Special tokens like \"<|endoftext|>\" and model surgery for added tokens"
+      ],
+      "code_snippets": [
+        "re.findall() with complex patterns",
+        "Case sensitivity demos (e.g., re.IGNORECASE)",
+        "Registering and reserving special tokens (conceptual)"
+      ],
+      "python_functions": ["re.compile()", "re.findall()", "re.IGNORECASE"],
+      "deliverables": [
+        "preset_patterns.md comparing regex patterns",
+        "special_tokens.json and notes on embedding extension"
+      ]
+    },
+    {
+      "name": "Tokenizer Libraries and Design Choices (Tiktoken vs. SentencePiece)",
+      "overview": "Contrast OpenAI’s byte-level BPE (with regex pre-split) and Google’s SentencePiece (code-point BPE + byte fallback).",
+      "required_skills": ["Library comparison", "Config tradeoffs"],
+      "learning_materials": [
+        "Tiktoken: inference-focused, regex pre-split, byte-level BPE",
+        "SentencePiece: train+infer, code-point BPE, byte_fallback, dummy prefix, normalization"
+      ],
+      "code_snippets": [
+        "Conceptual: tiktoken encode/decode",
+        "SentencePiece training with model_type, vocab_size, byte_fallback, add_dummy_prefix",
+        "SentencePiece inference via SentencePieceProcessor"
+      ],
+      "python_functions": [
+        "sentencepiece.SentencePieceTrainer.train()",
+        "sentencepiece.SentencePieceProcessor"
+      ],
+      "deliverables": [
+        "spm_train.sh (example training command)",
+        "comparison_report.md (pros/cons for LLM pretraining)"
+      ]
+    },
+    {
+      "name": "Impact of Tokenization on LLM Behavior",
+      "overview": "Tie tokenization choices to LLM quirks: spelling, multilingual inflation, arithmetic, code whitespace, special-token hazards.",
+      "required_skills": ["Critical analysis"],
+      "learning_materials": [
+        "Why long multi-char tokens impair character-level tasks",
+        "Token inflation in non-English text and cost/context impacts",
+        "Numbers split unpredictably; arithmetic brittleness",
+        "Indentation/whitespace in code; trailing-space pitfalls",
+        "Untrained tokens (\"Solid Gold Magikarp\") and undefined behaviors"
+      ],
+      "code_snippets": [
+        "Conceptual tokenization comparisons (e.g., via an external tool) for phrases, numbers, and multilingual text"
+      ],
+      "python_functions": [],
+      "deliverables": [
+        "behavior_case_studies.md with token counts and failure modes",
+        "cost_analysis.xlsx or .csv comparing YAML vs. JSON token density"
+      ]
+    }
   ]
 }

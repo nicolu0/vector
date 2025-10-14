@@ -1,4 +1,3 @@
-// lib/server/skill-engine.ts
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type TopicRating = { topic: string; rating: number; confidence?: number };
@@ -36,10 +35,10 @@ export function createSkillEngine(supabase: SupabaseClient) {
 		if (!ratings?.length) return { updated_count: 0 };
 
 		const rows = ratings.map(({ topic, rating, confidence }) => ({
-			user_id,                // must equal auth.uid() under RLS
+			user_id,
 			topic: canonicalize(topic),
 			rating: clampRating(rating),
-			confidence: clampConf(confidence) // can be undefined → let DB default
+			confidence: clampConf(confidence)
 		}));
 
 		const { error } = await supabase
