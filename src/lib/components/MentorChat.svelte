@@ -4,6 +4,7 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 	import type { StoredProject } from '$lib/stores/dashboardProjects';
+	import type { Milestone } from '$lib/types/project';
 	import { tick } from 'svelte';
 
 	const { conversationId, projectId, project, userId, loading, errorMessage } = $props<{
@@ -14,6 +15,7 @@
 		loading: boolean;
 		errorMessage: string | null;
 	}>();
+	console.log('project in chatz: ', project);
 
 	type ChatMessage = {
 		id: string;
@@ -28,14 +30,6 @@
 	};
 
 	type MentorPacket = { title: string; content: string; action?: Record<string, unknown> | null };
-	type ProjectSection = {
-		name: string;
-		overview: string;
-		required_skills?: string[];
-		learning_materials?: string[];
-		code_snippets?: string[];
-		python_functions?: string[];
-	};
 
 	/* -------- Config -------- */
 	const PERSISTENT_SPACER_HEIGHT = 160; // px
@@ -50,12 +44,7 @@
 	let mentorInFlight = $state(false);
 	let messagesRequestId = 0;
 
-	let sections = $state<ProjectSection[]>([]);
-	let sectionsDropdownOpen = $state(false);
-	let dropdownTrigger = $state<HTMLButtonElement | null>(null);
-	let dropdownMenu = $state<HTMLDivElement | null>(null);
-	let selectedSection = $derived<ProjectSection | null>(sections[0]);
-	let lastProjectId = $state<string | null>(null);
+	let currentTitle = $state('Mentor');
 
 	// Scroll container + persistent reply spacer
 	let messagesContainer = $state<HTMLDivElement | null>(null);
@@ -200,35 +189,20 @@
 		}
 	}
 
-	/** New metadata schema: metadata is an array of “sections”. */
-	function sanitizeSections(value: unknown): ProjectSection[] {
-		if (!Array.isArray(value)) return [];
-		return value
-			.map((item) => {
-				if (!item || typeof item !== 'object') return null;
-				const o = item as Record<string, unknown>;
-				const name = typeof o.name === 'string' ? o.name : null;
-				const overview = typeof o.overview === 'string' ? o.overview : null;
-
-				// Optional arrays; coerce to string[]
-				const arr = (v: unknown) =>
-					Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
-
-				if (!name || !overview) return null;
-				return {
-					name,
-					overview,
-					required_skills: arr(o.required_skills),
-					learning_materials: arr(o.learning_materials),
-					code_snippets: arr(o.code_snippets),
-					python_functions: arr(o.python_functions)
-				};
-			})
-			.filter(Boolean) as ProjectSection[];
-	}
-
 	function buildProjectContextPayload(currentProject: StoredProject) {
-		const sections = sanitizeSections(currentProject.metadata);
+		const rawMilestones =
+			currentProject.metadata?.milestones?.map((ms) => {
+				if (!ms || typeof ms !== 'object') return null;
+				const { name, objective, success_metrics } = ms as typeof ms & {
+					success_metrics?: unknown;
+				};
+				if (typeof name !== 'string' || typeof objective !== 'string') return null;
+				const metrics = Array.isArray(success_metrics)
+					? success_metrics.filter((x): x is string => typeof x === 'string' && x.trim())
+					: [];
+				return { name, objective, success_metrics: metrics };
+			}) ?? [];
+		const milestones = rawMilestones.filter(Boolean) as Milestone[];
 
 		return {
 			title: currentProject.title,
@@ -236,7 +210,7 @@
 			difficulty: currentProject.difficulty,
 			timeline: currentProject.timeline,
 			skills: currentProject.skills ?? [],
-			metadata: sections,
+			metadata: { milestones },
 			jobs: currentProject.jobs?.map((j) => ({ title: j.title, url: j.url })) ?? []
 		};
 	}
@@ -258,48 +232,6 @@
 		} catch {
 			return { title: 'Mentor', content: String(s ?? ''), action: null };
 		}
-	}
-
-	function areSectionsEqual(a: ProjectSection[], b: ProjectSection[]) {
-		if (a.length !== b.length) return false;
-		for (let i = 0; i < a.length; i += 1) {
-			const left = a[i];
-			const right = b[i];
-			if (!right) return false;
-			if (left.name !== right.name) return false;
-			if (left.overview !== right.overview) return false;
-		}
-		return true;
-	}
-
-	function getSectionElementId(index: number) {
-		return `project-section-${index}`;
-	}
-
-	function toggleSectionsDropdown() {
-		if (!sections.length) return;
-		sectionsDropdownOpen = !sectionsDropdownOpen;
-	}
-
-	function closeSectionsDropdown() {
-		if (!sectionsDropdownOpen) return;
-		sectionsDropdownOpen = false;
-	}
-
-	function scrollToSection(index: number) {
-		if (typeof document === 'undefined') return;
-		const sectionId = getSectionElementId(index);
-		const el = document.getElementById(sectionId);
-		if (!el) return;
-		el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	}
-
-	function selectSection(index: number) {
-		const section = sections[index];
-		if (!section) return;
-		selectedSection = section;
-		closeSectionsDropdown();
-		scrollToSection(index);
 	}
 
 	function computeLatestTitle(): string {
@@ -392,6 +324,7 @@
 				m.id === optimisticMentor?.id ? ({ ...data, pending: false } as ChatMessage) : m
 			);
 
+			currentTitle = computeLatestTitle();
 			recomputeSpacer();
 		} catch (err) {
 			if (optimisticMentor) messages = messages.filter((m) => m.id !== optimisticMentor?.id);
@@ -407,6 +340,7 @@
 		void sendMessage();
 	}
 
+	/* ------- Scroll thumb ------- */
 	let thumbVisible = $state(false);
 	let scrollIdleTimer: number | null = null;
 	function showThumbTemporarily(ms = 900) {
@@ -448,6 +382,11 @@
 		el.style.setProperty('--scroll-thumb-offset', `${offset}px`);
 		el.style.setProperty('--scroll-thumb-opacity', thumbVisible ? '1' : '0');
 	}
+
+	/* ------- Effects ------- */
+	$effect(() => {
+		currentTitle = computeLatestTitle();
+	});
 
 	$effect(() => {
 		if (!project) {
@@ -584,105 +523,15 @@
 		if (messages.length === 0) return;
 		maybeLockSpacer();
 	});
-
-	$effect(() => {
-		const currentProject = project;
-		const sanitized = currentProject ? sanitizeSections(currentProject.metadata) : [];
-		if (!areSectionsEqual(sections, sanitized)) {
-			sections = sanitized;
-		}
-
-		const projectId = currentProject?.id ?? null;
-		if (projectId !== lastProjectId) {
-			selectedSection = null;
-			lastProjectId = projectId;
-		}
-
-		if (!sanitized.length) {
-			selectedSectionName = null;
-			closeSectionsDropdown();
-		} else if (
-			selectedSectionName &&
-			!sanitized.some((section) => section.name === selectedSectionName)
-		) {
-			selectedSectionName = null;
-		}
-	});
-
-	$effect(() => {
-		if (!sectionsDropdownOpen) return;
-		if (typeof window === 'undefined') return;
-
-		const handleClick = (event: MouseEvent) => {
-			const target = event.target as Node | null;
-			if (!target) return;
-			if (dropdownTrigger?.contains(target)) return;
-			if (dropdownMenu?.contains(target)) return;
-			closeSectionsDropdown();
-		};
-
-		const handleKeydown = (event: KeyboardEvent) => {
-			if (event.key === 'Escape') {
-				closeSectionsDropdown();
-			}
-		};
-
-		window.addEventListener('click', handleClick);
-		window.addEventListener('keydown', handleKeydown);
-		return () => {
-			window.removeEventListener('click', handleClick);
-			window.removeEventListener('keydown', handleKeydown);
-		};
-	});
 </script>
 
-<div class="flex h-full flex-col text-sm leading-6">
+<div class="flex h-full flex-col text-sm leading-6 text-stone-700">
 	<div class="flex w-full flex-row py-2 pr-5 pl-1">
-		<div class="relative w-full">
-			<button
-				type="button"
-				class="flex w-full flex-row items-center justify-between rounded-xl border border-stone-200 bg-stone-50 p-2 text-center text-sm text-stone-600 transition focus:ring-2 focus:ring-black/5 focus:outline-none disabled:opacity-60"
-				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
-				onclick={toggleSectionsDropdown}
-				bind:this={dropdownTrigger}
-				aria-haspopup="listbox"
-				aria-expanded={sectionsDropdownOpen}
-				disabled={sections.length === 0}
-			>
-				<div class="w-4 text-left text-xs">-</div>
-				<div class="flex-1 px-2 text-center">
-					{selectedSectionName ?? currentTitle}
-				</div>
-				<div class="w-4 text-right text-xs">{sectionsDropdownOpen ? '^' : 'v'}</div>
-			</button>
-
-			{#if sectionsDropdownOpen}
-				<div
-					class="absolute top-full right-0 left-0 z-20 mt-2 rounded-xl border border-stone-200 bg-stone-100 text-left text-xs text-stone-600 shadow-lg"
-					in:fly|global={{ y: -4, duration: 200, easing: cubicOut }}
-					bind:this={dropdownMenu}
-				>
-					{#if sections.length === 0}
-						<div class="px-3 py-2 text-stone-400">No sections available</div>
-					{:else}
-						<ul class="overflow-y-auto py-1" role="listbox">
-							{#each sections as section, index}
-								<li>
-									<button
-										type="button"
-										class="flex w-full items-start px-3 py-2 text-left hover:bg-stone-100"
-										onclick={() => selectSection(index)}
-										role="option"
-										aria-selected={selectedSectionName === section.name}
-									>
-										<span class="font-medium">{section.name}</span>
-									</button>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</div>
-			{/if}
+		<div
+			class="w-full justify-center rounded-xl border border-stone-200 bg-stone-50 p-2 text-center text-sm text-stone-600"
+			in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
+		>
+			{currentTitle}
 		</div>
 	</div>
 
@@ -690,20 +539,45 @@
 		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto pr-5"
 		bind:this={messagesContainer}
 	>
-		{#if project.metadata}
+		{#if loading}
+			<div class="flex justify-center"></div>
+		{:else if errorMessage}
+			<div class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+				{errorMessage}
+			</div>
+		{:else if !conversationId}
+			<div class="rounded-xl border border-stone-200 bg-stone-50 p-3 text-xs text-stone-500">
+				Select a project to view its conversation.
+			</div>
+		{:else if messagesLoading}
+			<div class="flex justify-center"></div>
+		{:else if messagesError}
+			<div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+				{messagesError}
+			</div>
+		{:else if messages.length === 0}
+			<div class="p-3 text-xs text-stone-500"></div>
+		{:else}
 			<div
 				in:fly|global={{ x: 8, duration: 400, easing: cubicOut }}
-				class="flex flex-col gap-y-10 pl-2"
+				class="flex flex-col gap-y-4 pl-2"
 			>
-				{#each sections as section, index}
-					<div class="flex justify-start" id={getSectionElementId(index)}>
-						<div class="flex flex-col">
-							<p class="text-md leading-6 font-medium break-words whitespace-pre-wrap text-current">
-								{section.name}
-							</p>
-							<p class="text-xs leading-6 break-words whitespace-pre-wrap text-current">
-								{section.overview}
-							</p>
+				{#each messages as message (message.id)}
+					{@const isUser = message.role === 'user'}
+					<div class={isUser ? 'flex justify-end' : 'flex justify-start'}>
+						<div class="flex flex-col gap-1" class:max-w-[75%]={isUser}>
+							{#if isUser}
+								<p
+									class="rounded-lg bg-stone-200 p-3 py-2 text-xs leading-6 break-words whitespace-pre-wrap text-current"
+								>
+									{message.content}
+								</p>
+							{:else}
+								{@const parsed = parseMentorPacket(String(message.content ?? ''))}
+								<p class="p-3 py-2 text-xs leading-6 break-words whitespace-pre-wrap text-current">
+									{parsed.content}
+								</p>
+							{/if}
 						</div>
 					</div>
 				{/each}

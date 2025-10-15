@@ -1,13 +1,39 @@
 import { get, writable } from 'svelte/store';
 import { supabase } from '$lib/supabaseClient';
 import { normalizeProjectStatusValue } from '$lib/utils/projectStatus';
-import type { Project, Milestone, Metadata } from '$lib/types/project';
 
 export type StoredProject = Project & {
 	id: string;
 	created_at: string | null;
 	status: string | null;
 };
+
+
+export type Section = {
+	name: string;
+	overview: string;
+	required_skills?: string[];
+	learning_materials?: string[];
+	code_snippets?: string[];
+	python_functions?: string[];
+};
+
+export type Metadata = Section[]; // <-- NEW (was an object before)
+
+export type Project = {
+	id?: string;
+	title: string;
+	difficulty: string | null;
+	timeline: string | null;
+	description: string | null;
+	jobs: { title: string; url: string }[];
+	skills: string[];
+	prerequisites: string[];
+	metadata: Metadata; // array now
+	status?: string | null;
+	created_at?: string | null;
+};
+
 
 export type DashboardProjectsState = {
 	status: 'idle' | 'loading' | 'refreshing' | 'loaded' | 'error';
@@ -55,18 +81,13 @@ function sanitizeJobs(value: unknown): Project['jobs'] {
 		.filter(Boolean) as Project['jobs'];
 }
 
-function sanitizeMilestones(value: unknown): Milestone[] {
-	if (!Array.isArray(value)) return [];
-	return value
-		.map((item) => {
-			if (!item || typeof item !== 'object') return null;
-			const { name, objective, success_metrics } = item as Record<string, unknown>;
-			if (typeof name !== 'string' || typeof objective !== 'string') return null;
-			const metrics = ensureStringArray(success_metrics);
-			if (metrics.length === 0) return null;
-			return { name, objective, success_metrics: metrics };
-		})
-		.filter(Boolean) as Milestone[];
+/**
+ * New metadata schema: array (sections or other items).
+ * We accept arrays and pass through JSON-serializable items as-is.
+ * Non-arrays become [].
+ */
+function sanitizeMetadata(value: unknown): Project['metadata'] {
+	return Array.isArray(value) ? (value as Project['metadata']) : ([] as Project['metadata']);
 }
 
 async function load(options?: { force?: boolean }) {
@@ -125,18 +146,14 @@ async function load(options?: { force?: boolean }) {
 			if (error) throw error;
 
 			const projects = (data ?? []).map((project) => {
-				const typed = project as Partial<StoredProject> & {
-					metadata?: { milestones?: unknown } | Metadata | null;
-				};
-
-				const sanitizedMilestones = sanitizeMilestones((typed.metadata as Metadata | null)?.milestones);
+				const typed = project as Partial<StoredProject>;
 
 				return {
 					...typed,
 					jobs: sanitizeJobs(typed.jobs),
 					skills: ensureStringArray(typed.skills),
 					prerequisites: ensureStringArray(typed.prerequisites),
-					metadata: { milestones: sanitizedMilestones },
+					metadata: sanitizeMetadata(typed.metadata),
 					status: normalizeProjectStatusValue(typed.status ?? null)
 				};
 			}) as StoredProject[];
@@ -152,8 +169,7 @@ async function load(options?: { force?: boolean }) {
 
 			return projects;
 		} catch (err) {
-			const message =
-				err instanceof Error ? err.message : 'Unable to load projects right now.';
+			const message = err instanceof Error ? err.message : 'Unable to load projects right now.';
 
 			store.update((value) => {
 				const hasProjects = value.projects.length > 0;
