@@ -32,6 +32,7 @@
 		name: string;
 		overview: string;
 		required_skills?: string[];
+		what_and_how?: string[];
 		learning_materials?: string[];
 		code_snippets?: string[];
 		python_functions?: string[];
@@ -50,7 +51,7 @@
 	let mentorInFlight = $state(false);
 	let messagesRequestId = 0;
 
-	let sections = $state<ProjectSection[]>([]);
+	let sections = $state<ProjectSection[]>(project.metadata);
 	let sectionsDropdownOpen = $state(false);
 	let dropdownTrigger = $state<HTMLButtonElement | null>(null);
 	let dropdownMenu = $state<HTMLDivElement | null>(null);
@@ -286,34 +287,11 @@
 		sectionsDropdownOpen = false;
 	}
 
-	function scrollToSection(index: number) {
-		if (typeof document === 'undefined') return;
-		const sectionId = getSectionElementId(index);
-		const el = document.getElementById(sectionId);
-		if (!el) return;
-		el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	}
-
 	function selectSection(index: number) {
 		const section = sections[index];
 		if (!section) return;
 		selectedSection = section;
 		closeSectionsDropdown();
-		scrollToSection(index);
-	}
-
-	function computeLatestTitle(): string {
-		for (let i = messages.length - 1; i >= 0; i--) {
-			const m = messages[i];
-			if (m.role !== 'mentor') continue;
-			try {
-				const o = JSON.parse(String(m.content ?? '{}'));
-				if (o?.title && typeof o.title === 'string') return o.title;
-			} catch {
-				/* ignore non-JSON mentor content */
-			}
-		}
-		return 'Mentor';
 	}
 
 	async function generateMentorResponse() {
@@ -559,7 +537,6 @@
 						messages = messages.map((m) =>
 							m.id === optimisticId ? ({ ...data, pending: false } as ChatMessage) : m
 						);
-						currentTitle = computeLatestTitle();
 						void scrollToBottom();
 					}
 				} catch {
@@ -585,29 +562,7 @@
 		maybeLockSpacer();
 	});
 
-	$effect(() => {
-		const currentProject = project;
-		const sanitized = currentProject ? sanitizeSections(currentProject.metadata) : [];
-		if (!areSectionsEqual(sections, sanitized)) {
-			sections = sanitized;
-		}
-
-		const projectId = currentProject?.id ?? null;
-		if (projectId !== lastProjectId) {
-			selectedSection = null;
-			lastProjectId = projectId;
-		}
-
-		if (!sanitized.length) {
-			selectedSectionName = null;
-			closeSectionsDropdown();
-		} else if (
-			selectedSectionName &&
-			!sanitized.some((section) => section.name === selectedSectionName)
-		) {
-			selectedSectionName = null;
-		}
-	});
+	$inspect(selectedSection);
 
 	$effect(() => {
 		if (!sectionsDropdownOpen) return;
@@ -651,33 +606,32 @@
 			>
 				<div class="w-4 text-left text-xs">-</div>
 				<div class="flex-1 px-2 text-center">
-					{selectedSectionName ?? currentTitle}
+					{selectedSection?.name}
 				</div>
 				<div class="w-4 text-right text-xs">{sectionsDropdownOpen ? '^' : 'v'}</div>
 			</button>
 
 			{#if sectionsDropdownOpen}
 				<div
-					class="absolute top-full right-0 left-0 z-20 mt-2 rounded-xl border border-stone-200 bg-stone-100 text-left text-xs text-stone-600 shadow-lg"
+					class="absolute top-full right-0 left-0 z-20 mt-2 rounded-lg border border-stone-200 bg-stone-100 text-left text-xs text-stone-600 shadow-lg"
 					in:fly|global={{ y: -4, duration: 200, easing: cubicOut }}
 					bind:this={dropdownMenu}
 				>
 					{#if sections.length === 0}
 						<div class="px-3 py-2 text-stone-400">No sections available</div>
 					{:else}
-						<ul class="overflow-y-auto py-1" role="listbox">
+						<ul class="flex flex-col gap-y-1 overflow-y-auto p-2" role="listbox">
 							{#each sections as section, index}
-								<li>
-									<button
-										type="button"
-										class="flex w-full items-start px-3 py-2 text-left hover:bg-stone-100"
-										onclick={() => selectSection(index)}
-										role="option"
-										aria-selected={selectedSectionName === section.name}
-									>
-										<span class="font-medium">{section.name}</span>
-									</button>
-								</li>
+								<button
+									type="button"
+									class="flex w-full items-start rounded-lg px-3 py-2 text-left hover:bg-stone-200"
+									class:bg-stone-300={section === selectedSection}
+									onclick={() => selectSection(index)}
+									role="option"
+									aria-selected={selectedSection?.name === section.name}
+								>
+									<span class="font-medium">{section.name}</span>
+								</button>
 							{/each}
 						</ul>
 					{/if}
@@ -695,29 +649,83 @@
 				in:fly|global={{ x: 8, duration: 400, easing: cubicOut }}
 				class="flex flex-col gap-y-10 pl-2"
 			>
-				{#each sections as section, index}
-					<div class="flex justify-start" id={getSectionElementId(index)}>
-						<div class="flex flex-col">
-							<p class="text-md leading-6 font-medium break-words whitespace-pre-wrap text-current">
-								{section.name}
-							</p>
-							<p class="text-xs leading-6 break-words whitespace-pre-wrap text-current">
-								{section.overview}
-							</p>
+				{#if selectedSection}
+					<div class="flex justify-start">
+						<div class="flex flex-col gap-2">
+							<!-- Overview -->
+							{#if selectedSection.overview}
+								<p class="text-xs leading-6 break-words whitespace-pre-wrap text-current">
+									{selectedSection.overview}
+								</p>
+							{/if}
+
+							<!-- Required Skills -->
+							{#if selectedSection.required_skills?.length}
+								<div class="mt-2">
+									<p class="text-[11px] font-medium text-stone-600">Required Skills</p>
+									<ul class="mt-1 list-disc pl-5 text-xs">
+										{#each selectedSection.required_skills as item}
+											<li class="break-words">{item}</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+
+							{#if selectedSection.what_and_how?.length}
+								<div class="mt-2">
+									<p class="text-[11px] font-medium text-stone-600">Deliverables</p>
+									<ul class="mt-1 pl-5 text-xs">
+										{#each selectedSection.what_and_how as item}
+											<div class="break-words">{item.file}</div>
+											<div class="break-words">{item.spec}</div>
+											{#each item.how_to_implement as imp}
+												<div class="break-words">{imp}</div>
+											{/each}
+										{/each}
+									</ul>
+								</div>
+							{/if}
+
+							<!-- Learning Materials -->
+							{#if selectedSection.learning_materials?.length}
+								<div class="mt-2">
+									<p class="text-[11px] font-medium text-stone-600">Learning Materials</p>
+									<ul class="mt-1 list-disc pl-5 text-xs">
+										{#each selectedSection.learning_materials as item}
+											<li class="break-words">{item}</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+
+							<!-- Code Snippets (as bullet text; switch to <pre> if you later store code blocks) -->
+							{#if selectedSection.code_snippets?.length}
+								<div class="mt-2">
+									<p class="text-[11px] font-medium text-stone-600">Code Snippets</p>
+									<ul class="mt-1 list-disc pl-5 text-xs">
+										{#each selectedSection.code_snippets as item}
+											<li class="break-words">{item}</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+
+							<!-- Python Functions -->
+							{#if selectedSection.python_functions?.length}
+								<div class="mt-2">
+									<p class="text-[11px] font-medium text-stone-600">Python Functions</p>
+									<ul class="mt-1 list-disc pl-5 text-xs">
+										{#each selectedSection.python_functions as item}
+											<li class="break-words">{item}</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
 						</div>
 					</div>
-				{/each}
-
-				{#if mentorInFlight}
-					<div
-						class="pointer-events-none flex h-[calc(100%-0.75rem)] items-start pl-4"
-						role="status"
-						aria-live="polite"
-					>
-						<span class="typing-dot mt-1 inline-block h-2.5 w-2.5 rounded-full bg-stone-800"></span>
-					</div>
+				{:else}
+					<div class="text-xs text-stone-500">No section selected.</div>
 				{/if}
-				<div style={`height:${replySpacerHeight}px`} aria-hidden="true"></div>
 			</div>
 		{/if}
 	</div>

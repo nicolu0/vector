@@ -43,6 +43,32 @@
         "dict() (for lookup tables)",
         "list.append()",
         "for loops"
+      ],
+      "what_and_how": [
+        {
+          "file": "dataset.py",
+          "spec": "Load a small corpus into a single Python string for experimentation.",
+          "how_to_implement": [
+            "Read the file with UTF-8 and normalize newlines.",
+            "Expose a get_text() helper that returns the raw string."
+          ]
+        },
+        {
+          "file": "char_vocab.py",
+          "spec": "Build a character-level vocabulary and ID maps.",
+          "how_to_implement": [
+            "Use set() over the corpus to collect unique characters.",
+            "Create stoi/itos dicts and verify round-trip on a sample."
+          ]
+        },
+        {
+          "file": "char_tokenizer.py",
+          "spec": "Encode/decode by single characters using the maps.",
+          "how_to_implement": [
+            "Implement encode(text)->List[int] and decode(ids)->str.",
+            "Add basic tests for empty string and ASCII/non-ASCII."
+          ]
+        }
       ]
     },
     {
@@ -70,6 +96,24 @@
         "str.encode()",
         "bytes.decode()",
         "list() (to convert bytes object to a list of integers)"
+      ],
+      "what_and_how": [
+        {
+          "file": "unicode_demo.py",
+          "spec": "Explore code points and basic conversions.",
+          "how_to_implement": [
+            "Show ord()/chr() round-trips on diverse characters.",
+            "Print code points and hex representations."
+          ]
+        },
+        {
+          "file": "utf8_bytes.py",
+          "spec": "Exercise UTF-8 encode/decode and error handling.",
+          "how_to_implement": [
+            "Implement to_bytes(text)->List[int] via encode('utf-8').",
+            "Implement from_bytes(bs)->str using errors='replace'."
+          ]
+        }
       ]
     },
     {
@@ -95,6 +139,34 @@
         "max() with a key argument (for finding the most frequent pair)",
         "list comprehensions",
         "while loops"
+      ],
+      "what_and_how": [
+        {
+          "file": "bpe_core.py",
+          "spec": "Implement get_stats and merge primitives over integer token streams.",
+          "how_to_implement": [
+            "Represent sequences as lists of ints (initially bytes).",
+            "get_stats: count adjacent pairs into a dict[(a,b)]=freq.",
+            "merge: replace pair occurrences with a new token id."
+          ]
+        },
+        {
+          "file": "bpe_train.py",
+          "spec": "Iterative merge loop to reach target vocab size.",
+          "how_to_implement": [
+            "Initialize vocab with bytes 0..255; merges={}.",
+            "Repeat: pick most frequent pair via max(..., key=freq).",
+            "Assign new id; update sequences; record merges in order."
+          ]
+        },
+        {
+          "file": "bpe_io.py",
+          "spec": "Persist vocab and merges for reuse.",
+          "how_to_implement": [
+            "Save/load merges list (ordered) and id->byte mapping.",
+            "Ensure deterministic serialization for reproducibility."
+          ]
+        }
       ]
     },
     {
@@ -118,6 +190,25 @@
         "min() with a key argument (for finding the lowest-indexed mergeable pair)",
         "bytes.join()",
         "list.copy()"
+      ],
+      "what_and_how": [
+        {
+          "file": "codec.py",
+          "spec": "Encode text to token ids and decode ids to text using trained merges.",
+          "how_to_implement": [
+            "encode: text -> utf-8 bytes -> iterative merges (in order).",
+            "decode: ids -> concatenate byte chunks -> bytes.decode('utf-8').",
+            "Cover edge cases: empty text, unknown bytes."
+          ]
+        },
+        {
+          "file": "tests_codec.py",
+          "spec": "Round-trip tests for encode/decode.",
+          "how_to_implement": [
+            "Assert decode(encode(x))==x for ASCII and multi-byte scripts.",
+            "Test stability under trailing whitespace."
+          ]
+        }
       ]
     },
     {
@@ -144,6 +235,24 @@
         "re.compile()",
         "re.findall()",
         "re.IGNORECASE flag"
+      ],
+      "what_and_how": [
+        {
+          "file": "regex_pretokenize.py",
+          "spec": "Apply GPT-2–style pre-splitting before BPE merges.",
+          "how_to_implement": [
+            "Compile the complex regex and call re.findall() over text.",
+            "Prevent merges across categories per pattern semantics."
+          ]
+        },
+        {
+          "file": "special_tokens.py",
+          "spec": "Register and reserve special tokens outside BPE.",
+          "how_to_implement": [
+            "Maintain a reserved id range and mapping for special tokens.",
+            "Document effects on embedding/LM heads when adding tokens."
+          ]
+        }
       ]
     },
     {
@@ -172,6 +281,24 @@
       "python_functions": [
         "sentencepiece.SentencePieceProcessor (for loading and using models)",
         "sentencepiece.SentencePieceTrainer.train() (for training models)"
+      ],
+      "what_and_how": [
+        {
+          "file": "notes_tiktoken.md",
+          "spec": "Document practical usage patterns and quirks of tiktoken.",
+          "how_to_implement": [
+            "Record examples of encode/decode for tricky inputs.",
+            "Note pretokenization regex and byte-level behavior."
+          ]
+        },
+        {
+          "file": "spm_train.md",
+          "spec": "Recipe for training SentencePiece with byte_fallback and prefixes.",
+          "how_to_implement": [
+            "Show trainer CLI/ Python API examples.",
+            "Compare vocab sizes and tokenization density."
+          ]
+        }
       ]
     },
     {
@@ -195,6 +322,16 @@
       ],
       "python_functions": [
         "No specific Python functions for this section, as it focuses on analysis and understanding of LLM behavior."
+      ],
+      "what_and_how": [
+        {
+          "file": "analysis_notes.md",
+          "spec": "Collect examples demonstrating tokenization-driven quirks.",
+          "how_to_implement": [
+            "Record token counts across languages and formats (JSON/YAML).",
+            "Include edge cases: trailing space, special tokens, large numbers."
+          ]
+        }
       ]
     }
   ]

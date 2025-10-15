@@ -13,6 +13,7 @@ export type Section = {
 	name: string;
 	overview: string;
 	required_skills?: string[];
+	what_and_how?: string[];
 	learning_materials?: string[];
 	code_snippets?: string[];
 	python_functions?: string[];
