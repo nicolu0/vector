@@ -610,7 +610,7 @@
 		{#if project.metadata}
 			<div
 				in:fly|global={{ x: 8, duration: 400, easing: cubicOut }}
-				class="flex flex-col gap-y-10 pl-2"
+				class="flex flex-col gap-y-10 pl-2 text-stone-600"
 			>
 				{#if selectedSection}
 					<div class="flex justify-start">
@@ -622,28 +622,56 @@
 								</p>
 							{/if}
 
-							<!-- Required Skills -->
-							{#if selectedSection.required_skills?.length}
-								<div class="mt-2">
-									<p class="text-[11px] font-medium text-stone-600">Required Skills</p>
-									<ul class="mt-1 list-disc pl-5 text-xs">
-										{#each selectedSection.required_skills as item}
-											<li class="break-words">{item}</li>
-										{/each}
-									</ul>
-								</div>
-							{/if}
-
 							{#if selectedSection.what_and_how?.length}
 								<div class="mt-2">
 									<p class="text-[11px] font-medium text-stone-600">Deliverables</p>
-									<ul class="mt-1 pl-5 text-xs">
-										{#each selectedSection.what_and_how as item}
-											<div class="break-words">{item.file}</div>
-											<div class="break-words">{item.spec}</div>
-											{#each item.how_to_implement as imp}
-												<div class="break-words">{imp}</div>
-											{/each}
+									<ul
+										class="mt-1 divide-y divide-stone-200 rounded-lg border border-stone-200 text-xs"
+									>
+										{#each selectedSection.what_and_how as item, i (item.file)}
+											<li class="p-0">
+												<details class="group">
+													<summary
+														class="flex w-full cursor-pointer items-center justify-between px-3 py-2 select-none"
+													>
+														<span class="font-medium break-words text-stone-800">{item.file}</span>
+														<!-- chevron -->
+														<svg
+															class="ml-2 h-3.5 w-3.5 shrink-0 text-stone-500 transition-transform duration-200 group-open:rotate-90"
+															viewBox="0 0 20 20"
+															fill="currentColor"
+															aria-hidden="true"
+														>
+															<path
+																fill-rule="evenodd"
+																d="M6.22 7.22a.75.75 0 0 1 1.06 0L10 9.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L6.22 8.28a.75.75 0 0 1 0-1.06z"
+																clip-rule="evenodd"
+															/>
+														</svg>
+													</summary>
+
+													<!-- expanded content -->
+													<div class="space-y-2 px-3 pt-1 pb-3 text-stone-700">
+														{#if item.spec}
+															<div class="break-words">
+																<span class="font-semibold text-stone-700">Spec:</span>
+																<span class="ml-1 text-stone-700/90">{item.spec}</span>
+															</div>
+														{/if}
+
+														{#if item.how_to_implement?.length}
+															<div class="space-y-1">
+																<div class="font-semibold text-stone-700">How to implement</div>
+																<ul class="list-disc space-y-1 pl-5">
+																	{#each item.how_to_implement as imp}
+																		<li class="break-words text-stone-700/90">{imp}</li>
+																	{/each}
+																</ul>
+															</div>
+														{/if}
+													</div>
+												</details>
+											</li>
 										{/each}
 									</ul>
 								</div>
