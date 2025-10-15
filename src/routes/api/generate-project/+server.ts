@@ -1,31 +1,69 @@
 import { json, error } from '@sveltejs/kit';
 import OpenAI from 'openai';
-import {
-  OPENAI_API_KEY,
-} from '$env/static/private';
+import { OPENAI_API_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
-import { isProject, type Project } from '$lib/types/project';
+// If your exported types are still the old schema, avoid importing them here.
+// import { isProject, type Project } from '$lib/types/project';
 import sampleProject from '$lib/mock/project.sample.json';
 
-const FALLBACK_PROJECT = sampleProject as Project;
+/* ---------- Local types for the NEW schema (decoupled from old app types) ---------- */
 
+type WhatAndHow = {
+  file: string;
+  spec: string;
+  how_to_implement?: string[];
+};
 
+type Section = {
+  name: string;
+  overview: string;
+  learning_materials?: string[];
+  code_snippets?: string[] | Array<{ filename?: string; code?: string }>;
+  what_and_how?: WhatAndHow[];
+};
+
+type NewProject = {
+  title: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Expert';
+  timeline: string;
+  description: string;
+  jobs: Array<{ title: string; url: string }>;
+  skills: string[];
+  metadata: Section[];
+};
+
+function isNewProject(x: unknown): x is NewProject {
+  try {
+    const p = x as NewProject;
+    return (
+      p &&
+      typeof p.title === 'string' &&
+      typeof p.difficulty === 'string' &&
+      typeof p.timeline === 'string' &&
+      typeof p.description === 'string' &&
+      Array.isArray(p.jobs) &&
+      Array.isArray(p.skills) &&
+      Array.isArray(p.metadata) &&
+      p.metadata.every(
+        s => s && typeof s.name === 'string' && typeof s.overview === 'string'
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+/* ---------- Fallback (ensure your sample matches NEW schema) ---------- */
+const FALLBACK_PROJECT = sampleProject as unknown as NewProject;
+
+/* ---------- JSON Schema for the NEW shape ---------- */
 const PROJECT_SCHEMA = {
   type: 'json_schema',
-  name: 'project_brief',
+  name: 'project_brief_v2',
   schema: {
     type: 'object',
     additionalProperties: false,
-    required: [
-      'title',
-      'difficulty',
-      'timeline',
-      'description',
-      'jobs',
-      'skills',
-      'prerequisites',
-      'metadata'
-    ],
+    required: ['title', 'difficulty', 'timeline', 'description', 'jobs', 'skills', 'metadata'],
     properties: {
       title: {
         type: 'string',
@@ -33,10 +71,7 @@ const PROJECT_SCHEMA = {
         maxLength: 64,
         pattern: '^[A-Za-z0-9+\\-]+(?:\\s+[A-Za-z0-9+\\-]+){0,3}$'
       },
-      difficulty: {
-        type: 'string',
-        enum: ['Easy', 'Medium', 'Hard', 'Expert']
-      },
+      difficulty: { type: 'string', enum: ['Easy', 'Medium', 'Hard', 'Expert'] },
       timeline: {
         type: 'string',
         minLength: 3,
@@ -69,49 +104,53 @@ const PROJECT_SCHEMA = {
           pattern: '^[A-Za-z0-9][A-Za-z0-9+\\-/ ]{0,50}$'
         }
       },
-      prerequisites: {
-        type: 'array',
-        minItems: 3,
-        maxItems: 12,
-        items: {
-          type: 'string',
-          minLength: 2,
-          maxLength: 80,
-          pattern: '^[A-Za-z0-9][A-Za-z0-9+\\-/ ]{0,50}$'
-        }
-      },
+      // NEW: metadata is an ARRAY of sections
       metadata: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['milestones'],
-        properties: {
-          milestones: {
-            type: 'array',
-            minItems: 3,
-            maxItems: 6,
-            items: {
-              type: 'object',
-              additionalProperties: false,
-              required: ['name', 'objective', 'success_metrics'],
-              properties: {
-                name: {
-                  type: 'string',
-                  minLength: 3,
-                  maxLength: 80
-                },
-                objective: {
-                  type: 'string',
-                  minLength: 12,
-                  maxLength: 240
-                },
-                success_metrics: {
-                  type: 'array',
-                  minItems: 2,
-                  maxItems: 3,
-                  items: {
-                    type: 'string',
-                    minLength: 8,
-                    maxLength: 160
+        type: 'array',
+        minItems: 1,
+        maxItems: 20,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['name', 'overview'],
+          properties: {
+            name: { type: 'string', minLength: 3, maxLength: 120 },
+            overview: { type: 'string', minLength: 12, maxLength: 1200 },
+            learning_materials: {
+              type: 'array',
+              minItems: 0,
+              maxItems: 40,
+              items: { type: 'string', minLength: 4, maxLength: 300 }
+            },
+            code_snippets: {
+              type: 'array',
+              minItems: 0,
+              maxItems: 40,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  filename: { type: 'string', minLength: 1, maxLength: 120 },
+                  code: { type: 'string', minLength: 1, maxLength: 20000 }
+                }
+              }
+            },
+            what_and_how: {
+              type: 'array',
+              minItems: 0,
+              maxItems: 40,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['file', 'spec'],
+                properties: {
+                  file: { type: 'string', minLength: 1, maxLength: 200 },
+                  spec: { type: 'string', minLength: 4, maxLength: 1200 },
+                  how_to_implement: {
+                    type: 'array',
+                    minItems: 0,
+                    maxItems: 20,
+                    items: { type: 'string', minLength: 2, maxLength: 400 }
                   }
                 }
               }
@@ -124,6 +163,8 @@ const PROJECT_SCHEMA = {
   strict: true
 } as const;
 
+/* ---------- Prompt builder updated for NEW schema ---------- */
+
 function buildPrompt({ interests, tags }: { interests: string; tags: string[] }) {
   const focus = (interests ?? '').trim();
   const tagList = (tags ?? []).filter(Boolean);
@@ -133,41 +174,32 @@ function buildPrompt({ interests, tags }: { interests: string; tags: string[] })
     ? `Key focus tags:\n${tagList.map((t) => `- ${t}`).join('\n')}\n`
     : '';
 
-  const guidance =
-    [
-      'Generate ONE standout technical project tailored to the candidate.',
-      'Quality bars: concrete deliverables, measurable outcomes, and realistic tools/datasets.',
-    ].join(' ');
+  const guidance = [
+    'Generate ONE standout technical project tailored to the candidate.',
+    'Quality bars: concrete deliverables, measurable outcomes, and realistic tools/datasets.'
+  ].join(' ');
 
   const rules = [
     'Title: ≤4 words, descriptive technical terms only.',
     'Difficulty: one of Easy, Medium, Hard, Expert.',
     'Timeline: short estimate like "1-2 weeks". (Weeks or months only.)',
-    'Description: a concise high level overview (3-5 sentences) that does NOT mention timeframes or duration.',
+    'Description: a concise high level overview (3–5 sentences) that does NOT mention timeframes or duration.',
     'Jobs: 1–6 realistic job titles with best-guess URLs if unknown.',
-    'Skills array: Specific technical concepts described in 1-5 words. At least one should be the tech stack: "C++", "Monte Carlo Simulation". Example: "Black-Scholes formula". Avoid umbrella skills: "pandas fundamentals"',
-    'Prerequisites array: Specific technical concepts the user should know. Example: "Matrix Multiplication", "Threading". No umbrella prerequisites: "C++ basics"',
-    'Milestones: EXACTLY 5 in this order and with these names — Introduction; Setup; Core Feature; Measure & Optimize; Conclusion.',
-    'Each milestone must include: (a) objective (≤1 sentence) and (b) 2–3 success_metrics that are observable and testable (true/false style or concrete checks).',
-    'Milestone semantics:',
-    ' - Introduction: check knowledge of prerequisites. teach user if necessary. make sure all prerequisites are understood before continuing',
-    ' - Setup: toolchain, repo, libraries. then give high level overview of what we will build. teach any new concepts before continuing.',
-    ' - Core Feature: implement the single feature end-to-end. make sure concepts are understood and feature is built before continuing.',
-    ' - Measure & Optimize: instrument ONE metric, apply ONE optimization, and report before/after.',
-    ' - Conclusion: summarize concrete skills learned and include a measurable results sentence: "Increased <metric> by <Y>% via <Z>".',
+    'Skills array: specific technical concepts (1–5 words each). Include tech stack items (e.g., "C++", "Regex", "BPE").',
+    'Metadata: an ARRAY of sections. Each section MUST include:',
+    '  - name (string) and overview (paragraph).',
+    '  - Optional arrays: learning_materials, code_snippets (strings or {filename, code})',
+    '  - Optional what_and_how: array of { file, spec, how_to_implement[] } describing implementation steps/files.',
+    'No "prerequisites" key. No milestones.',
     'Output strictly valid JSON per the schema. No markdown, no extra keys, no explanations.'
   ].join('\n- ');
 
-  return [
-    guidance,
-    interestSection,
-    tagSection,
-    'Follow these additional rules:',
-    `- ${rules}`
-  ]
+  return [guidance, interestSection, tagSection, 'Follow these additional rules:', `- ${rules}`]
     .filter(Boolean)
     .join('\n\n');
 }
+
+/* ---------- OpenAI client ---------- */
 
 function createOpenAI() {
   const apiKey = OPENAI_API_KEY;
@@ -175,8 +207,12 @@ function createOpenAI() {
   return new OpenAI({ apiKey });
 }
 
+/* ---------- Generation ---------- */
+
 async function generateProjectWithOpenAI(input: { interests: string; tags: string[] }) {
+  // TEMP: short-circuit for local dev. Ensure FALLBACK_PROJECT matches the NEW schema.
   return { project: FALLBACK_PROJECT, source: 'generated' as const, errorMessage: null };
+
   const client = createOpenAI();
   if (!client) {
     return {
@@ -200,17 +236,19 @@ async function generateProjectWithOpenAI(input: { interests: string; tags: strin
     const output = response.output_text;
     if (!output) throw new Error('No content returned from model');
 
-    const parsed = JSON.parse(output) as Project;
-    if (!isProject(parsed)) throw new Error('Model response did not match expected schema');
+    const parsed = JSON.parse(output) as unknown;
 
-    return { project: parsed, source: 'generated' as const, errorMessage: null };
+    // If you have updated `$lib/types/project` to the new shape, you can swap in that guard.
+    if (!isNewProject(parsed)) throw new Error('Model response did not match expected schema');
+
+    return { project: parsed as NewProject, source: 'generated' as const, errorMessage: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return { project: FALLBACK_PROJECT, source: 'fallback' as const, errorMessage: message };
   }
 }
 
-/* --------------------------------- Handler --------------------------------- */
+/* ---------- Handler ---------- */
 
 export const POST: RequestHandler = async ({ request }) => {
   // Parse input
@@ -232,9 +270,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const { project, source, errorMessage } = await generateProjectWithOpenAI({ interests, tags });
 
-  const headers: Record<string, string> = {
-    'x-vector-project-source': source
-  };
+  const headers: Record<string, string> = { 'x-vector-project-source': source };
   if (source === 'fallback' && errorMessage) {
     headers['x-vector-project-error'] = encodeURIComponent(errorMessage);
   }

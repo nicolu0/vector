@@ -526,11 +526,14 @@
 </script>
 
 <div class="flex h-full flex-col text-sm leading-6">
-	<div class="flex w-full flex-row py-2 pr-5 pl-1">
-		<div class="relative w-full">
+	<div class="flex w-full flex-row py-4 pr-5 pl-1">
+		<div class="relative flex w-full flex-row">
+			<div class="text-md w-full pl-1 text-start text-stone-600">
+				{selectedSection?.name}
+			</div>
 			<button
 				type="button"
-				class="flex w-full flex-row items-center justify-between rounded-xl border border-stone-200 bg-stone-50 p-2 text-center text-sm text-stone-600 transition focus:ring-2 focus:ring-black/5 focus:outline-none disabled:opacity-60"
+				class="text-md flex flex-row items-center text-stone-600 transition focus:outline-none disabled:opacity-60"
 				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
 				onclick={toggleSectionsDropdown}
 				bind:this={dropdownTrigger}
@@ -538,11 +541,31 @@
 				aria-expanded={sectionsDropdownOpen}
 				disabled={sections.length === 0}
 			>
-				<div class="w-4 text-left text-xs">-</div>
-				<div class="flex-1 px-2 text-center">
-					{selectedSection?.name}
-				</div>
-				<div class="w-4 text-right text-xs">{sectionsDropdownOpen ? '^' : 'v'}</div>
+				{#if sectionsDropdownOpen}
+					<!-- X icon -->
+					<svg
+						class="pointer-events-none inline-block h-4 w-4"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						aria-hidden="true"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18" />
+					</svg>
+				{:else}
+					<!-- Hamburger icon -->
+					<svg
+						class="pointer-events-none inline-block h-4 w-4"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						aria-hidden="true"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" />
+					</svg>
+				{/if}
 			</button>
 
 			{#if sectionsDropdownOpen}
@@ -575,7 +598,7 @@
 	</div>
 
 	<div
-		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto pr-5"
+		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto pr-5 pb-4"
 		bind:this={messagesContainer}
 	>
 		{#if project.metadata}
