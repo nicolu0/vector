@@ -523,6 +523,17 @@
 			window.removeEventListener('keydown', handleKeydown);
 		};
 	});
+
+	let completedFiles = $state<Record<string, boolean>>({});
+
+	function isDone(file: string) {
+		return !!completedFiles[file];
+	}
+	function toggleDone(file: string, e?: MouseEvent | KeyboardEvent) {
+		e?.preventDefault();
+		e?.stopPropagation();
+		completedFiles[file] = !completedFiles[file];
+	}
 </script>
 
 <div class="flex h-full flex-col text-sm leading-6">
@@ -539,7 +550,7 @@
 			</div>
 			<button
 				type="button"
-				class="text-md flex flex-row items-center px-2 text-stone-600 transition focus:outline-none disabled:opacity-60"
+				class="inline-grid h-6 w-6 place-items-center text-stone-600 hover:text-stone-900 focus:outline-none disabled:opacity-60"
 				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
 				onclick={toggleSectionsDropdown}
 				bind:this={dropdownTrigger}
@@ -547,31 +558,33 @@
 				aria-expanded={sectionsDropdownOpen}
 				disabled={sections.length === 0}
 			>
-				{#if sectionsDropdownOpen}
-					<!-- X icon -->
-					<svg
-						class="pointer-events-none inline-block h-4 w-4"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						aria-hidden="true"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18" />
-					</svg>
-				{:else}
-					<!-- Hamburger icon -->
-					<svg
-						class="pointer-events-none inline-block h-4 w-4"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						aria-hidden="true"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" />
-					</svg>
-				{/if}
+				<!-- Animated hamburger / close -->
+				<span class="relative inline-block h-4 w-3" aria-hidden="true">
+					<!-- top bar -->
+					<span
+						class="absolute top-1/2 right-0 left-0 block h-px rounded bg-current
+             transition-transform duration-200 ease-in-out"
+						class:-translate-y-[4px]={!sectionsDropdownOpen}
+						class:translate-y-0={sectionsDropdownOpen}
+						class:rotate-45={sectionsDropdownOpen}
+					/>
+					<!-- middle bar -->
+					<span
+						class="absolute top-1/2 right-0 left-0 block h-px rounded bg-current
+             transition-all duration-200 ease-in-out"
+						class:opacity-0={sectionsDropdownOpen}
+						class:scale-x-0={sectionsDropdownOpen}
+						style="transform-origin:center"
+					/>
+					<!-- bottom bar -->
+					<span
+						class="absolute top-1/2 right-0 left-0 block h-px rounded bg-current
+             transition-transform duration-200 ease-in-out"
+						class:translate-y-[4px]={!sectionsDropdownOpen}
+						class:translate-y-0={sectionsDropdownOpen}
+						class:-rotate-45={sectionsDropdownOpen}
+					/>
+				</span>
 			</button>
 
 			{#if sectionsDropdownOpen}
@@ -634,8 +647,65 @@
 													<summary
 														class="flex w-full cursor-pointer items-center justify-between px-3 py-2 select-none"
 													>
-														<span class="font-medium break-words text-stone-800">{item.file}</span>
-														<!-- chevron -->
+														<div class="flex min-w-0 items-center gap-2">
+															<button
+																type="button"
+																class="group relative grid h-3 w-3 place-items-center rounded-full focus:outline-none
+           {isDone(item.file) ? 'bg-[#2D2D2D]' : ''}"
+																role="checkbox"
+																aria-checked={isDone(item.file)}
+																aria-label={isDone(item.file) ? 'Mark as not done' : 'Mark as done'}
+																onclick={(e) => toggleDone(item.file, e)}
+																onkeydown={(e) =>
+																	(e.key === ' ' || e.key === 'Enter') && toggleDone(item.file, e)}
+															>
+																{#if !isDone(item.file)}
+																	<!-- dashed ring (default) -->
+																	<span
+																		class="pointer-events-none absolute inset-0 scale-100 rounded-full border border-dashed
+               border-stone-400 opacity-100
+               transition-[opacity,transform] duration-200 ease-out
+               group-hover:scale-95 group-hover:opacity-0"
+																	/>
+																	<!-- solid ring (on hover) -->
+																	<span
+																		class="pointer-events-none absolute inset-0 scale-95 rounded-full border
+               border-stone-400 opacity-0
+               transition-[opacity,transform] duration-200 ease-out
+               group-hover:scale-100 group-hover:opacity-100"
+																	/>
+																{/if}
+
+																{#if isDone(item.file)}
+																	<!-- animated check -->
+																	<svg
+																		viewBox="0 0 24 24"
+																		class="h-3 w-3 text-stone-50"
+																		fill="none"
+																		aria-hidden="true"
+																	>
+																		<path
+																			d="M7 12.5 L10.25 15.75 L16.75 9.25"
+																			pathLength="0.5"
+																			class="check-path"
+																			stroke="currentColor"
+																			stroke-width="2"
+																			stroke-linecap="round"
+																			stroke-linejoin="round"
+																		/>
+																	</svg>
+																{/if}
+															</button>
+
+															<span
+																class="file-label strike-anim min-w-0 font-medium break-words
+           {isDone(item.file) ? 'done text-stone-400' : 'text-stone-800'}"
+															>
+																{item.file}
+															</span>
+														</div>
+
+														<!-- Right: chevron -->
 														<svg
 															class="ml-2 h-3.5 w-3.5 shrink-0 text-stone-500 transition-transform duration-200 group-open:rotate-90"
 															viewBox="0 0 20 20"
@@ -650,7 +720,7 @@
 														</svg>
 													</summary>
 
-													<!-- expanded content -->
+													<!-- Expanded content -->
 													<div class="space-y-2 px-3 pt-1 pb-3 text-stone-700">
 														{#if item.spec}
 															<div class="break-words">
@@ -764,5 +834,85 @@
 	}
 	:global(.project-chat-scroll)::after {
 		transition: opacity 220ms ease;
+	}
+	/* Animated checkmark (from your waitlist button) */
+	.check-svg {
+		position: relative;
+		transform: translateY(-1px); /* tiny optical nudge to match your button */
+	}
+
+	.check-path {
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		fill: none;
+		stroke-dasharray: 1;
+		stroke-dashoffset: 1;
+		animation:
+			draw-check 420ms ease-out forwards,
+			erase-check 320ms ease-in 1020ms forwards;
+	}
+
+	@keyframes draw-check {
+		to {
+			stroke-dashoffset: 0;
+		}
+	}
+
+	/* Reduced motion */
+	@media (prefers-reduced-motion: reduce) {
+		.check-path {
+			animation: none;
+			stroke-dashoffset: 0;
+		}
+		.check-tip-dot {
+			animation: none;
+			opacity: 0;
+			transform: scale(0);
+		}
+	}
+
+	/* Base: inline element with an animatable strike line */
+	.strike-anim {
+		position: relative;
+		display: inline-block; /* so the ::after width matches the text */
+		transition: color 220ms ease 0ms; /* color fades after 500ms delay */
+	}
+
+	/* The “strike” line */
+	.strike-anim::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 50%;
+		height: 1.5px;
+		background: currentColor;
+		transform: scaleX(0);
+		transform-origin: left center;
+		transition: transform 220ms ease 0ms; /* draw after 500ms delay */
+		pointer-events: none;
+	}
+
+	/* When marked done: draw the line (with the 500ms delay above) */
+	.strike-anim.done::after {
+		transform: scaleX(1);
+	}
+
+	/* When toggling back to not-done: remove delay so it clears immediately */
+	.strike-anim:not(.done) {
+		transition-delay: 0ms;
+	}
+	.strike-anim:not(.done)::after {
+		transition-delay: 0ms;
+	}
+
+	/* Reduce-motion users: no animation, just show/hide */
+	@media (prefers-reduced-motion: reduce) {
+		.strike-anim,
+		.strike-anim::after {
+			transition: none !important;
+		}
 	}
 </style>
