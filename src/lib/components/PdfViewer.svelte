@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
 
-	// PROPS
 	const {
 		src,
 		filename = 'Document.pdf',
