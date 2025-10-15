@@ -1,13 +1,40 @@
 import { get, writable } from 'svelte/store';
 import { supabase } from '$lib/supabaseClient';
 import { normalizeProjectStatusValue } from '$lib/utils/projectStatus';
-import type { Project } from '$lib/types/project';
 
 export type StoredProject = Project & {
 	id: string;
 	created_at: string | null;
 	status: string | null;
 };
+
+
+export type Section = {
+	name: string;
+	overview: string;
+	required_skills?: string[];
+	what_and_how?: string[];
+	learning_materials?: string[];
+	code_snippets?: string[];
+	python_functions?: string[];
+};
+
+export type Metadata = Section[]; // <-- NEW (was an object before)
+
+export type Project = {
+	id?: string;
+	title: string;
+	difficulty: string | null;
+	timeline: string | null;
+	description: string | null;
+	jobs: { title: string; url: string }[];
+	skills: string[];
+	prerequisites: string[];
+	metadata: Metadata; // array now
+	status?: string | null;
+	created_at?: string | null;
+};
+
 
 export type DashboardProjectsState = {
 	status: 'idle' | 'loading' | 'refreshing' | 'loaded' | 'error';
@@ -36,6 +63,32 @@ let inFlight: Promise<StoredProject[] | null> | null = null;
 function isCacheFresh(state: DashboardProjectsState) {
 	if (!state.lastLoadedAt) return false;
 	return Date.now() - state.lastLoadedAt < CACHE_TTL;
+}
+
+function ensureStringArray(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value.filter((item): item is string => typeof item === 'string');
+}
+
+function sanitizeJobs(value: unknown): Project['jobs'] {
+	if (!Array.isArray(value)) return [];
+	return value
+		.map((item) => {
+			if (!item || typeof item !== 'object') return null;
+			const { title, url } = item as Record<string, unknown>;
+			if (typeof title !== 'string' || typeof url !== 'string') return null;
+			return { title, url };
+		})
+		.filter(Boolean) as Project['jobs'];
+}
+
+/**
+ * New metadata schema: array (sections or other items).
+ * We accept arrays and pass through JSON-serializable items as-is.
+ * Non-arrays become [].
+ */
+function sanitizeMetadata(value: unknown): Project['metadata'] {
+	return Array.isArray(value) ? (value as Project['metadata']) : ([] as Project['metadata']);
 }
 
 async function load(options?: { force?: boolean }) {
@@ -85,17 +138,24 @@ async function load(options?: { force?: boolean }) {
 
 			const { data, error } = await supabase
 				.from('projects')
-				.select('id, title, difficulty, timeline, description, jobs, skills, status, created_at')
+				.select(
+					'id, title, difficulty, timeline, description, jobs, skills, prerequisites, metadata, status, created_at'
+				)
 				.eq('user_id', session.user.id)
 				.order('created_at', { ascending: false });
 
 			if (error) throw error;
 
 			const projects = (data ?? []).map((project) => {
-				const typed = project as StoredProject;
+				const typed = project as Partial<StoredProject>;
+
 				return {
 					...typed,
-					status: normalizeProjectStatusValue(typed.status)
+					jobs: sanitizeJobs(typed.jobs),
+					skills: ensureStringArray(typed.skills),
+					prerequisites: ensureStringArray(typed.prerequisites),
+					metadata: sanitizeMetadata(typed.metadata),
+					status: normalizeProjectStatusValue(typed.status ?? null)
 				};
 			}) as StoredProject[];
 
@@ -110,8 +170,7 @@ async function load(options?: { force?: boolean }) {
 
 			return projects;
 		} catch (err) {
-			const message =
-				err instanceof Error ? err.message : 'Unable to load projects right now.';
+			const message = err instanceof Error ? err.message : 'Unable to load projects right now.';
 
 			store.update((value) => {
 				const hasProjects = value.projects.length > 0;

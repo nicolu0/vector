@@ -6,13 +6,6 @@ import {
 import type { RequestHandler } from './$types';
 import { isProject, type Project } from '$lib/types/project';
 import sampleProject from '$lib/mock/project.sample.json';
-import { createSupabaseServerClient } from '$lib/server/supabase';
-
-const REQUIRE_AUTH = false;
-const REQUIRE_CREDITS = false;
-const INITIAL_CREDITS = Number.isFinite(Number(1))
-  ? Number(1)
-  : 1;
 
 const FALLBACK_PROJECT = sampleProject as Project;
 
@@ -23,13 +16,22 @@ const PROJECT_SCHEMA = {
   schema: {
     type: 'object',
     additionalProperties: false,
-    required: ['title', 'difficulty', 'timeline', 'description', 'jobs', 'skills'],
+    required: [
+      'title',
+      'difficulty',
+      'timeline',
+      'description',
+      'jobs',
+      'skills',
+      'prerequisites',
+      'metadata'
+    ],
     properties: {
       title: {
         type: 'string',
         minLength: 4,
         maxLength: 64,
-        pattern: '^[A-Za-z0-9-]+(?:\\s+[A-Za-z0-9-]+){0,3}$'
+        pattern: '^[A-Za-z0-9+\\-]+(?:\\s+[A-Za-z0-9+\\-]+){0,3}$'
       },
       difficulty: {
         type: 'string',
@@ -58,13 +60,63 @@ const PROJECT_SCHEMA = {
       },
       skills: {
         type: 'array',
-        minItems: 4,
+        minItems: 3,
         maxItems: 12,
         items: {
           type: 'string',
           minLength: 2,
           maxLength: 40,
-          pattern: '^[A-Za-z0-9][A-Za-z0-9\\-/ ]{0,39}$'
+          pattern: '^[A-Za-z0-9][A-Za-z0-9+\\-/ ]{0,50}$'
+        }
+      },
+      prerequisites: {
+        type: 'array',
+        minItems: 3,
+        maxItems: 12,
+        items: {
+          type: 'string',
+          minLength: 2,
+          maxLength: 80,
+          pattern: '^[A-Za-z0-9][A-Za-z0-9+\\-/ ]{0,50}$'
+        }
+      },
+      metadata: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['milestones'],
+        properties: {
+          milestones: {
+            type: 'array',
+            minItems: 3,
+            maxItems: 6,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['name', 'objective', 'success_metrics'],
+              properties: {
+                name: {
+                  type: 'string',
+                  minLength: 3,
+                  maxLength: 80
+                },
+                objective: {
+                  type: 'string',
+                  minLength: 12,
+                  maxLength: 240
+                },
+                success_metrics: {
+                  type: 'array',
+                  minItems: 2,
+                  maxItems: 3,
+                  items: {
+                    type: 'string',
+                    minLength: 8,
+                    maxLength: 160
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -73,34 +125,45 @@ const PROJECT_SCHEMA = {
 } as const;
 
 function buildPrompt({ interests, tags }: { interests: string; tags: string[] }) {
-  const focus = interests ? interests.trim() : '';
-  const tagList = tags.filter(Boolean);
+  const focus = (interests ?? '').trim();
+  const tagList = (tags ?? []).filter(Boolean);
 
   const interestSection = focus ? `Primary interests or goals:\n${focus}\n` : '';
   const tagSection = tagList.length
-    ? `Key focus tags:\n${tagList.map((tag) => `- ${tag}`).join('\n')}\n`
+    ? `Key focus tags:\n${tagList.map((t) => `- ${t}`).join('\n')}\n`
     : '';
 
   const guidance =
-    `Generate a single standout technical project tailored to the candidate. ` +
-    `Align it closely with the interests, highlight relevant industry context, and ensure it feels ` +
-    `practical to execute within 4-8 weeks. Include concrete deliverables, measurable outcomes, and ` +
-    `references to real-world tools or datasets when possible.`;
+    [
+      'Generate ONE standout technical project tailored to the candidate.',
+      'Quality bars: concrete deliverables, measurable outcomes, and realistic tools/datasets.',
+    ].join(' ');
+
+  const rules = [
+    'Title: ≤4 words, descriptive technical terms only.',
+    'Difficulty: one of Easy, Medium, Hard, Expert.',
+    'Timeline: short estimate like "1-2 weeks". (Weeks or months only.)',
+    'Description: a concise high level overview (3-5 sentences) that does NOT mention timeframes or duration.',
+    'Jobs: 1–6 realistic job titles with best-guess URLs if unknown.',
+    'Skills array: Specific technical concepts described in 1-5 words. At least one should be the tech stack: "C++", "Monte Carlo Simulation". Example: "Black-Scholes formula". Avoid umbrella skills: "pandas fundamentals"',
+    'Prerequisites array: Specific technical concepts the user should know. Example: "Matrix Multiplication", "Threading". No umbrella prerequisites: "C++ basics"',
+    'Milestones: EXACTLY 5 in this order and with these names — Introduction; Setup; Core Feature; Measure & Optimize; Conclusion.',
+    'Each milestone must include: (a) objective (≤1 sentence) and (b) 2–3 success_metrics that are observable and testable (true/false style or concrete checks).',
+    'Milestone semantics:',
+    ' - Introduction: check knowledge of prerequisites. teach user if necessary. make sure all prerequisites are understood before continuing',
+    ' - Setup: toolchain, repo, libraries. then give high level overview of what we will build. teach any new concepts before continuing.',
+    ' - Core Feature: implement the single feature end-to-end. make sure concepts are understood and feature is built before continuing.',
+    ' - Measure & Optimize: instrument ONE metric, apply ONE optimization, and report before/after.',
+    ' - Conclusion: summarize concrete skills learned and include a measurable results sentence: "Increased <metric> by <Y>% via <Z>".',
+    'Output strictly valid JSON per the schema. No markdown, no extra keys, no explanations.'
+  ].join('\n- ');
 
   return [
     guidance,
     interestSection,
     tagSection,
     'Follow these additional rules:',
-    '- Title must be four words or fewer, composed only of descriptive technical terms (letters, numbers, hyphen). No branding, marketing, or suffixes.',
-    '- Title must be four words or fewer. Keep it punchy and branded.',
-    '- Difficulty must be one of: Easy, Medium, Hard, Expert.',
-    '- Timeline must be a short estimate like "4-6 weeks" or "2 months". Do not exceed four words.',
-    '- Jobs array should list real or plausible job titles. Provide the best guess URLs if unknown.',
-    '- Skills list should cover technologies, methodologies, or frameworks needed.',
-    '- Skills must be concise (≤40 chars), alphanumeric with optional spaces, hyphen, or slash. Avoid punctuation like colons or parentheses.',
-    '- Description should read like a concise brief (3-5 sentences) and must NOT mention timeframes or duration.',
-    '- Do not include markdown, commentary, or explanations outside of the JSON response.'
+    `- ${rules}`
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -147,133 +210,9 @@ async function generateProjectWithOpenAI(input: { interests: string; tags: strin
   }
 }
 
-/* --------------------------- Auth/Credits gate --------------------------- */
-
-type GateOk = {
-  ok: true;
-  userId: string | null; // null when auth not required
-  credits: number | null; // null when credits not required
-  supabase: ReturnType<typeof createSupabaseServerClient>;
-  deductOne: () => Promise<number | null>; // returns remaining credits or null when not enforced
-};
-
-type GateBlocked = { ok: false; response: Response };
-
-async function gateUserAndCredits(cookies): Promise<GateOk | GateBlocked> {
-  const supabase = createSupabaseServerClient(cookies);
-
-  // If we don't require auth, we still instantiate supabase for DB access,
-  // but we won't check user or credits.
-  if (!REQUIRE_AUTH && !REQUIRE_CREDITS) {
-    return {
-      ok: true,
-      userId: null,
-      credits: null,
-      supabase,
-      deductOne: async () => null
-    };
-  }
-
-  // Auth check (if required)
-  const {
-    data: { user },
-    error: userError
-  } = await supabase.auth.getUser();
-
-  if (REQUIRE_AUTH && (userError || !user?.id)) {
-    return {
-      ok: false,
-      response: json(
-        { message: 'Sign in to claim your free project credit (0 / 1 credits).' },
-        { status: 401 }
-      )
-    };
-  }
-
-  const userId = user?.id ?? null;
-
-  // Credits check (if required)
-  if (!REQUIRE_CREDITS) {
-    return {
-      ok: true,
-      userId,
-      credits: null,
-      supabase,
-      deductOne: async () => null
-    };
-  }
-
-  // Fetch or provision credits
-  const { data: row, error: fetchErr } = await supabase
-    .from('users')
-    .select('credits')
-    .eq('user_id', userId!)
-    .maybeSingle();
-
-  if (fetchErr) {
-    console.error('Failed to fetch user credits', fetchErr);
-    return { ok: false, response: error(500, 'Unable to check credits') as unknown as Response };
-  }
-
-  let credits = typeof row?.credits === 'number' ? row.credits : null;
-
-  // Provision row if missing
-  if (row === null) {
-    const { data: inserted, error: insertErr } = await supabase
-      .from('users')
-      .insert({ user_id: userId, credits: INITIAL_CREDITS })
-      .select('credits')
-      .single();
-
-    if (insertErr) {
-      if ((insertErr as any).code === '23505') {
-        const { data: existing } = await supabase
-          .from('users')
-          .select('credits')
-          .eq('user_id', userId!)
-          .single();
-        credits = existing?.credits ?? 0;
-      } else {
-        console.error('Failed to provision initial credits', insertErr);
-        return { ok: false, response: error(500, 'Unable to prepare credits') as unknown as Response };
-      }
-    } else {
-      credits = inserted?.credits ?? 0;
-    }
-  }
-
-  if (!credits || credits <= 0) {
-    return {
-      ok: false,
-      response: json(
-        { message: 'You are out of credits. Visit your profile to review your balance.' },
-        { status: 402 }
-      )
-    };
-  }
-
-  // Provide a deduct function to call only on success
-  const deductOne = async () => {
-    const { data: updated, error: updateErr } = await supabase
-      .from('users')
-      .update({ credits: credits! - 1 })
-      .eq('user_id', userId!)
-      .select('credits')
-      .single();
-
-    if (updateErr) {
-      console.error('Failed to deduct credit', updateErr);
-      return (credits! - 1); // best-effort local math
-    }
-    return typeof updated?.credits === 'number' ? updated.credits : credits! - 1;
-  };
-
-  return { ok: true, userId, credits, supabase, deductOne };
-}
-
 /* --------------------------------- Handler --------------------------------- */
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async ({ request }) => {
   // Parse input
   let payload: { interests?: unknown; tags?: unknown };
   try {
@@ -291,26 +230,11 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     throw error(400, 'Provide interests or tags to generate a project');
   }
 
-  // const gate = await gateUserAndCredits(cookies);
-  // if (!gate.ok) return gate.response;
-
   const { project, source, errorMessage } = await generateProjectWithOpenAI({ interests, tags });
-
-  // let remainingCreditsHeader: string | undefined;
-  // if (REQUIRE_CREDITS) {
-  //   const remaining = await gate.deductOne();
-  //   if (typeof remaining === 'number') {
-  //     remainingCreditsHeader = String(Math.max(remaining, 0));
-  //   }
-  // } else if (gate.credits != null) {
-  //   // If we had a number (rare when REQUIRE_CREDITS=false), send what we saw
-  //   remainingCreditsHeader = String(gate.credits);
-  // }
 
   const headers: Record<string, string> = {
     'x-vector-project-source': source
   };
-  // if (remainingCreditsHeader) headers['x-vector-user-credits'] = remainingCreditsHeader;
   if (source === 'fallback' && errorMessage) {
     headers['x-vector-project-error'] = encodeURIComponent(errorMessage);
   }

@@ -2,7 +2,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { onDestroy, onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import { difficultyBadgeClasses } from '$lib/styles/difficulty';
+	import type { Difficulty } from '$lib/types/project';
 	import { fly } from 'svelte/transition';
 	import ProjectDetail from '$lib/components/ProjectDetail.svelte';
 	import ProjectChat from '$lib/components/ProjectChat.svelte';
@@ -11,6 +11,20 @@
 	import { hasVisitedRoute, markRouteVisited } from '$lib/stores/pageVisits';
 	import { formatProjectStatus, projectStatusClasses } from '$lib/utils/projectStatus';
 
+	function difficultyBadgeClasses(level: Difficulty): string {
+		switch (level) {
+			case 'Easy':
+				return 'border-emerald-200 bg-emerald-50 text-emerald-600';
+			case 'Medium':
+				return 'border-amber-200 bg-amber-50 text-amber-600';
+			case 'Hard':
+				return 'border-rose-200 bg-rose-50 text-rose-600';
+			case 'Expert':
+				return 'border-purple-200 bg-purple-50 text-purple-600';
+			default:
+				return 'border-stone-200 bg-stone-50 text-stone-600';
+		}
+	}
 	let dashboardState = $state<DashboardProjectsState>(dashboardProjects.getSnapshot());
 	let selectedProject = $state<StoredProject | null>(null);
 	type Conversation = {
@@ -234,7 +248,6 @@
 		if (scrollIdleTimer) clearTimeout(scrollIdleTimer);
 		scrollIdleTimer = window.setTimeout(() => {
 			thumbVisible = false;
-			console.log('TURNING OFF???');
 			updateScrollThumb();
 			scrollIdleTimer = null;
 		}, ms);
