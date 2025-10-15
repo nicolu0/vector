@@ -483,70 +483,6 @@
 	});
 
 	$effect(() => {
-		const id = conversationId;
-		if (!id) return;
-
-		if (!messagesLoading && messages.length > 0) {
-			void scrollToBottom();
-		}
-
-		// Seed initial mentor message if no history
-		if (!messagesLoading && messages.length === 0 && id && userId) {
-			const seed: MentorPacket = {
-				title: 'Assessment',
-				content: 'How experienced are you with Python?',
-				action: null
-			};
-			const seedContent = JSON.stringify(seed);
-			const optimisticId = `mentor-seed-${Date.now()}`;
-			const nextSeq = getNextSequence();
-
-			messages = [
-				...messages,
-				{
-					id: optimisticId,
-					conversation_id: id,
-					user_id: null,
-					content: seedContent,
-					sequence: nextSeq,
-					created_at: new Date().toISOString(),
-					role: 'mentor',
-					pending: true,
-					action: null
-				}
-			];
-
-			(async () => {
-				try {
-					const { data, error } = await supabase
-						.from('messages')
-						.insert([
-							{
-								conversation_id: id,
-								user_id: userId,
-								content: seedContent,
-								role: 'mentor',
-								sequence: nextSeq,
-								action: null
-							}
-						])
-						.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
-						.single();
-
-					if (!error && data) {
-						messages = messages.map((m) =>
-							m.id === optimisticId ? ({ ...data, pending: false } as ChatMessage) : m
-						);
-						void scrollToBottom();
-					}
-				} catch {
-					/* non-fatal */
-				}
-			})();
-		}
-	});
-
-	$effect(() => {
 		const lastId = messages.length ? messages[messages.length - 1]?.id : null;
 		const container = messagesContainer;
 		if (!container) return;
@@ -561,8 +497,6 @@
 		if (messages.length === 0) return;
 		maybeLockSpacer();
 	});
-
-	$inspect(selectedSection);
 
 	$effect(() => {
 		if (!sectionsDropdownOpen) return;
@@ -729,35 +663,6 @@
 			</div>
 		{/if}
 	</div>
-
-	<footer class="px-2 py-2 pb-5">
-		<form class="flex flex-col gap-2" onsubmit={handleSubmit} autocomplete="off">
-			<input
-				id="project-chat-input"
-				type="text"
-				autocomplete="off"
-				autocorrect="off"
-				autocapitalize="off"
-				spellcheck="false"
-				placeholder="Ask anything"
-				bind:value={inputValue}
-				class="w-full flex-1 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 transition outline-none focus:border-stone-300 focus:ring-2 focus:ring-black/5"
-				disabled={!conversationId ||
-					!userId ||
-					loading ||
-					messagesLoading ||
-					sendInFlight ||
-					mentorInFlight}
-			/>
-			{#if !userId}
-				<p class="text-[10px] text-stone-400">Sign in to send messages.</p>
-			{:else if sendError}
-				<p class="text-[10px] text-rose-600">{sendError}</p>
-			{:else if mentorError}
-				<p class="text-[10px] text-amber-600">{mentorError}</p>
-			{/if}
-		</form>
-	</footer>
 </div>
 
 <style>
