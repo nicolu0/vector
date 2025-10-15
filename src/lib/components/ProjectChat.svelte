@@ -528,12 +528,18 @@
 <div class="flex h-full flex-col text-sm leading-6">
 	<div class="flex w-full flex-row py-4 pr-5 pl-1">
 		<div class="relative flex w-full flex-row">
-			<div class="text-md w-full pl-1 text-start text-stone-600">
-				{selectedSection?.name}
+			<div class="relative w-full rounded-xl pl-1 text-start text-stone-600">
+				<span class="block overflow-hidden pr-8 whitespace-nowrap">
+					{selectedSection?.name}
+				</span>
+				<span
+					aria-hidden="true"
+					class="pointer-events-none absolute top-0 right-0 h-full w-10 bg-gradient-to-l from-stone-100 to-transparent"
+				/>
 			</div>
 			<button
 				type="button"
-				class="text-md flex flex-row items-center text-stone-600 transition focus:outline-none disabled:opacity-60"
+				class="text-md flex flex-row items-center px-2 text-stone-600 transition focus:outline-none disabled:opacity-60"
 				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
 				onclick={toggleSectionsDropdown}
 				bind:this={dropdownTrigger}
