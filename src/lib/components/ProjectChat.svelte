@@ -575,11 +575,9 @@
 					/>
 					<!-- middle bar -->
 					<span
-						class="absolute top-1/2 right-0 left-0 block h-px rounded bg-current
-             transition-all duration-200 ease-in-out"
-						class:opacity-0={sectionsDropdownOpen}
-						class:scale-x-0={sectionsDropdownOpen}
-						style="transform-origin:center"
+						class="absolute top-1/2 right-0 left-0 block h-px origin-center rounded-full bg-current
+             transition-transform duration-200 ease-in-out"
+						style:transform={`scaleX(${sectionsDropdownOpen ? 0.08 : 1})`}
 					/>
 					<!-- bottom bar -->
 					<span
