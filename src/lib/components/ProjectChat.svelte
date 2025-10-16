@@ -728,7 +728,7 @@
 
 														{#if item.how_to_implement?.length}
 															<div class="space-y-1">
-																<div class="text-stone-700">How to implement</div>
+																<div class="font-semibold text-stone-700">How to implement</div>
 																<ul class="list-disc space-y-1 pl-5">
 																	{#each item.how_to_implement as imp}
 																		<li class="break-words text-stone-700/90">{imp}</li>
