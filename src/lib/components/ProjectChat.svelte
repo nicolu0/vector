@@ -211,6 +211,40 @@
 		totalDeliverables === 0 || completedDeliverables >= totalDeliverables
 	);
 
+	let loadingFiles = $state<Record<string, boolean>>({});
+	let completingFiles = $state<Record<string, boolean>>({});
+
+	function isLoading(file: string) {
+		return !!loadingFiles[file];
+	}
+	function isCompleting(file: string) {
+		return !!completingFiles[file];
+	}
+
+	async function markDoneAsync(file: string, e?: MouseEvent | KeyboardEvent) {
+		e?.preventDefault();
+		e?.stopPropagation();
+		if (isDone(file) || isLoading(file) || isCompleting(file)) return;
+
+		loadingFiles[file] = true;
+		try {
+			// your real API call here
+			await new Promise((r) => setTimeout(r, 1200));
+
+			// final spin → fill ring
+			loadingFiles[file] = false;
+			completingFiles[file] = true;
+
+			// let the complete animation play before we “lock in” done
+			await new Promise((r) => setTimeout(r, 350));
+
+			completedFiles[file] = true;
+		} finally {
+			loadingFiles[file] = false;
+			completingFiles[file] = false;
+		}
+	}
+
 	$effect(() => {
 		const el = messagesContainer;
 		if (!el) return;
@@ -400,33 +434,100 @@
 															<button
 																type="button"
 																class="group relative grid h-3 w-3 place-items-center rounded-full focus:outline-none
-           {isDone(item.file) ? 'bg-[#2D2D2D]' : ''}"
+    {isDone(item.file) ? 'bg-stone-900' : ''}"
 																role="checkbox"
 																aria-checked={isDone(item.file)}
-																aria-label={isDone(item.file) ? 'Mark as not done' : 'Mark as done'}
-																onclick={(e) => toggleDone(item.file, e)}
-																onkeydown={(e) =>
-																	(e.key === ' ' || e.key === 'Enter') && toggleDone(item.file, e)}
+																aria-label={isLoading(item.file)
+																	? 'Marking as done…'
+																	: isDone(item.file)
+																		? 'Mark as not done'
+																		: 'Mark as done'}
+																title={isLoading(item.file)
+																	? 'Marking as done…'
+																	: isDone(item.file)
+																		? 'Mark as not done'
+																		: 'Mark as done'}
+																onclick={(e) => {
+																	if (isLoading(item.file)) return;
+																	if (isDone(item.file)) toggleDone(item.file, e);
+																	else markDoneAsync(item.file, e);
+																}}
+																disabled={isLoading(item.file)}
 															>
-																{#if !isDone(item.file)}
-																	<!-- dashed ring (default) -->
-																	<span
-																		class="pointer-events-none absolute inset-0 scale-100 rounded-full border border-dashed
-               border-stone-400 opacity-100
-               transition-[opacity,transform] duration-200 ease-out
-               group-hover:scale-95 group-hover:opacity-0"
-																	/>
-																	<!-- solid ring (on hover) -->
-																	<span
-																		class="pointer-events-none absolute inset-0 scale-95 rounded-full border
-               border-stone-400 opacity-0
-               transition-[opacity,transform] duration-200 ease-out
-               group-hover:scale-100 group-hover:opacity-100"
-																	/>
-																{/if}
-
-																{#if isDone(item.file)}
-																	<!-- animated check -->
+																{#if isLoading(item.file)}
+																	<!-- Normal spinner (arc rotating) -->
+																	<svg
+																		class="absolute inset-0 h-3 w-3"
+																		viewBox="0 0 12 12"
+																		fill="none"
+																		aria-hidden="true"
+																	>
+																		<!-- faint base ring -->
+																		<circle
+																			cx="6"
+																			cy="6"
+																			r="5.3"
+																			class="text-stone-300 opacity-80"
+																			stroke="currentColor"
+																			stroke-width="0.8"
+																			vector-effect="non-scaling-stroke"
+																		/>
+																		<!-- rotating arc -->
+																		<g class="spinner-rot">
+																			<circle
+																				cx="6"
+																				cy="6"
+																				r="5.3"
+																				class="spinner-arc text-stone-600"
+																				stroke="currentColor"
+																				stroke-width="0.8"
+																				fill="none"
+																				stroke-linecap="round"
+																				vector-effect="non-scaling-stroke"
+																			/>
+																		</g>
+																	</svg>
+																{:else if isCompleting(item.file)}
+																	<!-- Finalization: arc grows to full ring, then circle fills -->
+																	<svg
+																		class="absolute inset-0 h-3 w-3"
+																		viewBox="0 0 12 12"
+																		fill="none"
+																		aria-hidden="true"
+																	>
+																		<!-- faint base ring -->
+																		<circle
+																			cx="6"
+																			cy="6"
+																			r="5.3"
+																			class="text-stone-300 opacity-80"
+																			stroke="currentColor"
+																			stroke-width="0.8"
+																			vector-effect="non-scaling-stroke"
+																		/>
+																		<!-- dash grows to full length (no rotation now) -->
+																		<circle
+																			cx="6"
+																			cy="6"
+																			r="5.3"
+																			class="ring-complete text-stone-900"
+																			stroke="currentColor"
+																			stroke-width="0.8"
+																			fill="none"
+																			stroke-linecap="round"
+																			vector-effect="non-scaling-stroke"
+																		/>
+																		<!-- quick fill pop -->
+																		<circle
+																			cx="6"
+																			cy="6"
+																			r="5.3"
+																			class="fill-pop text-stone-900"
+																			fill="currentColor"
+																		/>
+																	</svg>
+																{:else if isDone(item.file)}
+																	<!-- your existing check -->
 																	<svg
 																		viewBox="0 0 24 24"
 																		class="h-3 w-3 text-stone-50"
@@ -443,6 +544,14 @@
 																			stroke-linejoin="round"
 																		/>
 																	</svg>
+																{:else}
+																	<!-- idle rings (unchanged except 1px to match spinner thickness) -->
+																	<span
+																		class="pointer-events-none absolute inset-0 scale-95 rounded-full border border-[1px] border-dashed border-stone-400 opacity-100 transition-[opacity,transform] duration-200 ease-out group-hover:scale-95 group-hover:opacity-0"
+																	/>
+																	<span
+																		class="pointer-events-none absolute inset-0 scale-95 rounded-full border border-[1px] border-stone-400 opacity-0 transition-[opacity,transform] duration-200 ease-out group-hover:scale-95 group-hover:opacity-100"
+																	/>
 																{/if}
 															</button>
 
@@ -454,19 +563,47 @@
 															</span>
 														</div>
 
-														<!-- Right: chevron -->
-														<svg
-															class="ml-2 h-3.5 w-3.5 shrink-0 text-stone-500 transition-transform duration-200 group-open:rotate-90"
-															viewBox="0 0 20 20"
-															fill="currentColor"
-															aria-hidden="true"
-														>
-															<path
-																fill-rule="evenodd"
-																d="M6.22 7.22a.75.75 0 0 1 1.06 0L10 9.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L6.22 8.28a.75.75 0 0 1 0-1.06z"
-																clip-rule="evenodd"
-															/>
-														</svg>
+														<div class="flex flex-row items-center justify-center gap-2">
+															<span
+																class="file-label sheen relative inline-flex min-w-0 items-center gap-1.5 self-end text-[10px] text-stone-500"
+																aria-live="polite"
+															>
+																<span>Syncing</span>
+																<!-- GitHub mark -->
+																<svg
+																	class="h-3 w-3"
+																	viewBox="0 0 16 16"
+																	fill="currentColor"
+																	aria-hidden="true"
+																>
+																	<path
+																		d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38
+           0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+           -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
+           .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+           0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.11 0 0 .67-.21 2.2.82
+           .64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82
+           .44 1.1.16 1.91.08 2.11.51.56.82 1.27.82 2.15
+           0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48
+           0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8 8 0 0 0 16 8
+           c0-4.42-3.58-8-8-8z"
+																	/>
+																</svg>
+															</span>
+
+															<svg
+																class="ml-2 h-3.5 w-3.5 shrink-0 text-stone-500 transition-transform duration-200 group-open:rotate-90"
+																viewBox="0 0 20 20"
+																fill="currentColor"
+																aria-hidden="true"
+															>
+																<path
+																	fill-rule="evenodd"
+																	d="M6.22 7.22a.75.75 0 0 1 1.06 0L10 9.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L6.22 8.28a.75.75 0 0 1 0-1.06z"
+																	clip-rule="evenodd"
+																/>
+															</svg>
+														</div>
 													</summary>
 
 													<div class="space-y-2 px-3 pt-1 pb-3 text-stone-700">
@@ -721,6 +858,45 @@
 	@media (prefers-reduced-motion: reduce) {
 		.arrow-wiggle {
 			animation: none !important;
+		}
+	}
+	/* Shiny sheen that sweeps across the whole inline group */
+	.sheen {
+		position: relative;
+		overflow: hidden; /* contain the sweeping highlight */
+	}
+
+	.sheen::after {
+		content: '';
+		position: absolute;
+		inset: -6px 0; /* a bit taller to catch tiny icons/text */
+		pointer-events: none;
+		/* angled highlight band with soft edges */
+		background: linear-gradient(
+			110deg,
+			rgba(255, 255, 255, 0) 0%,
+			rgba(255, 255, 255, 0) 35%,
+			rgba(255, 255, 255, 0.55) 50%,
+			rgba(255, 255, 255, 0) 65%,
+			rgba(255, 255, 255, 0) 100%
+		);
+		transform: translateX(-150%);
+		animation: sheen-sweep 1.6s ease-in-out infinite;
+		mix-blend-mode: screen; /* lets the highlight “lift” both text and icon */
+		opacity: 0.9; /* tweak for subtlety on light UIs */
+	}
+
+	@keyframes sheen-sweep {
+		to {
+			transform: translateX(150%);
+		}
+	}
+
+	/* Respect reduced motion */
+	@media (prefers-reduced-motion: reduce) {
+		.sheen::after {
+			animation: none;
+			opacity: 0;
 		}
 	}
 </style>
