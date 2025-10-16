@@ -212,36 +212,26 @@
 	);
 
 	let loadingFiles = $state<Record<string, boolean>>({});
-	let completingFiles = $state<Record<string, boolean>>({});
 
 	function isLoading(file: string) {
 		return !!loadingFiles[file];
-	}
-	function isCompleting(file: string) {
-		return !!completingFiles[file];
 	}
 
 	async function markDoneAsync(file: string, e?: MouseEvent | KeyboardEvent) {
 		e?.preventDefault();
 		e?.stopPropagation();
-		if (isDone(file) || isLoading(file) || isCompleting(file)) return;
+		if (isDone(file) || isLoading(file)) return;
 
+		// start loading
 		loadingFiles[file] = true;
+
 		try {
-			// your real API call here
+			// TODO: replace with real API call
 			await new Promise((r) => setTimeout(r, 1200));
-
-			// final spin → fill ring
-			loadingFiles[file] = false;
-			completingFiles[file] = true;
-
-			// let the complete animation play before we “lock in” done
-			await new Promise((r) => setTimeout(r, 350));
-
+			// mark done
 			completedFiles[file] = true;
 		} finally {
 			loadingFiles[file] = false;
-			completingFiles[file] = false;
 		}
 	}
 
@@ -455,79 +445,37 @@
 																disabled={isLoading(item.file)}
 															>
 																{#if isLoading(item.file)}
-																	<!-- Normal spinner (arc rotating) -->
+																	<!-- EXACTLY sized spinner (matches 12×12 circle) -->
 																	<svg
-																		class="absolute inset-0 h-3 w-3"
+																		class="absolute inset-0 h-3 w-3 animate-spin"
 																		viewBox="0 0 12 12"
 																		fill="none"
 																		aria-hidden="true"
 																	>
-																		<!-- faint base ring -->
+																		<!-- full faint ring -->
 																		<circle
 																			cx="6"
 																			cy="6"
 																			r="5.3"
-																			class="text-stone-300 opacity-80"
 																			stroke="currentColor"
 																			stroke-width="0.8"
+																			class="text-stone-400"
 																			vector-effect="non-scaling-stroke"
+																			style="shape-rendering: geometricPrecision;"
 																		/>
-																		<!-- rotating arc -->
-																		<g class="spinner-rot">
-																			<circle
-																				cx="6"
-																				cy="6"
-																				r="5.3"
-																				class="spinner-arc text-stone-600"
-																				stroke="currentColor"
-																				stroke-width="0.8"
-																				fill="none"
-																				stroke-linecap="round"
-																				vector-effect="non-scaling-stroke"
-																			/>
-																		</g>
-																	</svg>
-																{:else if isCompleting(item.file)}
-																	<!-- Finalization: arc grows to full ring, then circle fills -->
-																	<svg
-																		class="absolute inset-0 h-3 w-3"
-																		viewBox="0 0 12 12"
-																		fill="none"
-																		aria-hidden="true"
-																	>
-																		<!-- faint base ring -->
-																		<circle
-																			cx="6"
-																			cy="6"
-																			r="5.3"
-																			class="text-stone-300 opacity-80"
+																		<!-- top-right arc -->
+																		<path
+																			d="M6 0.75 A5.25 5.25 0 0 1 11.25 6"
 																			stroke="currentColor"
 																			stroke-width="0.8"
-																			vector-effect="non-scaling-stroke"
-																		/>
-																		<!-- dash grows to full length (no rotation now) -->
-																		<circle
-																			cx="6"
-																			cy="6"
-																			r="5.3"
-																			class="ring-complete text-stone-900"
-																			stroke="currentColor"
-																			stroke-width="0.8"
-																			fill="none"
 																			stroke-linecap="round"
+																			fill="none"
+																			class="text-stone-900 opacity-90"
 																			vector-effect="non-scaling-stroke"
-																		/>
-																		<!-- quick fill pop -->
-																		<circle
-																			cx="6"
-																			cy="6"
-																			r="5.3"
-																			class="fill-pop text-stone-900"
-																			fill="currentColor"
+																			style="shape-rendering: geometricPrecision;"
 																		/>
 																	</svg>
 																{:else if isDone(item.file)}
-																	<!-- your existing check -->
 																	<svg
 																		viewBox="0 0 24 24"
 																		class="h-3 w-3 text-stone-50"
@@ -545,12 +493,17 @@
 																		/>
 																	</svg>
 																{:else}
-																	<!-- idle rings (unchanged except 1px to match spinner thickness) -->
+																	<!-- idle rings: make thickness match spinner -->
 																	<span
-																		class="pointer-events-none absolute inset-0 scale-95 rounded-full border border-[1px] border-dashed border-stone-400 opacity-100 transition-[opacity,transform] duration-200 ease-out group-hover:scale-95 group-hover:opacity-0"
+																		class="pointer-events-none absolute inset-0 scale-95 rounded-full border border-[1px]
+             border-dashed border-stone-400 opacity-100
+             transition-[opacity,transform] duration-200 ease-out
+             group-hover:scale-95 group-hover:opacity-0"
 																	/>
 																	<span
-																		class="pointer-events-none absolute inset-0 scale-95 rounded-full border border-[1px] border-stone-400 opacity-0 transition-[opacity,transform] duration-200 ease-out group-hover:scale-95 group-hover:opacity-100"
+																		class="pointer-events-none absolute inset-0 scale-95 rounded-full border border-[1px]
+             border-stone-400 opacity-0 transition-[opacity,transform] duration-200 ease-out
+             group-hover:scale-95 group-hover:opacity-100"
 																	/>
 																{/if}
 															</button>
