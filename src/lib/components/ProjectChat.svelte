@@ -550,7 +550,7 @@
 			</div>
 			<button
 				type="button"
-				class="inline-grid h-6 w-6 place-items-center text-stone-600 hover:text-stone-900 focus:outline-none disabled:opacity-60"
+				class="inline-grid h-6 w-6 place-items-center rounded-sm text-stone-600 transition hover:bg-stone-200/70 hover:text-stone-900 focus:outline-none disabled:opacity-60"
 				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
 				onclick={toggleSectionsDropdown}
 				bind:this={dropdownTrigger}
