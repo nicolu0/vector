@@ -5,6 +5,20 @@
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 	import type { StoredProject } from '$lib/stores/dashboardProjects';
 	import { tick } from 'svelte';
+	import Toast from '$lib/components/Toast.svelte';
+
+	type ToastTone = 'neutral' | 'success' | 'warning' | 'danger';
+	let toastOpen = $state(false);
+	let toastMessage = $state('');
+	let toastTone = $state<ToastTone>('neutral');
+
+	async function showToast(message: string, tone: ToastTone = 'neutral') {
+		toastMessage = message;
+		toastTone = tone;
+		toastOpen = false;
+		await tick();
+		toastOpen = true;
+	}
 
 	const { conversationId, projectId, project, userId, loading, errorMessage } = $props<{
 		conversationId: string | null;
@@ -48,21 +62,12 @@
 	const PERSISTENT_SPACER_HEIGHT = 160; // px
 
 	let messages = $state<ChatMessage[]>([]);
-	let messagesLoading = $state(false);
-	let messagesError = $state<string | null>(null);
-	let sendError = $state<string | null>(null);
-	let mentorError = $state<string | null>(null);
-	let inputValue = $state('');
-	let sendInFlight = $state(false);
-	let mentorInFlight = $state(false);
-	let messagesRequestId = 0;
 
 	let sections = $state<ProjectSection[]>(project.metadata);
 	let sectionsDropdownOpen = $state(false);
 	let dropdownTrigger = $state<HTMLButtonElement | null>(null);
 	let dropdownMenu = $state<HTMLDivElement | null>(null);
 	let selectedSection = $derived<ProjectSection | null>(sections[0]);
-	let lastProjectId = $state<string | null>(null);
 
 	// Scroll container + persistent reply spacer
 	let messagesContainer = $state<HTMLDivElement | null>(null);
@@ -95,192 +100,27 @@
 		const mentorCount = messages.filter((m) => m.role === 'mentor').length;
 		if (userCount >= 2 && mentorCount >= 1) lockSpacer();
 	}
-	async function scrollToBottom() {
+
+	let currentIndex = $derived(sections.findIndex((s) => s === selectedSection));
+
+	async function gotoSection(index: number) {
+		if (index < 0 || index >= sections.length) return;
+		selectSection(index);
 		await tick();
-		const el = messagesContainer;
-		if (!el) return;
-		el.scrollTop = el.scrollHeight;
-		updateScrollThumb();
-		recomputeSpacer();
-		if (spacerLocked) {
-			queueMicrotask(() => {
-				if (!messagesContainer) return;
-				messagesContainer.scrollTop = messagesContainer.scrollHeight;
-				updateScrollThumb();
-			});
-		}
-	}
-	function getNextSequence() {
-		return (
-			messages.reduce((max, m) => {
-				const v = typeof m.sequence === 'number' ? m.sequence : 0;
-				return v > max ? v : max;
-			}, 0) + 1
-		);
-	}
-
-	async function fetchMessages(id: string, requestId: number) {
-		try {
-			const { data, error } = await supabase
-				.from('messages')
-				.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
-				.eq('conversation_id', id)
-				.order('sequence', { ascending: true });
-			if (error) throw error;
-			if (requestId !== messagesRequestId) return;
-			messages = (data ?? []) as ChatMessage[];
-		} catch (err) {
-			if (requestId !== messagesRequestId) return;
-			messagesError = err instanceof Error ? err.message : 'Unable to load messages right now.';
-			messages = [];
-		} finally {
-			if (requestId === messagesRequestId) messagesLoading = false;
+		// Reset scroll to the top of the materials pane
+		if (messagesContainer) {
+			messagesContainer.scrollTop = 0;
+			updateScrollThumb();
 		}
 	}
 
-	async function sendMessage() {
-		if (!conversationId || !userId) return;
-		const trimmed = inputValue.trim();
-		if (!trimmed || sendInFlight) return;
-
-		const shouldUpdateStatus = messages.length === 0;
-		sendInFlight = true;
-		sendError = null;
-		mentorError = null;
-
-		const optimistic: ChatMessage = {
-			id: `pending-${Date.now()}`,
-			conversation_id: conversationId,
-			user_id: userId,
-			content: trimmed,
-			sequence: getNextSequence(),
-			created_at: new Date().toISOString(),
-			role: 'user',
-			pending: true,
-			action: null
-		};
-		messages = [...messages, optimistic];
-		inputValue = '';
-		recomputeSpacer();
-
-		try {
-			const { data, error } = await supabase
-				.from('messages')
-				.insert([
-					{
-						conversation_id: conversationId,
-						user_id: userId,
-						content: trimmed,
-						role: 'user',
-						sequence: optimistic.sequence,
-						action: null
-					}
-				])
-				.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
-				.single();
-			if (error) throw error;
-			if (!data) throw new Error('Message insert returned no data.');
-			messages = messages.map((m) =>
-				m.id === optimistic.id ? ({ ...data, pending: false } as ChatMessage) : m
-			);
-			if (shouldUpdateStatus && projectId) void updateProjectStatus(projectId);
-			if (project) void generateMentorResponse();
-		} catch (err) {
-			messages = messages.filter((m) => m.id !== optimistic.id);
-			sendError = err instanceof Error ? err.message : 'Unable to send message right now.';
-		} finally {
-			sendInFlight = false;
+	async function continueToNextSection() {
+		if (!allDeliverablesDone) {
+			await showToast('Complete all deliverables before continuing.', 'warning');
+			return;
 		}
-	}
-
-	async function updateProjectStatus(projectId: string) {
-		try {
-			const { error } = await supabase
-				.from('projects')
-				.update({ status: 'in_progress' })
-				.eq('id', projectId)
-				.in('status', ['not_started', 'not started', 'Not Started']);
-			if (error) throw error;
-			dashboardProjects.setProjectStatus(projectId, 'in_progress');
-		} catch (err) {
-			console.error('Failed to update project status', err);
-		}
-	}
-
-	/** New metadata schema: metadata is an array of “sections”. */
-	function sanitizeSections(value: unknown): ProjectSection[] {
-		if (!Array.isArray(value)) return [];
-		return value
-			.map((item) => {
-				if (!item || typeof item !== 'object') return null;
-				const o = item as Record<string, unknown>;
-				const name = typeof o.name === 'string' ? o.name : null;
-				const overview = typeof o.overview === 'string' ? o.overview : null;
-
-				// Optional arrays; coerce to string[]
-				const arr = (v: unknown) =>
-					Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
-
-				if (!name || !overview) return null;
-				return {
-					name,
-					overview,
-					required_skills: arr(o.required_skills),
-					learning_materials: arr(o.learning_materials),
-					code_snippets: arr(o.code_snippets),
-					python_functions: arr(o.python_functions)
-				};
-			})
-			.filter(Boolean) as ProjectSection[];
-	}
-
-	function buildProjectContextPayload(currentProject: StoredProject) {
-		const sections = sanitizeSections(currentProject.metadata);
-
-		return {
-			title: currentProject.title,
-			description: currentProject.description,
-			difficulty: currentProject.difficulty,
-			timeline: currentProject.timeline,
-			skills: currentProject.skills ?? [],
-			metadata: sections,
-			jobs: currentProject.jobs?.map((j) => ({ title: j.title, url: j.url })) ?? []
-		};
-	}
-
-	function normalizeMessageRole(m: ChatMessage) {
-		if (m.role === 'mentor' || m.role === 'user') return m.role;
-		return m.user_id === userId ? 'user' : 'mentor';
-	}
-
-	// Parse mentor JSON content into { title, content, action }
-	function parseMentorPacket(s: string): MentorPacket {
-		try {
-			const o = JSON.parse(String(s ?? '{}'));
-			return {
-				title: typeof o?.title === 'string' && o.title.trim() ? o.title : 'Mentor',
-				content: typeof o?.content === 'string' ? o.content : '',
-				action: o && typeof o.action === 'object' ? o.action : null
-			};
-		} catch {
-			return { title: 'Mentor', content: String(s ?? ''), action: null };
-		}
-	}
-
-	function areSectionsEqual(a: ProjectSection[], b: ProjectSection[]) {
-		if (a.length !== b.length) return false;
-		for (let i = 0; i < a.length; i += 1) {
-			const left = a[i];
-			const right = b[i];
-			if (!right) return false;
-			if (left.name !== right.name) return false;
-			if (left.overview !== right.overview) return false;
-		}
-		return true;
-	}
-
-	function getSectionElementId(index: number) {
-		return `project-section-${index}`;
+		if (currentIndex == null || currentIndex < 0) return;
+		gotoSection(currentIndex + 1);
 	}
 
 	function toggleSectionsDropdown() {
@@ -298,97 +138,6 @@
 		if (!section) return;
 		selectedSection = section;
 		closeSectionsDropdown();
-	}
-
-	async function generateMentorResponse() {
-		if (!project || !conversationId) return;
-
-		const payload = {
-			project: buildProjectContextPayload(project),
-			messages: messages
-				.filter((m) => !m.pending)
-				.map((m) => ({
-					role: normalizeMessageRole(m),
-					content: m.content
-				}))
-		};
-
-		if (payload.messages.length === 0) return;
-
-		mentorInFlight = true;
-		let optimisticMentor: ChatMessage | null = null;
-
-		try {
-			const response = await fetch('/api/mentor', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-
-			if (!response.ok) {
-				const { error } = (await response.json().catch(() => ({ error: 'Unknown error' }))) as {
-					error?: string;
-				};
-				throw new Error(error ?? 'Unable to generate mentor response.');
-			}
-
-			const result = (await response.json()) as MentorPacket;
-			if (!result?.content) throw new Error('Mentor response was empty.');
-
-			const contentJson = JSON.stringify({
-				title: result.title ?? 'Mentor',
-				content: result.content,
-				action: result.action ?? null
-			});
-
-			optimisticMentor = {
-				id: `mentor-pending-${Date.now()}`,
-				conversation_id: conversationId,
-				user_id: null,
-				content: contentJson,
-				sequence: getNextSequence(),
-				created_at: new Date().toISOString(),
-				role: 'mentor',
-				pending: true,
-				action: null
-			};
-
-			messages = [...messages, optimisticMentor];
-
-			const { data, error } = await supabase
-				.from('messages')
-				.insert([
-					{
-						conversation_id: conversationId,
-						user_id: userId,
-						content: contentJson,
-						role: 'mentor',
-						sequence: optimisticMentor.sequence,
-						action: null
-					}
-				])
-				.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
-				.single();
-
-			if (error) throw error;
-			if (!data) throw new Error('Mentor insert returned no data.');
-			messages = messages.map((m) =>
-				m.id === optimisticMentor?.id ? ({ ...data, pending: false } as ChatMessage) : m
-			);
-
-			recomputeSpacer();
-		} catch (err) {
-			if (optimisticMentor) messages = messages.filter((m) => m.id !== optimisticMentor?.id);
-			mentorError = err instanceof Error ? err.message : 'Unable to generate mentor response.';
-			recomputeSpacer();
-		} finally {
-			mentorInFlight = false;
-		}
-	}
-
-	function handleSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		void sendMessage();
 	}
 
 	let thumbVisible = $state(false);
@@ -441,24 +190,26 @@
 		recomputeSpacer();
 	});
 
-	$effect(() => {
-		const id = conversationId;
-		const requestId = ++messagesRequestId;
-		messagesError = null;
-		sendError = null;
-		mentorError = null;
-		mentorInFlight = false;
-		resetSpacerState();
+	const deliverableFiles = $derived<string[]>(
+		Array.from(
+			new Set(
+				(selectedSection?.what_and_how ?? [])
+					.map((d) => d?.file)
+					.filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+			)
+		)
+	);
 
-		if (!id) {
-			messages = [];
-			messagesLoading = false;
-			return;
-		}
+	const totalDeliverables = $derived<number>(deliverableFiles.length);
 
-		messagesLoading = true;
-		void fetchMessages(id, requestId);
-	});
+	const completedDeliverables = $derived<number>(
+		deliverableFiles.reduce((acc, f) => acc + (isDone(f) ? 1 : 0), 0)
+	);
+
+	// Allow continue if none are required OR all are done
+	const allDeliverablesDone = $derived<boolean>(
+		totalDeliverables === 0 || completedDeliverables >= totalDeliverables
+	);
 
 	$effect(() => {
 		const el = messagesContainer;
@@ -486,17 +237,6 @@
 			el.removeEventListener('mouseleave', handleLeave);
 			if (scrollIdleTimer) clearTimeout(scrollIdleTimer);
 		};
-	});
-
-	$effect(() => {
-		const lastId = messages.length ? messages[messages.length - 1]?.id : null;
-		const container = messagesContainer;
-		if (!container) return;
-		if (!lastId) {
-			updateScrollThumb();
-			return;
-		}
-		void scrollToBottom();
 	});
 
 	$effect(() => {
@@ -542,7 +282,10 @@
 	}
 </script>
 
-<div class="flex h-full flex-col text-sm leading-6">
+<div
+	class="flex h-full [transform:translateZ(0)] flex-col text-sm leading-6"
+	style="--pane-footer-h: 48px; --pane-footer-gap: 8px; --pane-fade-h: 20px;"
+>
 	<div class="flex w-full flex-row py-4 pr-5 pl-1">
 		<div class="relative flex w-full flex-row">
 			<div class="relative w-full rounded-xl pl-1 text-start text-stone-900">
@@ -620,7 +363,8 @@
 	</div>
 
 	<div
-		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto pr-5 pb-4"
+		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto pr-5"
+		style="padding-bottom: calc(var(--pane-footer-h) + var(--pane-footer-gap));"
 		bind:this={messagesContainer}
 	>
 		{#if project.metadata}
@@ -775,18 +519,6 @@
 									</ul>
 								</div>
 							{/if}
-
-							<!-- Python Functions -->
-							{#if selectedSection.python_functions?.length}
-								<div class="mt-2">
-									<p class="text-[11px] font-medium text-stone-600">Python Functions</p>
-									<ul class="mt-1 list-disc pl-5 text-xs">
-										{#each selectedSection.python_functions as item}
-											<li class="break-words">{item}</li>
-										{/each}
-									</ul>
-								</div>
-							{/if}
 						</div>
 					</div>
 				{:else}
@@ -794,7 +526,71 @@
 				{/if}
 			</div>
 		{/if}
+		{#if sections.length > 1 && currentIndex > -1 && currentIndex < sections.length - 1}
+			<div class="fixed inset-x-0 bottom-0 z-20 pr-3">
+				<div
+					class="pointer-events-none absolute right-0 left-0"
+					style="
+        top: calc(-1 * var(--pane-fade-h));
+        height: var(--pane-fade-h);
+        background: linear-gradient(
+          to top,
+          rgb(245, 245, 245) 0%,
+          rgba(245,245,245,0.5) 50%,
+          rgba(245,245,245,0.2) 100%
+        );
+      "
+				></div>
+
+				<div
+					class="relative flex h-[var(--pane-footer-h)] items-center justify-between
+               border-t border-stone-100 bg-stone-100 px-3"
+				>
+					<div class="text-xs text-stone-600">
+						{completedDeliverables}/{totalDeliverables} Deliverables Completed
+					</div>
+
+					<button
+						type="button"
+						class="group inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs
+         text-stone-700 transition hover:bg-stone-200/60 focus:outline-none
+         disabled:cursor-not-allowed disabled:opacity-50"
+						onclick={continueToNextSection}
+						disabled={!allDeliverablesDone}
+						aria-disabled={!allDeliverablesDone}
+						title={!allDeliverablesDone
+							? 'Finish all deliverables first'
+							: `Continue to ${sections[currentIndex + 1].name}`}
+					>
+						Continue
+
+						<!-- wrapper gets the looping animation only when enabled -->
+						<span class="inline-block" class:arrow-wiggle={allDeliverablesDone}>
+							<svg
+								viewBox="0 0 24 24"
+								class="h-3.5 w-3.5 translate-x-0 transition-transform duration-150 ease-out"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.8"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+							>
+								<path d="M3 12h14" />
+								<path d="M13 7l5 5-5 5" />
+							</svg>
+						</span>
+					</button>
+				</div>
+			</div>
+		{/if}
 	</div>
+	<Toast
+		message={toastMessage}
+		tone={toastTone}
+		open={toastOpen}
+		on:dismiss={() => (toastOpen = false)}
+	/>
 </div>
 
 <style>
@@ -905,6 +701,26 @@
 		.strike-anim,
 		.strike-anim::after {
 			transition: none !important;
+		}
+	}
+	/* subtle horizontal nudge */
+	@keyframes nudge-x {
+		0%,
+		100% {
+			transform: translateX(0);
+		}
+		50% {
+			transform: translateX(2px);
+		} /* ~translate-x-0.5 */
+	}
+
+	.arrow-wiggle {
+		animation: nudge-x 1.2s ease-in-out infinite;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.arrow-wiggle {
+			animation: none !important;
 		}
 	}
 </style>

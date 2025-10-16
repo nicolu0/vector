@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Toast from '$lib/components/Toast.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
@@ -7,7 +8,21 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 	import { isProject, type Project } from '$lib/types/project';
-	import { getContext } from 'svelte';
+	import { getContext, tick } from 'svelte';
+	import { onMount } from 'svelte';
+
+	type ToastTone = 'neutral' | 'success' | 'warning' | 'danger';
+	let toastOpen = $state(false);
+	let toastMessage = $state('');
+	let toastTone = $state<ToastTone>('neutral');
+
+	async function showToast(message: string, tone: ToastTone = 'neutral') {
+		toastMessage = message;
+		toastTone = tone;
+		toastOpen = false;
+		await tick();
+		toastOpen = true;
+	}
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -88,6 +103,11 @@
 			saving = false;
 		}
 	}
+	onMount(() => {
+		if (usingFallback) {
+			showToast('This is hardcoded... text 5109358199 any complaints.', 'warning');
+		}
+	});
 </script>
 
 <!-- page -->
@@ -104,13 +124,12 @@
 		Back
 	</button>
 	<div class="mx-auto w-full max-w-4xl space-y-8">
-		{#if usingFallback}
-			<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-				We couldn't find a freshly generated project for this session, so you're viewing the sample
-				preview. Head back to tailor a new one.
-			</div>
-		{/if}
-
 		<ProjectDetail {project} showSaveButton={true} {saving} {saveError} {saveProject} />
 	</div>
 </div>
+<Toast
+	message={toastMessage}
+	tone={toastTone}
+	open={toastOpen}
+	on:dismiss={() => (toastOpen = false)}
+/>
