@@ -650,6 +650,6 @@
                 "body": "Build tests around transitions: (1) Add two orders at the same price → `count_ = 2`, `quantity_ = q1 + q2`. (2) Partial match → `count_` unchanged, `quantity_` reduced by match size. (3) Full match of a remaining stub → `count_` decremented. (4) Cancel partial → subtract only remaining and erase the level when `count_` hits zero."
               }
             ]
-        }                  
+        }          
     ]
   }
