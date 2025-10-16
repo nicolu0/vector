@@ -19,12 +19,8 @@
   ],
   "metadata": [
     {
-      "name": "1. Introduction to Tokenization and Character-Level Tokenization",
+      "name": "1. Character-Level Tokenization",
       "overview": "This section introduces the fundamental concept of tokenization and revisits a simple character-level tokenizer as a starting point.",
-      "required_skills": [
-        "Basic Python programming",
-        "Understanding of strings and character manipulation"
-      ],
       "learning_materials": [
         "What is Tokenization? The process of converting text into sequences of tokens (integers) that a large language model can understand.",
         "Character-Level Tokenization: A naive approach where each character in the text is treated as a separate token and mapped to a unique integer ID.",
@@ -36,13 +32,6 @@
         "Creating a vocabulary of unique characters from the text.",
         "Building a lookup table (dictionary) to map characters to integer tokens and vice versa.",
         "Encoding a sample string into a sequence of integer tokens."
-      ],
-      "python_functions": [
-        "str (Python built-in string type)",
-        "set() (for unique characters)",
-        "dict() (for lookup tables)",
-        "list.append()",
-        "for loops"
       ],
       "what_and_how": [
         {
@@ -72,12 +61,8 @@
       ]
     },
     {
-      "name": "2. Understanding Unicode and UTF-8 Encoding",
+      "name": "2. Unicode and UTF-8 Encoding",
       "overview": "This section delves into how computers represent text, specifically focusing on Unicode and the UTF-8 encoding scheme, which is crucial for handling diverse languages and symbols.",
-      "required_skills": [
-        "Basic understanding of character encodings.",
-        "Python string manipulation."
-      ],
       "learning_materials": [
         "Unicode Code Points: A standard that defines roughly 150,000 characters across 161 scripts, each represented by a unique integer (code point) s .",
         "Encodings (UTF-8, UTF-16, UTF-32): Methods to translate Unicode text into binary data (byte streams).",
@@ -89,13 +74,6 @@
         "Encoding a string into UTF-8 bytes using str.encode('utf-8') s .",
         "Converting a bytes object to a list of integers for easier manipulation s .",
         "Decoding bytes back to a string using bytes.decode('utf-8', errors='replace') to handle invalid byte sequences s s ."
-      ],
-      "python_functions": [
-        "ord()",
-        "chr()",
-        "str.encode()",
-        "bytes.decode()",
-        "list() (to convert bytes object to a list of integers)"
       ],
       "what_and_how": [
         {
@@ -117,12 +95,8 @@
       ]
     },
     {
-      "name": "3. Implementing the Byte Pair Encoding (BPE) Algorithm",
+      "name": "3. Byte Pair Encoding Algorithm",
       "overview": "This is the core of the tokenizer, where the BPE algorithm is implemented to compress byte sequences into a tunable vocabulary of tokens.",
-      "required_skills": [
-        "Intermediate Python programming (dictionaries, lists, loops).",
-        "Algorithmic thinking."
-      ],
       "learning_materials": [
         "BPE Algorithm: An iterative compression algorithm that finds the most frequently occurring pair of tokens in a sequence and replaces them with a new, single token, which is then added to the vocabulary s s .",
         "Vocabulary Expansion: As merges occur, new tokens are minted, increasing the vocabulary size and reducing the sequence length s s .",
@@ -133,12 +107,6 @@
         "merge(ids, pair, idx) function: Takes a list of token IDs, a pair to merge, and the new index for the merged token, returning a new list with the merged pair replaced s .",
         "Training Loop: A while loop that repeatedly calls get_stats to find the most frequent pair, then merge to replace it with a new token, until the desired vocabulary size is reached s s .",
         "Storing merges (a dictionary mapping pairs to their new token ID) and vocab (a dictionary mapping token IDs to their byte representation) for encoding and decoding s s ."
-      ],
-      "python_functions": [
-        "dict.items()",
-        "max() with a key argument (for finding the most frequent pair)",
-        "list comprehensions",
-        "while loops"
       ],
       "what_and_how": [
         {
@@ -170,11 +138,8 @@
       ]
     },
     {
-      "name": "4. Encoding and Decoding with the Trained Tokenizer",
+      "name": "4. Encoding and Decoding",
       "overview": "This section focuses on using the trained merges and vocab to convert raw text into token sequences (encoding) and token sequences back into raw text (decoding).",
-      "required_skills": [
-        "Understanding of dictionary lookups and string/byte concatenation."
-      ],
       "learning_materials": [
         "Decoding: Given a sequence of token IDs, reconstruct the original byte sequence by looking up each token's byte representation in the vocab and concatenating them, then decoding the resulting bytes into a string s s .",
         "Encoding: Given a raw text string, first encode it into UTF-8 bytes. Then, iteratively apply the merges in the correct order (from earliest to latest) to compress the byte sequence into the final token sequence s s .",
@@ -184,12 +149,6 @@
         "decode(ids) function: Implements the decoding process using the vocab dictionary and bytes.decode() s .",
         "encode(text) function: Implements the encoding process, starting with UTF-8 bytes and iteratively applying merges based on the merges dictionary s s .",
         "Handling edge cases like empty strings or single-character strings in encode s ."
-      ],
-      "python_functions": [
-        "dict.get()",
-        "min() with a key argument (for finding the lowest-indexed mergeable pair)",
-        "bytes.join()",
-        "list.copy()"
       ],
       "what_and_how": [
         {
@@ -212,12 +171,8 @@
       ]
     },
     {
-      "name": "5. Advanced Tokenization Considerations (GPT-2/GPT-4 Specifics)",
+      "name": "5. Advanced Considerations (GPT-2/GPT-4)",
       "overview": "This section explores the complexities and specific design choices made in state-of-the-art tokenizers like those used in GPT-2 and GPT-4, including regular expressions for pre-splitting text and special tokens.",
-      "required_skills": [
-        "Understanding of regular expressions.",
-        "Familiarity with the re module in Python."
-      ],
       "learning_materials": [
         "Pre-splitting Text with Regular Expressions: Tokenizers like GPT-2 use complex regular expressions to split text into chunks before applying BPE. This prevents merges across certain categories (e.g., letters and punctuation, numbers and letters) to avoid suboptimal tokenization s s .",
         "Case Sensitivity: Differences in how uppercase and lowercase characters are handled can lead to inconsistent tokenization if not addressed (e.g., re.IGNORECASE flag in regex) s s .",
@@ -230,11 +185,6 @@
         "Examples of how different regex patterns affect chunking (e.g., separating letters, numbers, punctuation, and specific apostrophe contractions) s s .",
         "Demonstrating the impact of case sensitivity in regex matching s .",
         "Registering special tokens in a tokenizer (conceptual, as the training code for GPT-2 tokenizer was not released) s ."
-      ],
-      "python_functions": [
-        "re.compile()",
-        "re.findall()",
-        "re.IGNORECASE flag"
       ],
       "what_and_how": [
         {
@@ -256,11 +206,8 @@
       ]
     },
     {
-      "name": "6. Tokenizer Libraries and Design Choices (Tiktoken vs. SentencePiece)",
+      "name": "6. Tokenizer Libraries and Design Choices",
       "overview": "This section compares two prominent tokenizer libraries, OpenAI's Tiktoken and Google's SentencePiece, highlighting their different approaches and design philosophies.",
-      "required_skills": [
-        "Understanding of different software library approaches."
-      ],
       "learning_materials": [
         "Tiktoken (OpenAI):",
         "Primarily an inference library, with training code not publicly released for GPT-2/GPT-4 tokenizers s .",
@@ -277,10 +224,6 @@
         "(Conceptual) Using tiktoken to encode/decode text with GPT-2 or GPT-4 tokenizers s .",
         "(Conceptual) Training a sentencepiece model with various configuration options (e.g., model_type, vocab_size, byte_fallback, add_dummy_prefix) s s .",
         "Encoding and decoding text using a trained sentencepiece model s ."
-      ],
-      "python_functions": [
-        "sentencepiece.SentencePieceProcessor (for loading and using models)",
-        "sentencepiece.SentencePieceTrainer.train() (for training models)"
       ],
       "what_and_how": [
         {
@@ -302,11 +245,8 @@
       ]
     },
     {
-      "name": "7. Impact of Tokenization on LLM Behavior",
+      "name": "7. Impact on LLM Behavior",
       "overview": "This section revisits various \"weird\" behaviors of large language models and explains how they fundamentally trace back to tokenization choices.",
-      "required_skills": [
-        "Critical thinking about model limitations."
-      ],
       "learning_materials": [
         "Spelling and Character-Level Tasks: LLMs struggle with tasks like spelling or reversing strings because tokens can be long chunks of characters, and the model doesn't process individual characters within a token s s .",
         "Non-English Languages: Non-English text often tokenizes into significantly more tokens than equivalent English text, leading to \"bloated\" sequences that consume more of the Transformer's finite context length and reduce performance s s .",
@@ -319,9 +259,6 @@
       ],
       "code_snippets": [
         "(Conceptual) Examples of how different strings (e.g., \"default style\", \"hello how are you\" in different languages, numbers) tokenize into varying numbers of tokens using a live tokenizer tool like Tiktokenizer.dev sssss ."
-      ],
-      "python_functions": [
-        "No specific Python functions for this section, as it focuses on analysis and understanding of LLM behavior."
       ],
       "what_and_how": [
         {

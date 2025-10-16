@@ -27,12 +27,18 @@
 		action?: Record<string, unknown> | null;
 	};
 
+	export type Deliverable = {
+		file: string; // e.g., "dataset.py"
+		spec?: string; // brief spec sentence
+		how_to_implement?: string[]; // bullet list of steps
+	};
+
 	type MentorPacket = { title: string; content: string; action?: Record<string, unknown> | null };
 	type ProjectSection = {
 		name: string;
 		overview: string;
 		required_skills?: string[];
-		what_and_how?: string[];
+		what_and_how?: Deliverable[];
 		learning_materials?: string[];
 		code_snippets?: string[];
 		python_functions?: string[];
@@ -523,31 +529,70 @@
 			window.removeEventListener('keydown', handleKeydown);
 		};
 	});
+
+	let completedFiles = $state<Record<string, boolean>>({});
+
+	function isDone(file: string) {
+		return !!completedFiles[file];
+	}
+	function toggleDone(file: string, e?: MouseEvent | KeyboardEvent) {
+		e?.preventDefault();
+		e?.stopPropagation();
+		completedFiles[file] = !completedFiles[file];
+	}
 </script>
 
 <div class="flex h-full flex-col text-sm leading-6">
-	<div class="flex w-full flex-row py-2 pr-5 pl-1">
-		<div class="relative w-full">
+	<div class="flex w-full flex-row py-4 pr-5 pl-1">
+		<div class="relative flex w-full flex-row">
+			<div class="relative w-full rounded-xl pl-1 text-start text-stone-900">
+				<span class="block overflow-hidden pr-8 whitespace-nowrap">
+					{selectedSection?.name}
+				</span>
+				<span
+					aria-hidden="true"
+					class="pointer-events-none absolute top-0 right-0 h-full w-10 bg-gradient-to-l from-stone-100 to-transparent"
+				/>
+			</div>
 			<button
 				type="button"
-				class="flex w-full flex-row items-center justify-between rounded-xl border border-stone-200 bg-stone-50 p-2 text-center text-sm text-stone-600 transition focus:ring-2 focus:ring-black/5 focus:outline-none disabled:opacity-60"
-				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
+				class="inline-grid h-6 w-6 place-items-center rounded-sm text-stone-600 transition hover:bg-stone-200/70 hover:text-stone-900 focus:outline-none disabled:opacity-60"
 				onclick={toggleSectionsDropdown}
 				bind:this={dropdownTrigger}
 				aria-haspopup="listbox"
 				aria-expanded={sectionsDropdownOpen}
 				disabled={sections.length === 0}
 			>
-				<div class="w-4 text-left text-xs">-</div>
-				<div class="flex-1 px-2 text-center">
-					{selectedSection?.name}
-				</div>
-				<div class="w-4 text-right text-xs">{sectionsDropdownOpen ? '^' : 'v'}</div>
+				<!-- Animated hamburger / close -->
+				<span class="relative inline-block h-4 w-3" aria-hidden="true">
+					<!-- top bar -->
+					<span
+						class="absolute top-1/2 right-0 left-0 block h-px rounded bg-current
+             transition-transform duration-200 ease-in-out"
+						class:-translate-y-[4px]={!sectionsDropdownOpen}
+						class:translate-y-0={sectionsDropdownOpen}
+						class:rotate-45={sectionsDropdownOpen}
+					/>
+					<!-- middle bar -->
+					<span
+						class="absolute top-1/2 right-0 left-0 block h-px origin-center rounded-full bg-current
+             transition-transform duration-200 ease-in-out"
+						style:transform={`scaleX(${sectionsDropdownOpen ? 0.08 : 1})`}
+					/>
+					<!-- bottom bar -->
+					<span
+						class="absolute top-1/2 right-0 left-0 block h-px rounded bg-current
+             transition-transform duration-200 ease-in-out"
+						class:translate-y-[4px]={!sectionsDropdownOpen}
+						class:translate-y-0={sectionsDropdownOpen}
+						class:-rotate-45={sectionsDropdownOpen}
+					/>
+				</span>
 			</button>
 
 			{#if sectionsDropdownOpen}
 				<div
-					class="absolute top-full right-0 left-0 z-20 mt-2 rounded-lg border border-stone-200 bg-stone-100 text-left text-xs text-stone-600 shadow-lg"
+					class="absolute top-full right-0 left-0 z-20 mt-2 rounded-lg border border-stone-200 bg-stone-100 shadow-2xl"
 					in:fly|global={{ y: -4, duration: 200, easing: cubicOut }}
 					bind:this={dropdownMenu}
 				>
@@ -558,13 +603,13 @@
 							{#each sections as section, index}
 								<button
 									type="button"
-									class="flex w-full items-start rounded-lg px-3 py-2 text-left hover:bg-stone-200"
-									class:bg-stone-300={section === selectedSection}
+									class="flex w-full items-start rounded-lg px-3 py-2 text-left hover:bg-stone-200/60"
+									class:bg-stone-200={section === selectedSection}
 									onclick={() => selectSection(index)}
 									role="option"
 									aria-selected={selectedSection?.name === section.name}
 								>
-									<span class="font-medium">{section.name}</span>
+									<span class="text-left text-xs text-stone-900">{section.name}</span>
 								</button>
 							{/each}
 						</ul>
@@ -575,46 +620,131 @@
 	</div>
 
 	<div
-		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto pr-5"
+		class="project-chat-scroll flex-1 space-y-3 overflow-y-auto pr-5 pb-4"
 		bind:this={messagesContainer}
 	>
 		{#if project.metadata}
 			<div
 				in:fly|global={{ x: 8, duration: 400, easing: cubicOut }}
-				class="flex flex-col gap-y-10 pl-2"
+				class="flex flex-col gap-y-10 pl-2 text-stone-600"
 			>
 				{#if selectedSection}
 					<div class="flex justify-start">
 						<div class="flex flex-col gap-2">
-							<!-- Overview -->
 							{#if selectedSection.overview}
-								<p class="text-xs leading-6 break-words whitespace-pre-wrap text-current">
-									{selectedSection.overview}
-								</p>
-							{/if}
-
-							<!-- Required Skills -->
-							{#if selectedSection.required_skills?.length}
-								<div class="mt-2">
-									<p class="text-[11px] font-medium text-stone-600">Required Skills</p>
-									<ul class="mt-1 list-disc pl-5 text-xs">
-										{#each selectedSection.required_skills as item}
-											<li class="break-words">{item}</li>
-										{/each}
-									</ul>
+								<div>
+									<p class="text-xs font-semibold tracking-tight text-stone-900">Overview</p>
+									<p class="mt-1 text-xs">
+										{selectedSection.overview}
+									</p>
 								</div>
 							{/if}
 
 							{#if selectedSection.what_and_how?.length}
 								<div class="mt-2">
-									<p class="text-[11px] font-medium text-stone-600">Deliverables</p>
-									<ul class="mt-1 pl-5 text-xs">
-										{#each selectedSection.what_and_how as item}
-											<div class="break-words">{item.file}</div>
-											<div class="break-words">{item.spec}</div>
-											{#each item.how_to_implement as imp}
-												<div class="break-words">{imp}</div>
-											{/each}
+									<p class="text-xs font-semibold tracking-tight text-stone-900">Deliverables</p>
+									<ul
+										class="mt-1 divide-y divide-stone-200 rounded-lg border border-stone-200 text-xs"
+									>
+										{#each selectedSection.what_and_how as item, i (item.file)}
+											<li class="p-0">
+												<details class="group">
+													<summary
+														class="flex w-full cursor-pointer items-center justify-between px-3 py-2 select-none"
+													>
+														<div class="flex min-w-0 items-center gap-2">
+															<button
+																type="button"
+																class="group relative grid h-3 w-3 place-items-center rounded-full focus:outline-none
+           {isDone(item.file) ? 'bg-[#2D2D2D]' : ''}"
+																role="checkbox"
+																aria-checked={isDone(item.file)}
+																aria-label={isDone(item.file) ? 'Mark as not done' : 'Mark as done'}
+																onclick={(e) => toggleDone(item.file, e)}
+																onkeydown={(e) =>
+																	(e.key === ' ' || e.key === 'Enter') && toggleDone(item.file, e)}
+															>
+																{#if !isDone(item.file)}
+																	<!-- dashed ring (default) -->
+																	<span
+																		class="pointer-events-none absolute inset-0 scale-100 rounded-full border border-dashed
+               border-stone-400 opacity-100
+               transition-[opacity,transform] duration-200 ease-out
+               group-hover:scale-95 group-hover:opacity-0"
+																	/>
+																	<!-- solid ring (on hover) -->
+																	<span
+																		class="pointer-events-none absolute inset-0 scale-95 rounded-full border
+               border-stone-400 opacity-0
+               transition-[opacity,transform] duration-200 ease-out
+               group-hover:scale-100 group-hover:opacity-100"
+																	/>
+																{/if}
+
+																{#if isDone(item.file)}
+																	<!-- animated check -->
+																	<svg
+																		viewBox="0 0 24 24"
+																		class="h-3 w-3 text-stone-50"
+																		fill="none"
+																		aria-hidden="true"
+																	>
+																		<path
+																			d="M7 12.5 L10.25 15.75 L16.75 9.25"
+																			pathLength="0.5"
+																			class="check-path"
+																			stroke="currentColor"
+																			stroke-width="2"
+																			stroke-linecap="round"
+																			stroke-linejoin="round"
+																		/>
+																	</svg>
+																{/if}
+															</button>
+
+															<span
+																class="file-label strike-anim min-w-0 font-mono tracking-tighter break-words
+           {isDone(item.file) ? 'done text-stone-400' : 'text-stone-800'}"
+															>
+																{item.file}
+															</span>
+														</div>
+
+														<!-- Right: chevron -->
+														<svg
+															class="ml-2 h-3.5 w-3.5 shrink-0 text-stone-500 transition-transform duration-200 group-open:rotate-90"
+															viewBox="0 0 20 20"
+															fill="currentColor"
+															aria-hidden="true"
+														>
+															<path
+																fill-rule="evenodd"
+																d="M6.22 7.22a.75.75 0 0 1 1.06 0L10 9.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L6.22 8.28a.75.75 0 0 1 0-1.06z"
+																clip-rule="evenodd"
+															/>
+														</svg>
+													</summary>
+
+													<div class="space-y-2 px-3 pt-1 pb-3 text-stone-700">
+														{#if item.spec}
+															<div class="pl-5 break-words">
+																<span class=" text-stone-700/90">{item.spec}</span>
+															</div>
+														{/if}
+
+														{#if item.how_to_implement?.length}
+															<div class="space-y-1 pl-5">
+																<div class="text-stone-900">How to implement</div>
+																<ul class="list-disc space-y-1 pl-5">
+																	{#each item.how_to_implement as imp}
+																		<li class="break-words text-stone-700/90">{imp}</li>
+																	{/each}
+																</ul>
+															</div>
+														{/if}
+													</div>
+												</details>
+											</li>
 										{/each}
 									</ul>
 								</div>
@@ -623,7 +753,9 @@
 							<!-- Learning Materials -->
 							{#if selectedSection.learning_materials?.length}
 								<div class="mt-2">
-									<p class="text-[11px] font-medium text-stone-600">Learning Materials</p>
+									<p class="text-xs font-semibold tracking-tight text-stone-900">
+										Learning Materials
+									</p>
 									<ul class="mt-1 list-disc pl-5 text-xs">
 										{#each selectedSection.learning_materials as item}
 											<li class="break-words">{item}</li>
@@ -635,7 +767,7 @@
 							<!-- Code Snippets (as bullet text; switch to <pre> if you later store code blocks) -->
 							{#if selectedSection.code_snippets?.length}
 								<div class="mt-2">
-									<p class="text-[11px] font-medium text-stone-600">Code Snippets</p>
+									<p class="text-xs font-semibold tracking-tight text-stone-900">Code Snippets</p>
 									<ul class="mt-1 list-disc pl-5 text-xs">
 										{#each selectedSection.code_snippets as item}
 											<li class="break-words">{item}</li>
@@ -702,10 +834,77 @@
 			opacity: 0.6;
 		}
 	}
-	.typing-dot {
-		animation: dot-breathe 1.2s ease-in-out infinite;
-	}
 	:global(.project-chat-scroll)::after {
 		transition: opacity 220ms ease;
+	}
+
+	.check-path {
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		fill: none;
+		stroke-dasharray: 1;
+		stroke-dashoffset: 1;
+		animation:
+			draw-check 420ms ease-out forwards,
+			erase-check 320ms ease-in 1020ms forwards;
+	}
+
+	@keyframes draw-check {
+		to {
+			stroke-dashoffset: 0;
+		}
+	}
+
+	/* Reduced motion */
+	@media (prefers-reduced-motion: reduce) {
+		.check-path {
+			animation: none;
+			stroke-dashoffset: 0;
+		}
+	}
+
+	/* Base: inline element with an animatable strike line */
+	.strike-anim {
+		position: relative;
+		display: inline-block; /* so the ::after width matches the text */
+		transition: color 220ms ease 0ms; /* color fades after 500ms delay */
+	}
+
+	/* The “strike” line */
+	.strike-anim::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 50%;
+		height: 1.5px;
+		background: currentColor;
+		transform: scaleX(0);
+		transform-origin: left center;
+		transition: transform 220ms ease 0ms; /* draw after 500ms delay */
+		pointer-events: none;
+	}
+
+	/* When marked done: draw the line (with the 500ms delay above) */
+	.strike-anim.done::after {
+		transform: scaleX(1);
+	}
+
+	/* When toggling back to not-done: remove delay so it clears immediately */
+	.strike-anim:not(.done) {
+		transition-delay: 0ms;
+	}
+	.strike-anim:not(.done)::after {
+		transition-delay: 0ms;
+	}
+
+	/* Reduce-motion users: no animation, just show/hide */
+	@media (prefers-reduced-motion: reduce) {
+		.strike-anim,
+		.strike-anim::after {
+			transition: none !important;
+		}
 	}
 </style>
