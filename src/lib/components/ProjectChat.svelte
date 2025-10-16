@@ -550,7 +550,7 @@
 			</div>
 			<button
 				type="button"
-				class="text-md flex flex-row items-center px-2 text-stone-600 transition focus:outline-none disabled:opacity-60"
+				class="inline-grid h-6 w-6 place-items-center text-stone-600 hover:text-stone-900 focus:outline-none disabled:opacity-60"
 				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
 				onclick={toggleSectionsDropdown}
 				bind:this={dropdownTrigger}
@@ -558,31 +558,33 @@
 				aria-expanded={sectionsDropdownOpen}
 				disabled={sections.length === 0}
 			>
-				{#if sectionsDropdownOpen}
-					<!-- X icon -->
-					<svg
-						class="pointer-events-none inline-block h-4 w-4"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						aria-hidden="true"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18" />
-					</svg>
-				{:else}
-					<!-- Hamburger icon -->
-					<svg
-						class="pointer-events-none inline-block h-4 w-4"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						aria-hidden="true"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" />
-					</svg>
-				{/if}
+				<!-- Animated hamburger / close -->
+				<span class="relative inline-block h-4 w-3" aria-hidden="true">
+					<!-- top bar -->
+					<span
+						class="absolute top-1/2 right-0 left-0 block h-px rounded bg-current
+             transition-transform duration-200 ease-in-out"
+						class:-translate-y-[4px]={!sectionsDropdownOpen}
+						class:translate-y-0={sectionsDropdownOpen}
+						class:rotate-45={sectionsDropdownOpen}
+					/>
+					<!-- middle bar -->
+					<span
+						class="absolute top-1/2 right-0 left-0 block h-px rounded bg-current
+             transition-all duration-200 ease-in-out"
+						class:opacity-0={sectionsDropdownOpen}
+						class:scale-x-0={sectionsDropdownOpen}
+						style="transform-origin:center"
+					/>
+					<!-- bottom bar -->
+					<span
+						class="absolute top-1/2 right-0 left-0 block h-px rounded bg-current
+             transition-transform duration-200 ease-in-out"
+						class:translate-y-[4px]={!sectionsDropdownOpen}
+						class:translate-y-0={sectionsDropdownOpen}
+						class:-rotate-45={sectionsDropdownOpen}
+					/>
+				</span>
 			</button>
 
 			{#if sectionsDropdownOpen}
