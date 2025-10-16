@@ -550,7 +550,7 @@
 			</div>
 			<button
 				type="button"
-				class="inline-grid h-6 w-6 place-items-center text-stone-600 hover:text-stone-900 focus:outline-none disabled:opacity-60"
+				class="inline-grid h-6 w-6 place-items-center rounded-sm text-stone-600 transition hover:bg-stone-200/70 hover:text-stone-900 focus:outline-none disabled:opacity-60"
 				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
 				onclick={toggleSectionsDropdown}
 				bind:this={dropdownTrigger}
@@ -600,8 +600,8 @@
 							{#each sections as section, index}
 								<button
 									type="button"
-									class="flex w-full items-start rounded-lg px-3 py-2 text-left hover:bg-stone-200"
-									class:bg-stone-300={section === selectedSection}
+									class="flex w-full items-start rounded-lg px-3 py-2 text-left hover:bg-stone-200/60"
+									class:bg-stone-200={section === selectedSection}
 									onclick={() => selectSection(index)}
 									role="option"
 									aria-selected={selectedSection?.name === section.name}
