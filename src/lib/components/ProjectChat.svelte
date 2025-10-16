@@ -720,18 +720,17 @@
 														</svg>
 													</summary>
 
-													<!-- Expanded content -->
 													<div class="space-y-2 px-3 pt-1 pb-3 text-stone-700">
 														{#if item.spec}
 															<div class="break-words">
-																<span class="font-semibold text-stone-700">Spec:</span>
+																<span class="text-stone-700">Spec:</span>
 																<span class="ml-1 text-stone-700/90">{item.spec}</span>
 															</div>
 														{/if}
 
 														{#if item.how_to_implement?.length}
 															<div class="space-y-1">
-																<div class="font-semibold text-stone-700">How to implement</div>
+																<div class="text-stone-700">How to implement</div>
 																<ul class="list-disc space-y-1 pl-5">
 																	{#each item.how_to_implement as imp}
 																		<li class="break-words text-stone-700/90">{imp}</li>
@@ -829,16 +828,8 @@
 			opacity: 0.6;
 		}
 	}
-	.typing-dot {
-		animation: dot-breathe 1.2s ease-in-out infinite;
-	}
 	:global(.project-chat-scroll)::after {
 		transition: opacity 220ms ease;
-	}
-	/* Animated checkmark (from your waitlist button) */
-	.check-svg {
-		position: relative;
-		transform: translateY(-1px); /* tiny optical nudge to match your button */
 	}
 
 	.check-path {
@@ -865,11 +856,6 @@
 		.check-path {
 			animation: none;
 			stroke-dashoffset: 0;
-		}
-		.check-tip-dot {
-			animation: none;
-			opacity: 0;
-			transform: scale(0);
 		}
 	}
 
