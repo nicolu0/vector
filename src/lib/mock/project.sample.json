@@ -19,7 +19,7 @@
   ],
   "metadata": [
     {
-      "name": "1. Introduction to Tokenization and Character-Level Tokenization",
+      "name": "1. Character-Level Tokenization",
       "overview": "This section introduces the fundamental concept of tokenization and revisits a simple character-level tokenizer as a starting point.",
       "learning_materials": [
         "What is Tokenization? The process of converting text into sequences of tokens (integers) that a large language model can understand.",
@@ -61,7 +61,7 @@
       ]
     },
     {
-      "name": "2. Understanding Unicode and UTF-8 Encoding",
+      "name": "2. Unicode and UTF-8 Encoding",
       "overview": "This section delves into how computers represent text, specifically focusing on Unicode and the UTF-8 encoding scheme, which is crucial for handling diverse languages and symbols.",
       "learning_materials": [
         "Unicode Code Points: A standard that defines roughly 150,000 characters across 161 scripts, each represented by a unique integer (code point) s .",
@@ -95,7 +95,7 @@
       ]
     },
     {
-      "name": "3. Implementing the Byte Pair Encoding (BPE) Algorithm",
+      "name": "3. Byte Pair Encoding Algorithm",
       "overview": "This is the core of the tokenizer, where the BPE algorithm is implemented to compress byte sequences into a tunable vocabulary of tokens.",
       "learning_materials": [
         "BPE Algorithm: An iterative compression algorithm that finds the most frequently occurring pair of tokens in a sequence and replaces them with a new, single token, which is then added to the vocabulary s s .",
@@ -138,7 +138,7 @@
       ]
     },
     {
-      "name": "4. Encoding and Decoding with the Trained Tokenizer",
+      "name": "4. Encoding and Decoding",
       "overview": "This section focuses on using the trained merges and vocab to convert raw text into token sequences (encoding) and token sequences back into raw text (decoding).",
       "learning_materials": [
         "Decoding: Given a sequence of token IDs, reconstruct the original byte sequence by looking up each token's byte representation in the vocab and concatenating them, then decoding the resulting bytes into a string s s .",
@@ -171,7 +171,7 @@
       ]
     },
     {
-      "name": "5. Advanced Tokenization Considerations (GPT-2/GPT-4 Specifics)",
+      "name": "5. Advanced Considerations (GPT-2/GPT-4)",
       "overview": "This section explores the complexities and specific design choices made in state-of-the-art tokenizers like those used in GPT-2 and GPT-4, including regular expressions for pre-splitting text and special tokens.",
       "learning_materials": [
         "Pre-splitting Text with Regular Expressions: Tokenizers like GPT-2 use complex regular expressions to split text into chunks before applying BPE. This prevents merges across certain categories (e.g., letters and punctuation, numbers and letters) to avoid suboptimal tokenization s s .",
@@ -206,7 +206,7 @@
       ]
     },
     {
-      "name": "6. Tokenizer Libraries and Design Choices (Tiktoken vs. SentencePiece)",
+      "name": "6. Tokenizer Libraries and Design Choices",
       "overview": "This section compares two prominent tokenizer libraries, OpenAI's Tiktoken and Google's SentencePiece, highlighting their different approaches and design philosophies.",
       "learning_materials": [
         "Tiktoken (OpenAI):",
@@ -245,7 +245,7 @@
       ]
     },
     {
-      "name": "7. Impact of Tokenization on LLM Behavior",
+      "name": "7. Impact on LLM Behavior",
       "overview": "This section revisits various \"weird\" behaviors of large language models and explains how they fundamentally trace back to tokenization choices.",
       "learning_materials": [
         "Spelling and Character-Level Tasks: LLMs struggle with tasks like spelling or reversing strings because tokens can be long chunks of characters, and the model doesn't process individual characters within a token s s .",
