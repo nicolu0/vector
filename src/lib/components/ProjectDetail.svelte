@@ -52,7 +52,7 @@
 </script>
 
 <div class="space-y-6 pr-5">
-	<div class="flex flex-col items-start gap-3 lg:gap-4">
+	<div class="flex flex-col items-start gap-1">
 		<div class="min-w-0 flex-1 text-2xl font-semibold tracking-tight text-stone-900">
 			{project.title}
 		</div>
@@ -93,18 +93,16 @@
 		</div>
 	</div>
 
-	<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-		<div class="mb-2 text-sm font-semibold tracking-tight text-stone-900">Project brief</div>
-		<div class="text-[15px] leading-7 text-stone-700">
+	<div class="rounded-lg border border-stone-200 bg-white p-5">
+		<div class="mb-2 text-xs font-semibold tracking-tight text-stone-900">Project brief</div>
+		<div class="text-xs leading-7 text-stone-700">
 			{project.description}
 		</div>
 	</div>
 
-	<div
-		class="rounded-2xl border border-stone-200 bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.04)] sm:p-5"
-	>
-		<div class="mb-3 flex items-center justify-between">
-			<div class="text-sm font-semibold tracking-tight text-stone-900">Jobs this maps to</div>
+	<div class="rounded-lg border border-stone-200 bg-white p-4 sm:p-5">
+		<div class="flex items-center justify-between">
+			<div class="text-xs font-semibold tracking-tight text-stone-900">Jobs this maps to</div>
 			<div class="text-xs text-stone-500">
 				{project.jobs.length} source{project.jobs.length === 1 ? '' : 's'}
 			</div>
@@ -118,13 +116,13 @@
 			<div class="divide-y divide-stone-200">
 				{#each project.jobs as job}
 					<div
-						class="flex items-center justify-between bg-white px-2 py-3 first:rounded-t-xl last:rounded-b-xl"
+						class="flex items-center justify-between bg-white py-3 first:rounded-t-xl last:rounded-b-xl"
 					>
 						<div class="min-w-0">
-							<div class="truncate text-[15px] font-medium text-stone-800">
+							<div class="truncate text-xs text-stone-700">
 								{job.title}
 							</div>
-							<div class="truncate text-xs text-stone-500">{job.url}</div>
+							<div class="truncate text-xs text-stone-400">{job.url}</div>
 						</div>
 						{#if job.url}
 							<button
@@ -140,8 +138,8 @@
 		{/if}
 	</div>
 
-	<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-		<div class="mb-3 text-sm font-semibold tracking-tight text-stone-900">
+	<div class="rounded-lg border border-stone-200 bg-white p-5">
+		<div class="mb-3 text-xs font-semibold tracking-tight text-stone-900">
 			Skills you’ll use/learn
 		</div>
 
@@ -153,7 +151,7 @@
 			<div class="flex flex-wrap items-center gap-2">
 				{#each project.skills as skill}
 					<div
-						class="inline-flex items-center rounded-full border border-stone-300 bg-stone-50 px-3 py-1 text-xs text-stone-700"
+						class="inline-flex items-center rounded-full bg-stone-100 px-3 py-1 text-xs text-stone-700"
 					>
 						{skill}
 					</div>

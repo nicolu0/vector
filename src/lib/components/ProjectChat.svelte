@@ -27,12 +27,18 @@
 		action?: Record<string, unknown> | null;
 	};
 
+	export type Deliverable = {
+		file: string; // e.g., "dataset.py"
+		spec?: string; // brief spec sentence
+		how_to_implement?: string[]; // bullet list of steps
+	};
+
 	type MentorPacket = { title: string; content: string; action?: Record<string, unknown> | null };
 	type ProjectSection = {
 		name: string;
 		overview: string;
 		required_skills?: string[];
-		what_and_how?: string[];
+		what_and_how?: Deliverable[];
 		learning_materials?: string[];
 		code_snippets?: string[];
 		python_functions?: string[];
@@ -539,7 +545,7 @@
 <div class="flex h-full flex-col text-sm leading-6">
 	<div class="flex w-full flex-row py-4 pr-5 pl-1">
 		<div class="relative flex w-full flex-row">
-			<div class="relative w-full rounded-xl pl-1 text-start text-stone-600">
+			<div class="relative w-full rounded-xl pl-1 text-start text-stone-900">
 				<span class="block overflow-hidden pr-8 whitespace-nowrap">
 					{selectedSection?.name}
 				</span>
@@ -551,7 +557,6 @@
 			<button
 				type="button"
 				class="inline-grid h-6 w-6 place-items-center rounded-sm text-stone-600 transition hover:bg-stone-200/70 hover:text-stone-900 focus:outline-none disabled:opacity-60"
-				in:fly|global={{ y: -10, duration: 500, easing: cubicOut }}
 				onclick={toggleSectionsDropdown}
 				bind:this={dropdownTrigger}
 				aria-haspopup="listbox"
@@ -589,7 +594,7 @@
 
 			{#if sectionsDropdownOpen}
 				<div
-					class="absolute top-full right-0 left-0 z-20 mt-2 rounded-lg border border-stone-200 bg-stone-100 text-left text-xs text-stone-600 shadow-lg"
+					class="absolute top-full right-0 left-0 z-20 mt-2 rounded-lg border border-stone-200 bg-stone-100 shadow-2xl"
 					in:fly|global={{ y: -4, duration: 200, easing: cubicOut }}
 					bind:this={dropdownMenu}
 				>
@@ -606,7 +611,7 @@
 									role="option"
 									aria-selected={selectedSection?.name === section.name}
 								>
-									<span class="font-medium">{section.name}</span>
+									<span class="text-left text-xs text-stone-900">{section.name}</span>
 								</button>
 							{/each}
 						</ul>
@@ -628,16 +633,18 @@
 				{#if selectedSection}
 					<div class="flex justify-start">
 						<div class="flex flex-col gap-2">
-							<!-- Overview -->
 							{#if selectedSection.overview}
-								<p class="text-xs leading-6 break-words whitespace-pre-wrap text-current">
-									{selectedSection.overview}
-								</p>
+								<div>
+									<p class="text-xs font-semibold tracking-tight text-stone-900">Overview</p>
+									<p class="mt-1 text-xs">
+										{selectedSection.overview}
+									</p>
+								</div>
 							{/if}
 
 							{#if selectedSection.what_and_how?.length}
 								<div class="mt-2">
-									<p class="text-[11px] font-medium text-stone-600">Deliverables</p>
+									<p class="text-xs font-semibold tracking-tight text-stone-900">Deliverables</p>
 									<ul
 										class="mt-1 divide-y divide-stone-200 rounded-lg border border-stone-200 text-xs"
 									>
@@ -698,7 +705,7 @@
 															</button>
 
 															<span
-																class="file-label strike-anim min-w-0 font-medium break-words
+																class="file-label strike-anim min-w-0 font-mono tracking-tighter break-words
            {isDone(item.file) ? 'done text-stone-400' : 'text-stone-800'}"
 															>
 																{item.file}
@@ -722,15 +729,14 @@
 
 													<div class="space-y-2 px-3 pt-1 pb-3 text-stone-700">
 														{#if item.spec}
-															<div class="break-words">
-																<span class="text-stone-700">Spec:</span>
-																<span class="ml-1 text-stone-700/90">{item.spec}</span>
+															<div class="pl-5 break-words">
+																<span class=" text-stone-700/90">{item.spec}</span>
 															</div>
 														{/if}
 
 														{#if item.how_to_implement?.length}
-															<div class="space-y-1">
-																<div class="text-stone-700">How to implement</div>
+															<div class="space-y-1 pl-5">
+																<div class="text-stone-900">How to implement</div>
 																<ul class="list-disc space-y-1 pl-5">
 																	{#each item.how_to_implement as imp}
 																		<li class="break-words text-stone-700/90">{imp}</li>
@@ -749,7 +755,9 @@
 							<!-- Learning Materials -->
 							{#if selectedSection.learning_materials?.length}
 								<div class="mt-2">
-									<p class="text-[11px] font-medium text-stone-600">Learning Materials</p>
+									<p class="text-xs font-semibold tracking-tight text-stone-900">
+										Learning Materials
+									</p>
 									<ul class="mt-1 list-disc pl-5 text-xs">
 										{#each selectedSection.learning_materials as item}
 											<li class="break-words">{item}</li>
@@ -761,7 +769,7 @@
 							<!-- Code Snippets (as bullet text; switch to <pre> if you later store code blocks) -->
 							{#if selectedSection.code_snippets?.length}
 								<div class="mt-2">
-									<p class="text-[11px] font-medium text-stone-600">Code Snippets</p>
+									<p class="text-xs font-semibold tracking-tight text-stone-900">Code Snippets</p>
 									<ul class="mt-1 list-disc pl-5 text-xs">
 										{#each selectedSection.code_snippets as item}
 											<li class="break-words">{item}</li>

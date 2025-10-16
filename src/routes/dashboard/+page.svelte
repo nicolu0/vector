@@ -41,7 +41,7 @@
 	const HANDLE_WIDTH = 24;
 	const MIN_CHAT_WIDTH = 400;
 	const MAX_CHAT_WIDTH = 700;
-	const MIN_DETAIL_WIDTH = 400;
+	const MIN_DETAIL_WIDTH = 450;
 	let containerWidth = $state(0);
 	let chatPanelWidth = $state(320);
 	let isResizing = $state(false);
