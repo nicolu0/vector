@@ -217,21 +217,35 @@
 		return !!loadingFiles[file];
 	}
 
+	let completingFiles = $state<Record<string, boolean>>({});
+
+	function isCompleting(file: string) {
+		return !!completingFiles[file];
+	}
+
 	async function markDoneAsync(file: string, e?: MouseEvent | KeyboardEvent) {
 		e?.preventDefault();
 		e?.stopPropagation();
-		if (isDone(file) || isLoading(file)) return;
+		if (isDone(file) || isLoading(file) || isCompleting(file)) return;
 
-		// start loading
+		// 1) loading (your current spinner)
 		loadingFiles[file] = true;
-
 		try {
 			// TODO: replace with real API call
-			await new Promise((r) => setTimeout(r, 1200));
-			// mark done
-			completedFiles[file] = true;
+			await new Promise((r) => setTimeout(r, 4000));
 		} finally {
 			loadingFiles[file] = false;
+		}
+
+		// 2) completing: draw the ring
+		completingFiles[file] = true;
+		try {
+			// let the ring-draw animation play (keep in sync with CSS duration)
+			await new Promise((r) => setTimeout(r, 320));
+			// 3) completed: your existing check
+			completedFiles[file] = true;
+		} finally {
+			completingFiles[file] = false;
 		}
 	}
 
@@ -438,21 +452,20 @@
 																		? 'Mark as not done'
 																		: 'Mark as done'}
 																onclick={(e) => {
-																	if (isLoading(item.file)) return;
+																	if (isLoading(item.file) || isCompleting(item.file)) return;
 																	if (isDone(item.file)) toggleDone(item.file, e);
 																	else markDoneAsync(item.file, e);
 																}}
-																disabled={isLoading(item.file)}
+																disabled={isLoading(item.file) || isCompleting(item.file)}
 															>
 																{#if isLoading(item.file)}
-																	<!-- EXACTLY sized spinner (matches 12×12 circle) -->
+																	<!-- (unchanged) your existing spinner -->
 																	<svg
 																		class="absolute inset-0 h-3 w-3 animate-spin"
 																		viewBox="0 0 12 12"
 																		fill="none"
 																		aria-hidden="true"
 																	>
-																		<!-- full faint ring -->
 																		<circle
 																			cx="6"
 																			cy="6"
@@ -463,7 +476,6 @@
 																			vector-effect="non-scaling-stroke"
 																			style="shape-rendering: geometricPrecision;"
 																		/>
-																		<!-- top-right arc -->
 																		<path
 																			d="M6 0.75 A5.25 5.25 0 0 1 11.25 6"
 																			stroke="currentColor"
@@ -475,7 +487,39 @@
 																			style="shape-rendering: geometricPrecision;"
 																		/>
 																	</svg>
+																{:else if isCompleting(item.file)}
+																	<!-- NEW: draw the ring, then we’ll flip to completed (check) -->
+																	<svg
+																		class="absolute inset-0 h-3 w-3"
+																		viewBox="0 0 12 12"
+																		fill="none"
+																		aria-hidden="true"
+																	>
+																		<!-- faint base ring -->
+																		<circle
+																			cx="6"
+																			cy="6"
+																			r="5.3"
+																			stroke="currentColor"
+																			stroke-width="0.8"
+																			class="text-stone-300 opacity-80"
+																			vector-effect="non-scaling-stroke"
+																		/>
+																		<!-- ring draws from 12 o’clock -->
+																		<circle
+																			cx="6"
+																			cy="6"
+																			r="5.3"
+																			stroke="currentColor"
+																			stroke-width="0.8"
+																			fill="none"
+																			stroke-linecap="round"
+																			class="ring-draw text-stone-900"
+																			vector-effect="non-scaling-stroke"
+																		/>
+																	</svg>
 																{:else if isDone(item.file)}
+																	<!-- (unchanged) your existing check -->
 																	<svg
 																		viewBox="0 0 24 24"
 																		class="h-3 w-3 text-stone-50"
@@ -493,17 +537,16 @@
 																		/>
 																	</svg>
 																{:else}
-																	<!-- idle rings: make thickness match spinner -->
+																	<!-- (unchanged) idle rings -->
 																	<span
 																		class="pointer-events-none absolute inset-0 scale-95 rounded-full border border-[1px]
-             border-dashed border-stone-400 opacity-100
-             transition-[opacity,transform] duration-200 ease-out
-             group-hover:scale-95 group-hover:opacity-0"
+                border-dashed border-stone-400 opacity-100 transition-[opacity,transform] duration-200 ease-out
+                group-hover:scale-95 group-hover:opacity-0"
 																	/>
 																	<span
 																		class="pointer-events-none absolute inset-0 scale-95 rounded-full border border-[1px]
-             border-stone-400 opacity-0 transition-[opacity,transform] duration-200 ease-out
-             group-hover:scale-95 group-hover:opacity-100"
+                border-stone-400 opacity-0 transition-[opacity,transform] duration-200 ease-out
+                group-hover:scale-95 group-hover:opacity-100"
 																	/>
 																{/if}
 															</button>
@@ -516,21 +559,27 @@
 															</span>
 														</div>
 
-														<div class="flex flex-row items-center justify-center gap-2">
-															<span
-																class="file-label sheen relative inline-flex min-w-0 items-center gap-1.5 self-end text-[10px] text-stone-500"
-																aria-live="polite"
-															>
-																<span>Syncing</span>
-																<!-- GitHub mark -->
-																<svg
-																	class="h-3 w-3"
-																	viewBox="0 0 16 16"
-																	fill="currentColor"
-																	aria-hidden="true"
+														<div class="flex flex-row items-center justify-center gap-1">
+															{#if isLoading(item.file)}
+																<span
+																	class="file-label sheen relative inline-flex min-w-0 items-center gap-1 self-end text-[9px] text-stone-400"
+																	transition:fly|global={{
+																		y: 1,
+																		duration: 200,
+																		easing: cubicOut
+																	}}
+																	aria-live="polite"
 																>
-																	<path
-																		d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38
+																	<span>Syncing</span>
+																	<!-- GitHub mark -->
+																	<svg
+																		class="h-3 w-3"
+																		viewBox="0 0 16 16"
+																		fill="currentColor"
+																		aria-hidden="true"
+																	>
+																		<path
+																			d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38
            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
            -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
            .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
@@ -540,12 +589,13 @@
            0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48
            0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8 8 0 0 0 16 8
            c0-4.42-3.58-8-8-8z"
-																	/>
-																</svg>
-															</span>
+																		/>
+																	</svg>
+																</span>
+															{/if}
 
 															<svg
-																class="ml-2 h-3.5 w-3.5 shrink-0 text-stone-500 transition-transform duration-200 group-open:rotate-90"
+																class="ml-2 h-3 w-3 shrink-0 text-stone-500 transition-transform duration-200 group-open:rotate-90"
 																viewBox="0 0 20 20"
 																fill="currentColor"
 																aria-hidden="true"
@@ -732,9 +782,7 @@
 		fill: none;
 		stroke-dasharray: 1;
 		stroke-dashoffset: 1;
-		animation:
-			draw-check 420ms ease-out forwards,
-			erase-check 320ms ease-in 1020ms forwards;
+		animation: draw-check 420ms ease-out 200ms forwards;
 	}
 
 	@keyframes draw-check {
@@ -755,7 +803,7 @@
 	.strike-anim {
 		position: relative;
 		display: inline-block; /* so the ::after width matches the text */
-		transition: color 220ms ease 0ms; /* color fades after 500ms delay */
+		transition: color 220ms ease 200ms; /* color fades after 500ms delay */
 	}
 
 	/* The “strike” line */
@@ -769,7 +817,7 @@
 		background: currentColor;
 		transform: scaleX(0);
 		transform-origin: left center;
-		transition: transform 220ms ease 0ms; /* draw after 500ms delay */
+		transition: transform 220ms ease 200ms; /* draw after 500ms delay */
 		pointer-events: none;
 	}
 
@@ -850,6 +898,26 @@
 		.sheen::after {
 			animation: none;
 			opacity: 0;
+		}
+	}
+	/* ===== Completing ring draw ===== */
+	.ring-draw {
+		stroke-dasharray: 0 33.3; /* start with nothing drawn */
+		stroke-dashoffset: 0;
+		animation: ring-draw-kf 300ms ease-out forwards;
+	}
+
+	@keyframes ring-draw-kf {
+		to {
+			stroke-dasharray: 33.3 0; /* draw full circle */
+		}
+	}
+
+	/* reduce motion: no animation */
+	@media (prefers-reduced-motion: reduce) {
+		.ring-draw {
+			animation: none !important;
+			stroke-dasharray: 33.3 0 !important;
 		}
 	}
 </style>
