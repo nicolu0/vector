@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cubicOut } from 'svelte/easing';
-	import { fly } from 'svelte/transition';
+	import { fly, slide, fade } from 'svelte/transition';
 	import { supabase } from '$lib/supabaseClient';
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 	import type { StoredProject } from '$lib/stores/dashboardProjects';
@@ -42,6 +42,7 @@
 	};
 
 	export type Deliverable = {
+		task: string; // e.g., "dataset.py"
 		file: string; // e.g., "dataset.py"
 		spec?: string; // brief spec sentence
 		how_to_implement?: string[]; // bullet list of steps
@@ -211,6 +212,19 @@
 		totalDeliverables === 0 || completedDeliverables >= totalDeliverables
 	);
 
+	let hintOpen = $state<Record<string, boolean>>({});
+
+	function toggleHint(file: string, e?: MouseEvent | KeyboardEvent) {
+		e?.preventDefault();
+		e?.stopPropagation();
+		hintOpen[file] = !hintOpen[file];
+	}
+
+	function hintIdFor(file: string) {
+		// basic id safe-ifier
+		return `hint-${file.replace(/[^a-z0-9_-]/gi, '-')}`;
+	}
+
 	let loadingFiles = $state<Record<string, boolean>>({});
 
 	function isLoading(file: string) {
@@ -318,6 +332,15 @@
 		e?.stopPropagation();
 		completedFiles[file] = !completedFiles[file];
 	}
+
+	const hintText: Record<string, string> = {
+		'dataset.py': `
+const value = 'the code lol';
+const another = 'example';
+function demo() {
+  return '🙂';
+}`
+	};
 </script>
 
 <div
@@ -425,14 +448,12 @@
 							{#if selectedSection.what_and_how?.length}
 								<div class="mt-2">
 									<p class="text-xs font-semibold tracking-tight text-stone-900">Deliverables</p>
-									<ul
-										class="mt-1 divide-y divide-stone-200 rounded-lg border border-stone-200 text-xs"
-									>
+									<ul class="mt-1 divide-y divide-stone-200 rounded-lg text-xs">
 										{#each selectedSection.what_and_how as item, i (item.file)}
 											<li class="p-0">
 												<details class="group">
 													<summary
-														class="flex w-full cursor-pointer items-center justify-between px-3 py-2 select-none"
+														class="flex w-full cursor-pointer items-center justify-between px-2 py-2 select-none"
 													>
 														<div class="flex min-w-0 items-center gap-2">
 															<button
@@ -555,7 +576,7 @@
 																class="file-label strike-anim min-w-0 font-mono tracking-tighter break-words
            {isDone(item.file) ? 'done text-stone-400' : 'text-stone-800'}"
 															>
-																{item.file}
+																{item.task ?? 'Create ' + item.file}
 															</span>
 														</div>
 
@@ -626,6 +647,55 @@
 																</ul>
 															</div>
 														{/if}
+														<!-- Hint block -->
+														<div class="px-3">
+															<div class="mt-2 overflow-hidden rounded-lg border border-stone-200">
+																<!-- Header bar -->
+																<button
+																	type="button"
+																	class="flex w-full items-center justify-between bg-stone-900 px-3 py-1.5 text-[11px] text-stone-50 hover:bg-stone-800 focus:ring-2 focus:ring-stone-400/40 focus:outline-none"
+																	onclick={(e) => toggleHint(item.file, e)}
+																	aria-expanded={!!hintOpen[item.file]}
+																	aria-controls={hintIdFor(item.file)}
+																>
+																	<!-- left: filename -->
+																	<span class="font-mono tracking-tight">{item.file}</span>
+
+																	<!-- right: Show/Hide + chevron -->
+																	<span class="inline-flex items-center gap-1 text-stone-200">
+																		{hintOpen[item.file] ? 'Hide Hint' : 'Show Hint'}
+																		<svg
+																			class="h-3 w-3 transition-transform duration-200"
+																			viewBox="0 0 20 20"
+																			fill="currentColor"
+																			aria-hidden="true"
+																			style:transform={`rotate(${hintOpen[item.file] ? 180 : 0}deg)`}
+																		>
+																			<path
+																				fill-rule="evenodd"
+																				d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.25 4.39a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06z"
+																				clip-rule="evenodd"
+																			/>
+																		</svg>
+																	</span>
+																</button>
+
+																<!-- Expanding body -->
+																{#if hintOpen[item.file]}
+																	<div
+																		id={hintIdFor(item.file)}
+																		class="bg-stone-950/95"
+																		in:slide={{ duration: 180, easing: cubicOut }}
+																		out:slide={{ duration: 140, easing: cubicOut }}
+																	>
+																		<pre
+																			class="max-h-40 overflow-auto px-4 py-3 text-[11px] leading-relaxed text-stone-100 md:px-5">
+<code>{hintText[item.file] ?? `// no hint for ${item.file}`}</code>
+        </pre>
+																	</div>
+																{/if}
+															</div>
+														</div>
 													</div>
 												</details>
 											</li>
