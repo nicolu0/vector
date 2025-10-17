@@ -35,7 +35,7 @@
 		? undefined
 		: (get(page).state as { project?: unknown; fallback?: boolean } | undefined);
 	const generatedCandidate = navigationState?.project;
-	const hasGeneratedProject = isProject(generatedCandidate);
+	const hasGeneratedProject = true; // isProject(generatedCandidate)
 	const project = $state<Project>(
 		hasGeneratedProject ? (generatedCandidate as Project) : fallbackProject
 	);
@@ -78,7 +78,6 @@
 				description: project.description,
 				jobs: project.jobs,
 				skills: project.skills,
-				prerequisites: project.prerequisites,
 				metadata: project.metadata
 			};
 

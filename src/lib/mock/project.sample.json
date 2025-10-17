@@ -21,256 +21,297 @@
     {
       "name": "1. Character-Level Tokenization",
       "overview": "This section introduces the fundamental concept of tokenization and revisits a simple character-level tokenizer as a starting point.",
-      "learning_materials": [
-        "What is Tokenization? The process of converting text into sequences of tokens (integers) that a large language model can understand.",
-        "Character-Level Tokenization: A naive approach where each character in the text is treated as a separate token and mapped to a unique integer ID.",
-        "Vocabulary: A set of all possible characters or chunks that the tokenizer can recognize.",
-        "Embedding Table: A lookup table where each token's integer ID corresponds to a trainable vector that feeds into the Transformer model."
-      ],
-      "code_snippets": [
-        "Loading a text dataset (e.g., Shakespeare data) into a Python string.",
-        "Creating a vocabulary of unique characters from the text.",
-        "Building a lookup table (dictionary) to map characters to integer tokens and vice versa.",
-        "Encoding a sample string into a sequence of integer tokens."
-      ],
-      "what_and_how": [
+      "deliverables": [
         {
           "task": "Create a dataset",
           "file": "dataset.py",
           "spec": "Load a small corpus into a single Python string for experimentation.",
-          "how_to_implement": [
+          "implementation": [
             "Read the file with UTF-8 and normalize newlines.",
             "Expose a get_text() helper that returns the raw string."
-          ]
+          ],
+          "code": "# Load dataset\nwith open('data.txt', 'r', encoding='utf-8') as f:\n    text = f.read()\n\n# Normalize newlines\ntext = text.replace('\\r\\n', '\\n')\n\ndef get_text():\n    return text"
         },
         {
           "task": "Create vocbaulary",
           "file": "char_vocab.py",
           "spec": "Build a character-level vocabulary and ID maps.",
-          "how_to_implement": [
+          "implementation": [
             "Use set() over the corpus to collect unique characters.",
             "Create stoi/itos dicts and verify round-trip on a sample."
-          ]
+          ],
+          "code": "# Build vocabulary\nchars = sorted(list(set(text)))\nstoi = {ch: i for i, ch in enumerate(chars)}\nitos = {i: ch for i, ch in enumerate(chars)}\n\n# Test round-trip\nassert itos[stoi['a']] == 'a'"
         },
         {
           "task": "Encode and Decode",
           "file": "char_tokenizer.py",
           "spec": "Encode/decode by single characters using the maps.",
-          "how_to_implement": [
+          "implementation": [
             "Implement encode(text)->List[int] and decode(ids)->str.",
             "Add basic tests for empty string and ASCII/non-ASCII."
-          ]
+          ],
+          "code": "def encode(text):\n    return [stoi[c] for c in text]\n\ndef decode(ids):\n    return ''.join([itos[i] for i in ids])\n\n# Test\nencoded = encode('hello')\ndecoded = decode(encoded)\nassert decoded == 'hello'"
+        }
+      ],
+      "learning_materials": [
+        {
+          "title": "What is Tokenization?",
+          "body": "The process of converting text into sequences of tokens (integers) that a large language model can understand."
+        },
+        {
+          "title": "Character-Level Tokenization",
+          "body": "A naive approach where each character in the text is treated as a separate token and mapped to a unique integer ID."
+        },
+        {
+          "title": "Vocabulary",
+          "body": "A set of all possible characters or chunks that the tokenizer can recognize."
+        },
+        {
+          "title": "Embedding Table",
+          "body": "A lookup table where each token's integer ID corresponds to a trainable vector that feeds into the Transformer model."
         }
       ]
     },
     {
       "name": "2. Unicode and UTF-8 Encoding",
       "overview": "This section delves into how computers represent text, specifically focusing on Unicode and the UTF-8 encoding scheme, which is crucial for handling diverse languages and symbols.",
-      "learning_materials": [
-        "Unicode Code Points: A standard that defines roughly 150,000 characters across 161 scripts, each represented by a unique integer (code point) s .",
-        "Encodings (UTF-8, UTF-16, UTF-32): Methods to translate Unicode text into binary data (byte streams).",
-        "UTF-8: The most common encoding, which is a variable-length encoding where each Unicode code point translates to 1 to 4 bytes s . It's also backward compatible with ASCII s .",
-        "Limitations of Raw Code Points/Bytes as Tokens: Using raw Unicode code points would result in a very large and unstable vocabulary (150,000+ items) s . Using raw UTF-8 bytes (256 possible values) would lead to extremely long token sequences, making the Transformer inefficient due to limited context length s s ."
-      ],
-      "code_snippets": [
-        "Getting the Unicode code point of a character using ord() s .",
-        "Encoding a string into UTF-8 bytes using str.encode('utf-8') s .",
-        "Converting a bytes object to a list of integers for easier manipulation s .",
-        "Decoding bytes back to a string using bytes.decode('utf-8', errors='replace') to handle invalid byte sequences s s ."
-      ],
-      "what_and_how": [
+      "deliverables": [
         {
-          "file": "unicode_demo.py",
+          "task": "unicode_demo.py",
           "spec": "Explore code points and basic conversions.",
-          "how_to_implement": [
+          "implementation": [
             "Show ord()/chr() round-trips on diverse characters.",
             "Print code points and hex representations."
-          ]
+          ],
+          "code": "# Unicode code points\nprint(ord('A'))  # 65\nprint(chr(65))   # 'A'\nprint(hex(ord('🚀')))  # Rocket emoji code point"
         },
         {
-          "file": "utf8_bytes.py",
+          "task": "utf8_bytes.py",
           "spec": "Exercise UTF-8 encode/decode and error handling.",
-          "how_to_implement": [
+          "implementation": [
             "Implement to_bytes(text)->List[int] via encode('utf-8').",
             "Implement from_bytes(bs)->str using errors='replace'."
-          ]
+          ],
+          "code": "def to_bytes(text):\n    return list(text.encode('utf-8'))\n\ndef from_bytes(bs):\n    return bytes(bs).decode('utf-8', errors='replace')\n\n# Test\ntext = 'Hello 🚀'\nbytes_list = to_bytes(text)\nback_to_text = from_bytes(bytes_list)\nprint(f'Original: {text}')\nprint(f'Bytes: {bytes_list}')\nprint(f'Decoded: {back_to_text}')"
+        }
+      ],
+      "learning_materials": [
+        {
+          "title": "Unicode Code Points",
+          "body": "A standard that defines roughly 150,000 characters across 161 scripts, each represented by a unique integer (code point)."
+        },
+        {
+          "title": "Encodings (UTF-8, UTF-16, UTF-32)",
+          "body": "Methods to translate Unicode text into binary data (byte streams)."
+        },
+        {
+          "title": "UTF-8",
+          "body": "The most common encoding, which is a variable-length encoding where each Unicode code point translates to 1 to 4 bytes. It's also backward compatible with ASCII."
+        },
+        {
+          "title": "Limitations of Raw Code Points/Bytes as Tokens",
+          "body": "Using raw Unicode code points would result in a very large and unstable vocabulary (150,000+ items). Using raw UTF-8 bytes (256 possible values) would lead to extremely long token sequences, making the Transformer inefficient due to limited context length."
         }
       ]
     },
     {
       "name": "3. Byte Pair Encoding Algorithm",
       "overview": "This is the core of the tokenizer, where the BPE algorithm is implemented to compress byte sequences into a tunable vocabulary of tokens.",
-      "learning_materials": [
-        "BPE Algorithm: An iterative compression algorithm that finds the most frequently occurring pair of tokens in a sequence and replaces them with a new, single token, which is then added to the vocabulary s s .",
-        "Vocabulary Expansion: As merges occur, new tokens are minted, increasing the vocabulary size and reducing the sequence length s s .",
-        "Hyperparameter Tuning: The final vocabulary size is a hyperparameter that needs to be tuned to find a balance between sequence length and embedding table size s s ."
-      ],
-      "code_snippets": [
-        "get_stats(ids) function: Takes a list of integers (token IDs) and returns a dictionary of consecutive pairs and their frequencies s .",
-        "merge(ids, pair, idx) function: Takes a list of token IDs, a pair to merge, and the new index for the merged token, returning a new list with the merged pair replaced s .",
-        "Training Loop: A while loop that repeatedly calls get_stats to find the most frequent pair, then merge to replace it with a new token, until the desired vocabulary size is reached s s .",
-        "Storing merges (a dictionary mapping pairs to their new token ID) and vocab (a dictionary mapping token IDs to their byte representation) for encoding and decoding s s ."
-      ],
-      "what_and_how": [
+      "deliverables": [
         {
-          "file": "bpe_core.py",
+          "task": "bpe_core.py",
           "spec": "Implement get_stats and merge primitives over integer token streams.",
-          "how_to_implement": [
+          "implementation": [
             "Represent sequences as lists of ints (initially bytes).",
             "get_stats: count adjacent pairs into a dict[(a,b)]=freq.",
             "merge: replace pair occurrences with a new token id."
-          ]
+          ],
+          "code": "def get_stats(ids):\n    counts = {}\n    for pair in zip(ids, ids[1:]):\n        counts[pair] = counts.get(pair, 0) + 1\n    return counts\n\ndef merge(ids, pair, idx):\n    newids = []\n    i = 0\n    while i < len(ids):\n        if i < len(ids) - 1 and ids[i] == pair[0] and ids[i + 1] == pair[1]:\n            newids.append(idx)\n            i += 2\n        else:\n            newids.append(ids[i])\n            i += 1\n    return newids"
         },
         {
-          "file": "bpe_train.py",
+          "task": "bpe_train.py",
           "spec": "Iterative merge loop to reach target vocab size.",
-          "how_to_implement": [
+          "implementation": [
             "Initialize vocab with bytes 0..255; merges={}.",
             "Repeat: pick most frequent pair via max(..., key=freq).",
             "Assign new id; update sequences; record merges in order."
-          ]
+          ],
+          "code": "# Initialize vocabulary\nvocab_size = 256\nnum_merges = vocab_size - 256\nids = list(text.encode('utf-8'))\n\nmerges = {}\nvocab = {idx: bytes([idx]) for idx in range(vocab_size)}\n\nfor i in range(num_merges):\n    stats = get_stats(ids)\n    pair = max(stats, key=stats.get)\n    idx = vocab_size + i\n    ids = merge(ids, pair, idx)\n    merges[pair] = idx\n    vocab[idx] = vocab[pair[0]] + vocab[pair[1]]"
         },
         {
-          "file": "bpe_io.py",
+          "task": "bpe_io.py",
           "spec": "Persist vocab and merges for reuse.",
-          "how_to_implement": [
+          "implementation": [
             "Save/load merges list (ordered) and id->byte mapping.",
             "Ensure deterministic serialization for reproducibility."
-          ]
+          ],
+          "code": "import pickle\n\ndef save_vocab(vocab, merges, file_prefix):\n    with open(f'{file_prefix}_vocab.pkl', 'wb') as f:\n        pickle.dump(vocab, f)\n    with open(f'{file_prefix}_merges.pkl', 'wb') as f:\n        pickle.dump(merges, f)\n\ndef load_vocab(file_prefix):\n    with open(f'{file_prefix}_vocab.pkl', 'rb') as f:\n        vocab = pickle.load(f)\n    with open(f'{file_prefix}_merges.pkl', 'rb') as f:\n        merges = pickle.load(f)\n    return vocab, merges"
+        }
+      ],
+      "learning_materials": [
+        {
+          "title": "BPE Algorithm",
+          "body": "An iterative compression algorithm that finds the most frequently occurring pair of tokens in a sequence and replaces them with a new, single token, which is then added to the vocabulary."
+        },
+        {
+          "title": "Vocabulary Expansion",
+          "body": "As merges occur, new tokens are minted, increasing the vocabulary size and reducing the sequence length."
+        },
+        {
+          "title": "Hyperparameter Tuning",
+          "body": "The final vocabulary size is a hyperparameter that needs to be tuned to find a balance between sequence length and embedding table size."
         }
       ]
     },
     {
       "name": "4. Encoding and Decoding",
       "overview": "This section focuses on using the trained merges and vocab to convert raw text into token sequences (encoding) and token sequences back into raw text (decoding).",
-      "learning_materials": [
-        "Decoding: Given a sequence of token IDs, reconstruct the original byte sequence by looking up each token's byte representation in the vocab and concatenating them, then decoding the resulting bytes into a string s s .",
-        "Encoding: Given a raw text string, first encode it into UTF-8 bytes. Then, iteratively apply the merges in the correct order (from earliest to latest) to compress the byte sequence into the final token sequence s s .",
-        "Order of Merges: Merges must be applied in the same order they were created during training to ensure consistent encoding s ."
-      ],
-      "code_snippets": [
-        "decode(ids) function: Implements the decoding process using the vocab dictionary and bytes.decode() s .",
-        "encode(text) function: Implements the encoding process, starting with UTF-8 bytes and iteratively applying merges based on the merges dictionary s s .",
-        "Handling edge cases like empty strings or single-character strings in encode s ."
-      ],
-      "what_and_how": [
+      "deliverables": [
         {
-          "file": "codec.py",
+          "task": "codec.py",
           "spec": "Encode text to token ids and decode ids to text using trained merges.",
-          "how_to_implement": [
+          "implementation": [
             "encode: text -> utf-8 bytes -> iterative merges (in order).",
             "decode: ids -> concatenate byte chunks -> bytes.decode('utf-8').",
             "Cover edge cases: empty text, unknown bytes."
-          ]
+          ],
+          "code": "def encode(text):\n    # Convert to bytes\n    tokens = list(text.encode('utf-8'))\n    \n    # Apply merges in order\n    while len(tokens) > 1:\n        stats = get_stats(tokens)\n        if not stats:\n            break\n        \n        # Find most frequent pair\n        pair = max(stats, key=stats.get)\n        if pair not in merges:\n            break\n        \n        # Apply merge\n        tokens = merge(tokens, pair, merges[pair])\n    \n    return tokens\n\ndef decode(ids):\n    # Convert token ids back to bytes\n    bytes_list = []\n    for idx in ids:\n        bytes_list.extend(vocab[idx])\n    \n    return bytes(bytes_list).decode('utf-8', errors='replace')"
         },
         {
-          "file": "tests_codec.py",
+          "task": "tests_codec.py",
           "spec": "Round-trip tests for encode/decode.",
-          "how_to_implement": [
+          "implementation": [
             "Assert decode(encode(x))==x for ASCII and multi-byte scripts.",
             "Test stability under trailing whitespace."
-          ]
+          ],
+          "code": "# Test round-trip\ndef test_roundtrip(text):\n    encoded = encode(text)\n    decoded = decode(encoded)\n    assert decoded == text, f'Expected {text!r}, got {decoded!r}'\n\n# Test various cases\ntest_roundtrip('hello')\ntest_roundtrip('Hello world!')\ntest_roundtrip('🚀 Python 3.9')\ntest_roundtrip('')"
+        }
+      ],
+      "learning_materials": [
+        {
+          "title": "Decoding",
+          "body": "Given a sequence of token IDs, reconstruct the original byte sequence by looking up each token's byte representation in the vocab and concatenating them, then decoding the resulting bytes into a string."
+        },
+        {
+          "title": "Encoding",
+          "body": "Given a raw text string, first encode it into UTF-8 bytes. Then, iteratively apply the merges in the correct order (from earliest to latest) to compress the byte sequence into the final token sequence."
+        },
+        {
+          "title": "Order of Merges",
+          "body": "Merges must be applied in the same order they were created during training to ensure consistent encoding."
         }
       ]
     },
     {
       "name": "5. Advanced Considerations (GPT-2/GPT-4)",
       "overview": "This section explores the complexities and specific design choices made in state-of-the-art tokenizers like those used in GPT-2 and GPT-4, including regular expressions for pre-splitting text and special tokens.",
-      "learning_materials": [
-        "Pre-splitting Text with Regular Expressions: Tokenizers like GPT-2 use complex regular expressions to split text into chunks before applying BPE. This prevents merges across certain categories (e.g., letters and punctuation, numbers and letters) to avoid suboptimal tokenization s s .",
-        "Case Sensitivity: Differences in how uppercase and lowercase characters are handled can lead to inconsistent tokenization if not addressed (e.g., re.IGNORECASE flag in regex) s s .",
-        "Whitespace Handling: Specific rules for how spaces are grouped or separated, especially in code, can significantly impact tokenization efficiency and model performance s s .",
-        "Special Tokens: Dedicated tokens (e.g., &lt;|endoftext|&gt;, &lt;|im_start|&gt;) are used to delimit documents, conversations, or introduce special functionality. These are handled outside the standard BPE algorithm s s .",
-        "Model Surgery for Special Tokens: Adding new special tokens requires extending the embedding matrix and the final linear layer of the Transformer model to accommodate the new vocabulary elements s s ."
-      ],
-      "code_snippets": [
-        "Using re.findall() with a complex regex pattern to pre-split text into a list of strings s .",
-        "Examples of how different regex patterns affect chunking (e.g., separating letters, numbers, punctuation, and specific apostrophe contractions) s s .",
-        "Demonstrating the impact of case sensitivity in regex matching s .",
-        "Registering special tokens in a tokenizer (conceptual, as the training code for GPT-2 tokenizer was not released) s ."
-      ],
-      "what_and_how": [
+      "deliverables": [
         {
-          "file": "regex_pretokenize.py",
+          "task": "regex_pretokenize.py",
           "spec": "Apply GPT-2–style pre-splitting before BPE merges.",
-          "how_to_implement": [
+          "implementation": [
             "Compile the complex regex and call re.findall() over text.",
             "Prevent merges across categories per pattern semantics."
-          ]
+          ],
+          "code": "import re\n\n# GPT-2 pre-tokenization regex\ngpt2_pattern = re.compile(r\"(?i)'s|'t|'re|'ve|'m|'ll|'d| ?\\p{L}+| ?\\p{N}+| ?[^\\s\\p{L}\\p{N}]+|\\s+(?!\\S)|\\s+\")\n\ndef pretokenize(text):\n    return gpt2_pattern.findall(text)\n\n# Test\ntext = \"Hello, world! How are you?\"\ntokens = pretokenize(text)\nprint(tokens)"
         },
         {
-          "file": "special_tokens.py",
+          "task": "special_tokens.py",
           "spec": "Register and reserve special tokens outside BPE.",
-          "how_to_implement": [
+          "implementation": [
             "Maintain a reserved id range and mapping for special tokens.",
             "Document effects on embedding/LM heads when adding tokens."
-          ]
+          ],
+          "code": "# Special tokens for chat\nspecial_tokens = {\n    '<|endoftext|>': 50256,\n    '<|im_start|>': 50257,\n    '<|im_end|>': 50258,\n}\n\n# When adding new tokens, extend vocab\nvocab_size = 50257  # GPT-2 vocab size\nnew_tokens = ['<|user|>', '<|assistant|>']\nfor i, token in enumerate(new_tokens):\n    special_tokens[token] = vocab_size + i"
+        }
+      ],
+      "learning_materials": [
+        {
+          "title": "Pre-splitting Text with Regular Expressions",
+          "body": "Tokenizers like GPT-2 use complex regular expressions to split text into chunks before applying BPE. This prevents merges across certain categories (e.g., letters and punctuation, numbers and letters) to avoid suboptimal tokenization."
+        },
+        {
+          "title": "Case Sensitivity",
+          "body": "Differences in how uppercase and lowercase characters are handled can lead to inconsistent tokenization if not addressed (e.g., re.IGNORECASE flag in regex)."
+        },
+        {
+          "title": "Whitespace Handling",
+          "body": "Specific rules for how spaces are grouped or separated, especially in code, can significantly impact tokenization efficiency and model performance."
+        },
+        {
+          "title": "Special Tokens",
+          "body": "Dedicated tokens (e.g., <|endoftext|>, <|im_start|>) are used to delimit documents, conversations, or introduce special functionality. These are handled outside the standard BPE algorithm."
+        },
+        {
+          "title": "Model Surgery for Special Tokens",
+          "body": "Adding new special tokens requires extending the embedding matrix and the final linear layer of the Transformer model to accommodate the new vocabulary elements."
         }
       ]
     },
     {
       "name": "6. Tokenizer Libraries and Design Choices",
       "overview": "This section compares two prominent tokenizer libraries, OpenAI's Tiktoken and Google's SentencePiece, highlighting their different approaches and design philosophies.",
-      "learning_materials": [
-        "Tiktoken (OpenAI):",
-        "Primarily an inference library, with training code not publicly released for GPT-2/GPT-4 tokenizers s .",
-        "Applies BPE on the byte level (UTF-8 bytes) s .",
-        "Uses a pre-splitting regex pattern to enforce merging rules s .",
-        "SentencePiece (Google):",
-        "Supports both training and inference and is used by models like Llama and Mistral s .",
-        "Applies BPE directly on Unicode code points s .",
-        "Features \"byte fallback\" for rare code points: if a code point is not in the vocabulary, it's encoded into UTF-8 bytes, and those individual bytes become tokens s s .",
-        "Has a concept of \"sentences\" and various normalization rules, which can be complex to configure for LLMs s .",
-        "Often adds a \"dummy prefix\" (a space) to the beginning of text to ensure consistent tokenization of words at the start and middle of sentences s s ."
-      ],
-      "code_snippets": [
-        "(Conceptual) Using tiktoken to encode/decode text with GPT-2 or GPT-4 tokenizers s .",
-        "(Conceptual) Training a sentencepiece model with various configuration options (e.g., model_type, vocab_size, byte_fallback, add_dummy_prefix) s s .",
-        "Encoding and decoding text using a trained sentencepiece model s ."
-      ],
-      "what_and_how": [
+      "deliverables": [
         {
-          "file": "notes_tiktoken.md",
+          "task": "notes_tiktoken.md",
           "spec": "Document practical usage patterns and quirks of tiktoken.",
-          "how_to_implement": [
+          "implementation": [
             "Record examples of encode/decode for tricky inputs.",
             "Note pretokenization regex and byte-level behavior."
-          ]
+          ],
+          "code": "# Tiktoken usage\nimport tiktoken\n\n# Load encoder\nenc = tiktoken.get_encoding('gpt2')\n\n# Encode/decode\ntext = 'Hello, world!'\ntokens = enc.encode(text)\nback = enc.decode(tokens)\nprint(f'Tokens: {tokens}')\nprint(f'Decoded: {back}')"
         },
         {
-          "file": "spm_train.md",
+          "task": "spm_train.md",
           "spec": "Recipe for training SentencePiece with byte_fallback and prefixes.",
-          "how_to_implement": [
+          "implementation": [
             "Show trainer CLI/ Python API examples.",
             "Compare vocab sizes and tokenization density."
-          ]
+          ],
+          "code": "# SentencePiece training\n# CLI: spm_train --input=data.txt --model_prefix=sp --vocab_size=1000 --byte_fallback\n\n# Python API\nfrom sentencepiece import SentencePieceProcessor\n\nsp = SentencePieceProcessor(model_file='sp.model')\ntokens = sp.encode('Hello world')\nprint(tokens)"
+        }
+      ],
+      "learning_materials": [
+        {
+          "title": "Tiktoken (OpenAI)",
+          "body": "Primarily an inference library, with training code not publicly released for GPT-2/GPT-4 tokenizers. Applies BPE on the byte level (UTF-8 bytes). Uses a pre-splitting regex pattern to enforce merging rules."
+        },
+        {
+          "title": "SentencePiece (Google)",
+          "body": "Supports both training and inference and is used by models like Llama and Mistral. Applies BPE directly on Unicode code points. Features 'byte fallback' for rare code points."
         }
       ]
     },
     {
       "name": "7. Impact on LLM Behavior",
       "overview": "This section revisits various \"weird\" behaviors of large language models and explains how they fundamentally trace back to tokenization choices.",
-      "learning_materials": [
-        "Spelling and Character-Level Tasks: LLMs struggle with tasks like spelling or reversing strings because tokens can be long chunks of characters, and the model doesn't process individual characters within a token s s .",
-        "Non-English Languages: Non-English text often tokenizes into significantly more tokens than equivalent English text, leading to \"bloated\" sequences that consume more of the Transformer's finite context length and reduce performance s s .",
-        "Arithmetic: The arbitrary tokenization of numbers (e.g., a four-digit number might be one, two, or more tokens) makes it difficult for LLMs to perform character-level arithmetic operations consistently sss .",
-        "Code Efficiency (e.g., Python): Inefficient tokenization of whitespace and indentation in code can dramatically increase sequence length, reducing the effective context window for the model and hindering its coding ability s s .",
-        "Special Token Misinterpretation: LLMs can exhibit unexpected behavior if special tokens (like &lt;|endoftext|&gt;) are encountered in user prompts, potentially leading to abrupt halts or errors s s .",
-        "Trailing Whitespace Issues: Adding a trailing space to a prompt can disrupt tokenization, creating out-of-distribution inputs for the model and leading to worse performance or errors, as the space might normally be a prefix to the next token s s .",
-        "\"Solid Gold Magikarp\" Phenomenon: Untrained tokens (tokens that were in the tokenizer's training data but not in the LLM's training data) can lead to undefined and bizarre model behavior when evoked, as their embedding vectors remain uninitialized or untrained s s .",
-        "Tokenization Density and Cost: Different data formats (e.g., YAML vs. JSON) can have varying tokenization efficiencies, impacting context length usage and computational costs s s ."
-      ],
-      "code_snippets": [
-        "(Conceptual) Examples of how different strings (e.g., \"default style\", \"hello how are you\" in different languages, numbers) tokenize into varying numbers of tokens using a live tokenizer tool like Tiktokenizer.dev sssss ."
-      ],
-      "what_and_how": [
+      "deliverables": [
         {
-          "file": "analysis_notes.md",
+          "task": "analysis_notes.md",
           "spec": "Collect examples demonstrating tokenization-driven quirks.",
-          "how_to_implement": [
+          "implementation": [
             "Record token counts across languages and formats (JSON/YAML).",
             "Include edge cases: trailing space, special tokens, large numbers."
-          ]
+          ],
+          "code": "# Tokenization analysis\nimport tiktoken\n\nenc = tiktoken.get_encoding('gpt2')\n\n# Compare languages\ntest_cases = [\n    'Hello world',\n    'Bonjour le monde',\n    '你好世界',\n    '🚀 Python 3.9'\n]\n\nfor text in test_cases:\n    tokens = enc.encode(text)\n    print(f'{text!r} -> {len(tokens)} tokens: {tokens}')"
+        }
+      ],
+      "learning_materials": [
+        {
+          "title": "Spelling and Character-Level Tasks",
+          "body": "LLMs struggle with tasks like spelling or reversing strings because tokens can be long chunks of characters, and the model doesn't process individual characters within a token."
+        },
+        {
+          "title": "Non-English Languages",
+          "body": "Non-English text often tokenizes into significantly more tokens than equivalent English text, leading to 'bloated' sequences that consume more of the Transformer's finite context length and reduce performance."
+        },
+        {
+          "title": "Arithmetic",
+          "body": "The arbitrary tokenization of numbers (e.g., a four-digit number might be one, two, or more tokens) makes it difficult for LLMs to perform character-level arithmetic operations consistently."
+        },
+        {
+          "title": "Code Efficiency",
+          "body": "Inefficient tokenization of whitespace and indentation in code can dramatically increase sequence length, reducing the effective context window for the model and hindering its coding ability."
         }
       ]
     }
