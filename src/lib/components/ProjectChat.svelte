@@ -28,20 +28,23 @@
 	};
 
 	export type Deliverable = {
-		file: string; // e.g., "dataset.py"
-		spec?: string; // brief spec sentence
-		how_to_implement?: string[]; // bullet list of steps
+		task: string;
+		spec: string;
+		implementation: string[];
+		code: string;
+	};
+
+	export type LearningMaterial = {
+		title: string;
+		body: string;
 	};
 
 	type MentorPacket = { title: string; content: string; action?: Record<string, unknown> | null };
 	type ProjectSection = {
 		name: string;
 		overview: string;
-		required_skills?: string[];
-		what_and_how?: Deliverable[];
-		learning_materials?: string[];
-		code_snippets?: string[];
-		python_functions?: string[];
+		deliverables: Deliverable[];
+		learning_materials: LearningMaterial[];
 	};
 
 	/* -------- Config -------- */
@@ -225,10 +228,24 @@
 				return {
 					name,
 					overview,
-					required_skills: arr(o.required_skills),
-					learning_materials: arr(o.learning_materials),
-					code_snippets: arr(o.code_snippets),
-					python_functions: arr(o.python_functions)
+					deliverables: Array.isArray(o.deliverables) ? o.deliverables.map((d: unknown) => {
+						if (!d || typeof d !== 'object') return { task: '', spec: '', implementation: [], code: '' };
+						const deliverable = d as Record<string, unknown>;
+						return {
+							task: typeof deliverable.task === 'string' ? deliverable.task : '',
+							spec: typeof deliverable.spec === 'string' ? deliverable.spec : '',
+							implementation: Array.isArray(deliverable.implementation) ? deliverable.implementation.filter((item: unknown) => typeof item === 'string') : [],
+							code: typeof deliverable.code === 'string' ? deliverable.code : ''
+						};
+					}) : [],
+					learning_materials: Array.isArray(o.learning_materials) ? o.learning_materials.map((m: unknown) => {
+						if (!m || typeof m !== 'object') return { title: '', body: '' };
+						const material = m as Record<string, unknown>;
+						return {
+							title: typeof material.title === 'string' ? material.title : '',
+							body: typeof material.body === 'string' ? material.body : ''
+						};
+					}) : []
 				};
 			})
 			.filter(Boolean) as ProjectSection[];
@@ -640,13 +657,13 @@
 								</div>
 							{/if}
 
-							{#if selectedSection.what_and_how?.length}
+							{#if selectedSection.deliverables?.length}
 								<div class="mt-2">
 									<p class="text-xs font-semibold tracking-tight text-stone-900">Deliverables</p>
 									<ul
 										class="mt-1 divide-y divide-stone-200 rounded-lg border border-stone-200 text-xs"
 									>
-										{#each selectedSection.what_and_how as item, i (item.file)}
+										{#each selectedSection.deliverables as item, i (item.task)}
 											<li class="p-0">
 												<details class="group">
 													<summary
@@ -656,15 +673,15 @@
 															<button
 																type="button"
 																class="group relative grid h-3 w-3 place-items-center rounded-full focus:outline-none
-           {isDone(item.file) ? 'bg-[#2D2D2D]' : ''}"
+           {isDone(item.task) ? 'bg-[#2D2D2D]' : ''}"
 																role="checkbox"
-																aria-checked={isDone(item.file)}
-																aria-label={isDone(item.file) ? 'Mark as not done' : 'Mark as done'}
-																onclick={(e) => toggleDone(item.file, e)}
+																aria-checked={isDone(item.task)}
+																aria-label={isDone(item.task) ? 'Mark as not done' : 'Mark as done'}
+																onclick={(e) => toggleDone(item.task, e)}
 																onkeydown={(e) =>
-																	(e.key === ' ' || e.key === 'Enter') && toggleDone(item.file, e)}
+																	(e.key === ' ' || e.key === 'Enter') && toggleDone(item.task, e)}
 															>
-																{#if !isDone(item.file)}
+																{#if !isDone(item.task)}
 																	<!-- dashed ring (default) -->
 																	<span
 																		class="pointer-events-none absolute inset-0 scale-100 rounded-full border border-dashed
@@ -681,7 +698,7 @@
 																	/>
 																{/if}
 
-																{#if isDone(item.file)}
+																{#if isDone(item.task)}
 																	<!-- animated check -->
 																	<svg
 																		viewBox="0 0 24 24"
@@ -704,9 +721,9 @@
 
 															<span
 																class="file-label strike-anim min-w-0 font-mono tracking-tighter break-words
-           {isDone(item.file) ? 'done text-stone-400' : 'text-stone-800'}"
+           {isDone(item.task) ? 'done text-stone-400' : 'text-stone-800'}"
 															>
-																{item.file}
+																{item.task}
 															</span>
 														</div>
 
@@ -732,14 +749,21 @@
 															</div>
 														{/if}
 
-														{#if item.how_to_implement?.length}
+														{#if item.implementation?.length}
 															<div class="space-y-1 pl-5">
 																<div class="text-stone-900">How to implement</div>
 																<ul class="list-disc space-y-1 pl-5">
-																	{#each item.how_to_implement as imp}
+																	{#each item.implementation as imp}
 																		<li class="break-words text-stone-700/90">{imp}</li>
 																	{/each}
 																</ul>
+															</div>
+														{/if}
+
+														{#if item.code}
+															<div class="space-y-1 pl-5">
+																<div class="text-stone-900">Code</div>
+																<pre class="rounded bg-stone-100 p-2 text-xs overflow-x-auto whitespace-pre-wrap">{item.code}</pre>
 															</div>
 														{/if}
 													</div>
@@ -756,35 +780,14 @@
 									<p class="text-xs font-semibold tracking-tight text-stone-900">
 										Learning Materials
 									</p>
-									<ul class="mt-1 list-disc pl-5 text-xs">
-										{#each selectedSection.learning_materials as item}
-											<li class="break-words">{item}</li>
+									<div class="mt-1 space-y-3">
+										{#each selectedSection.learning_materials as material}
+											<div class="rounded-lg border border-stone-200 bg-stone-50 p-3">
+												<h4 class="text-sm font-medium text-stone-900">{material.title}</h4>
+												<p class="mt-1 text-xs text-stone-600">{material.body}</p>
+											</div>
 										{/each}
-									</ul>
-								</div>
-							{/if}
-
-							<!-- Code Snippets (as bullet text; switch to <pre> if you later store code blocks) -->
-							{#if selectedSection.code_snippets?.length}
-								<div class="mt-2">
-									<p class="text-xs font-semibold tracking-tight text-stone-900">Code Snippets</p>
-									<ul class="mt-1 list-disc pl-5 text-xs">
-										{#each selectedSection.code_snippets as item}
-											<li class="break-words">{item}</li>
-										{/each}
-									</ul>
-								</div>
-							{/if}
-
-							<!-- Python Functions -->
-							{#if selectedSection.python_functions?.length}
-								<div class="mt-2">
-									<p class="text-[11px] font-medium text-stone-600">Python Functions</p>
-									<ul class="mt-1 list-disc pl-5 text-xs">
-										{#each selectedSection.python_functions as item}
-											<li class="break-words">{item}</li>
-										{/each}
-									</ul>
+									</div>
 								</div>
 							{/if}
 						</div>

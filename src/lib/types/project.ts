@@ -5,15 +5,26 @@ export type Job = {
   url: string;
 };
 
-export type Milestone = {
-  name: string;
-  objective: string;
-  success_metrics: string[];
+export type Deliverable = {
+  task: string;
+  spec: string;
+  implementation: string[];
+  code: string;
 };
 
-export type Metadata = {
-  milestones: Milestone[];
+export type LearningMaterial = {
+  title: string;
+  body: string;
 };
+
+export type Section = {
+  name: string;
+  overview: string;
+  deliverables: Deliverable[];
+  learning_materials: LearningMaterial[];
+};
+
+export type Metadata = Section[];
 
 export type Project = {
   title: string;
@@ -43,15 +54,8 @@ export function isProject(value: unknown): value is Project {
   const skills = project.skills;
   if (!Array.isArray(skills)) return false;
 
-  const prerequisites = project.prerequisites;
-  if (!Array.isArray(prerequisites) || prerequisites.length < 2 || prerequisites.length > 6) {
-    return false;
-  }
-
   const metadata = project.metadata;
-  if (!metadata || typeof metadata !== 'object') return false;
-  const { milestones } = metadata as Record<string, unknown>;
-  if (!Array.isArray(milestones) || milestones.length < 3 || milestones.length > 6) return false;
+  if (!Array.isArray(metadata) || metadata.length < 3 || metadata.length > 15) return false;
 
   const allJobsValid = jobs.every((job: unknown) => {
     if (!job || typeof job !== 'object') return false;
@@ -61,22 +65,37 @@ export function isProject(value: unknown): value is Project {
 
   const allSkillsValid = skills.every((skill: unknown) => typeof skill === 'string');
 
-  const allMilestonesValid = milestones.every((milestone: unknown) => {
-    if (!milestone || typeof milestone !== 'object') return false;
-    const { name, objective, success_metrics } = milestone as Record<string, unknown>;
-    if (
-      typeof name !== 'string' ||
-      typeof objective !== 'string' ||
-      !Array.isArray(success_metrics) ||
-      success_metrics.length < 2 ||
-      success_metrics.length > 3
-    ) {
-      return false;
-    }
-    return success_metrics.every((metric) => typeof metric === 'string');
+  const allSectionsValid = metadata.every((section: unknown) => {
+    if (!section || typeof section !== 'object') return false;
+    const { name, overview, deliverables, learning_materials } = section as Record<string, unknown>;
+
+    if (typeof name !== 'string' || typeof overview !== 'string') return false;
+
+    if (!Array.isArray(deliverables)) return false;
+    if (!Array.isArray(learning_materials)) return false;
+
+    // Validate deliverables
+    const allDeliverablesValid = deliverables.every((deliverable: unknown) => {
+      if (!deliverable || typeof deliverable !== 'object') return false;
+      const { task, spec, implementation, code } = deliverable as Record<string, unknown>;
+      return (
+        typeof task === 'string' &&
+        typeof spec === 'string' &&
+        Array.isArray(implementation) &&
+        implementation.every((item: unknown) => typeof item === 'string') &&
+        typeof code === 'string'
+      );
+    });
+
+    // Validate learning materials
+    const allLearningMaterialsValid = learning_materials.every((material: unknown) => {
+      if (!material || typeof material !== 'object') return false;
+      const { title, body } = material as Record<string, unknown>;
+      return typeof title === 'string' && typeof body === 'string';
+    });
+
+    return allDeliverablesValid && allLearningMaterialsValid;
   });
 
-  const allPrerequisitesValid = prerequisites.every((item: unknown) => typeof item === 'string');
-
-  return allJobsValid && allSkillsValid && allPrerequisitesValid && allMilestonesValid;
+  return allJobsValid && allSkillsValid && allSectionsValid;
 }
