@@ -746,8 +746,8 @@ function demo() {
         background: linear-gradient(
           to top,
           rgb(245, 245, 245) 0%,
-          rgba(245,245,245,0.5) 50%,
-          rgba(245,245,245,0.2) 100%
+          rgba(245,245,245,0.8) 50%,
+          rgba(245,245,245,0) 100%
         );
       "
 				></div>
