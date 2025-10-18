@@ -325,6 +325,8 @@ Example (schema-compliant JSON; your output must be JSON only, no markdown). The
 
 /* ---------- OpenAI client ---------- */
 
+/* ---------- OpenAI client ---------- */
+
 function createOpenAI() {
   const apiKey = OPENAI_API_KEY;
   if (!apiKey) return null;

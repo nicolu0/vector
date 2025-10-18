@@ -270,9 +270,9 @@
     }
 
 	const {
-		placeholder = 'Tell us your interests… Not sure? Take the interest quiz',
+		placeholder = `Tell us about your project idea. If you already have a resumé, drop it into the textbox.`,
 		headline = 'Applying to college/jobs?',
-		subhead = 'Differentiate yourself with great projects. Vector uses job listings to generate the perfect ones.',
+		subhead = 'Differentiate yourself with great projects. Vector uses job listings to level up your resumé.',
 		quizLabel = 'Take interest quiz'
 	} = $props<{
 		placeholder?: string;
@@ -580,11 +580,20 @@
 						onkeydown={keydown}
 						rows="3"
 						{placeholder}
-						class="h-[96px] w-full resize-none overflow-hidden rounded-xl border border-stone-200/80 bg-white px-4 py-3 pr-12 text-[15px] leading-6 text-stone-800 ring-0 transition outline-none placeholder:text-stone-400"
-						aria-label="Describe your interests"
+						class="h-[150px] w-full resize-none overflow-hidden rounded-3xl border border-stone-200/80 bg-white px-4 py-3 pr-12 text-[15px] leading-6 text-stone-800 ring-0 transition outline-none placeholder:text-stone-300"
 					/>
 					<button
-						class="absolute right-2 bottom-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-stone-800 text-white transition hover:bg-stone-900 focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:outline-none"
+						data-chip
+						onclick={() => {
+							showInterestQuiz = true;
+						}}
+						class="absolute bottom-4 left-3 inline-flex items-center gap-2 rounded-full border border-[#2D2D2D] bg-[#2D2D2D] px-3 py-1.5 text-sm text-white transition hover:bg-stone-800 focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:outline-none"
+					>
+						<span class="text-base leading-none">★</span>Rate My Resumé
+					</button>
+
+					<button
+						class="absolute right-3 bottom-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-stone-800 text-white transition hover:bg-stone-900 focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:outline-none"
 						onclick={submit}
 						disabled={isGenerating}
 						aria-label="Generate project"
@@ -601,46 +610,6 @@
 							<path d="M13 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
 						</svg>
 					</button>
-				</div>
-
-				<div
-					bind:this={chipsEl}
-					in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 500 }}
-					class="mx-auto mt-2 flex min-h-[78px] max-w-3xl flex-wrap items-start gap-2"
-				>
-					{#if loading}
-						{#each [72, 96, 88, 110, 84, 100, 92, 120, 80, 104] as w, i}
-							<div
-								class="h-8 animate-pulse rounded-full bg-stone-200/70"
-								style={`width:${w}px`}
-								data-chip
-								aria-hidden="true"
-							/>
-						{/each}
-					{:else}
-						<button
-							data-chip
-							onclick={() => {
-								showInterestQuiz = true;
-							}}
-							class="inline-flex items-center gap-2 rounded-full border border-[#2D2D2D] bg-[#2D2D2D] px-3 py-1.5 text-sm text-white transition hover:bg-stone-800 focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:outline-none"
-						>
-							<span class="text-base leading-none">★</span>{quizLabel}
-						</button>
-
-						{#each visibleSuggestions as s}
-							<button
-								data-chip
-								class="group inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-700 transition hover:border-stone-300 hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:outline-none"
-								onclick={() => (picked.has(s) ? toggle(s) : addToInput(s))}
-								aria-pressed={picked.has(s)}
-								title={s}
-							>
-								<span class="text-base leading-none">{picked.has(s) ? '•' : '+'}</span>
-								{shortLabel(s)}
-							</button>
-						{/each}
-					{/if}
 				</div>
 			{/if}
 		</div>
