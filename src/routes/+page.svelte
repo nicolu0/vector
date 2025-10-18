@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fly } from 'svelte/transition';
+	import { blur, fly, scale } from 'svelte/transition';
 	import Toast from '$lib/components/Toast.svelte';
 	import { cubicOut } from 'svelte/easing';
 	import OnboardingFlow from '$lib/components/OnboardingFlow.svelte';
@@ -556,7 +556,7 @@
 		class="flex min-h-[calc(100svh-56px)] w-full flex-col items-center justify-center bg-stone-50 px-6"
 		aria-busy={isGenerating}
 	>
-		<div class="mb-30 w-full max-w-3xl">
+		<div class="mb-18 w-full max-w-3xl">
 			{#if mounted}
 				<div
 					class="text-center text-4xl font-semibold tracking-tight text-stone-800 sm:text-5xl"
@@ -572,18 +572,14 @@
 				</p>
 
 				<div
-					class="relative mt-4"
+					class="relative mt-8"
 					aria-label="Drop PDF here"
 					in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 200 }}
 				>
 					<div
-						class={`group relative grid h-[300px] place-items-center rounded-2xl border
-      ${dragging ? 'ring-2 ring-stone-400' : ''}
-      ${
-				selectedFileName
-					? 'border-stone-400 bg-white'
-					: 'border-dashed border-stone-300 bg-stone-50'
-			}
+						class={`group relative grid h-[360px] place-items-center rounded-2xl border
+      ${dragging ? 'ring-1 ring-stone-300' : ''}
+      ${selectedFileName ? 'border-stone-300' : 'border-dashed border-stone-300 bg-stone-50'}
       cursor-pointer text-stone-600 transition`}
 						ondragover={onDragOver}
 						ondragleave={onDragLeave}
@@ -600,68 +596,74 @@
 						aria-describedby="dropzone-help"
 					>
 						{#if selectedFileName}
-							<!-- Selected file state -->
+							<!-- Selected file state: small left icon + filename -->
 							<div class="pointer-events-none flex flex-col items-center gap-2 px-6 text-center">
-								<svg viewBox="0 0 64 64" class="h-10 w-10" aria-hidden="true" role="img">
-									<path
-										d="M12 8a6 6 0 0 1 6-6h20.5L56 19.5V52a6 6 0 0 1-6 6H18a6 6 0 0 1-6-6V8z"
-										fill="#F2F2EF"
-									/>
-									<path d="M38.5 2v11a6 6 0 0 0 6 6H56L38.5 2z" fill="#D1D5DB" />
-									<rect x="8" y="38" width="40" height="18" rx="5" fill="#EF4444" />
-									<text
-										x="28"
-										y="50.5"
-										text-anchor="middle"
-										font-size="10.5"
-										font-weight="700"
-										fill="#FFFFFF"
-										font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji','Segoe UI Emoji'"
-									>
-										PDF
-									</text>
-								</svg>
+								<div
+									class="inline-flex items-center gap-2"
+									in:fly={{ y: 2, duration: 500, easing: cubicOut, delay: 300 }}
+								>
+									<!-- smaller black circle + animated white check -->
+									<div class="h-3 w-3 rounded-full bg-stone-900">
+										<svg
+											viewBox="0 0 24 24"
+											class="h-3 w-3 text-stone-50"
+											fill="none"
+											aria-hidden="true"
+										>
+											<path
+												d="M7 12.5 L10.25 15.75 L16.75 9.25"
+												pathLength="0.5"
+												class="check-path"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											/>
+										</svg>
+									</div>
 
-								<div class="inline-flex items-center gap-2">
 									<span class="max-w-[520px] truncate text-sm font-medium text-stone-800">
 										{selectedFileName}
 									</span>
 								</div>
-								<div id="dropzone-help" class="text-xs text-stone-300">
+
+								<div
+									id="dropzone-help"
+									class="text-xs text-stone-300"
+									in:fly={{ y: 2, duration: 500, easing: cubicOut, delay: 600 }}
+								>
 									Click to choose a different PDF • or drop another file
 								</div>
 							</div>
 						{:else}
 							<div class="pointer-events-none flex flex-col items-center gap-2 px-6 text-center">
-								<svg viewBox="0 0 64 64" class="h-10 w-10" aria-hidden="true" role="img">
-									<path
-										d="M12 8a6 6 0 0 1 6-6h20.5L56 19.5V52a6 6 0 0 1-6 6H18a6 6 0 0 1-6-6V8z"
-										fill="#D5D3D0"
-									/>
-									<path d="M38.5 2v11a6 6 0 0 0 6 6H56L38.5 2z" fill="#A69F9C" />
-									<rect x="8" y="34" width="40" height="18" rx="5" fill="#EF4444" />
-									<text
-										x="28"
-										y="46.5"
-										text-anchor="middle"
-										font-size="10.5"
-										font-weight="700"
-										fill="#FFFFFF"
-										font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji','Segoe UI Emoji'"
-									>
-										PDF
-									</text>
-								</svg>
-								<div class="text-sm text-stone-500">Share your resumé to get started</div>
-							</div>
-						{/if}
-
-						{#if dragging}
-							<div
-								class="pointer-events-none absolute inset-0 grid place-items-center rounded-3xl
-               bg-stone-50/70 text-sm text-stone-500"
-							>
-								Drop to import
+								<div class="flex flex-row items-center gap-2">
+									<svg viewBox="0 0 64 64" class="h-7 w-7" aria-hidden="true" role="img">
+										<path
+											d="M12 8a6 6 0 0 1 6-6h20.5L56 19.5V52a6 6 0 0 1-6 6H18a6 6 0 0 1-6-6V8z"
+											fill="#D5D3D0"
+										/>
+										<path d="M38.5 2v11a6 6 0 0 0 6 6H56L38.5 2z" fill="#A69F9C" />
+										<rect x="8" y="34" width="40" height="18" rx="5" fill="#EF4444" />
+										<text
+											x="28"
+											y="46.5"
+											text-anchor="middle"
+											font-size="10.5"
+											font-weight="700"
+											fill="#FFFFFF"
+											font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji','Segoe UI Emoji'"
+										>
+											PDF
+										</text>
+									</svg>
+									<span class=" text-md font-medium text-stone-700">
+										Share your resumé to get started
+									</span>
+								</div>
+								<div id="dropzone-help" class="text-xs text-stone-400">
+									Click to select a file • or drag and drop it in the box
+								</div>
 							</div>
 						{/if}
 					</div>
@@ -699,17 +701,6 @@
 		</div>
 	</div>
 {/if}
-{#if showResumeAdded}
-	<div
-		class="fixed inset-0 z-[70] grid place-items-center bg-white/80 backdrop-blur-sm"
-		aria-live="polite"
-	>
-		<div class="flex flex-col items-center text-stone-800">
-			<CheckCircle size={200} duration={900} />
-			<div class="mt-4 text-base font-semibold">Resumé added</div>
-		</div>
-	</div>
-{/if}
 {#if showOnboarding}
 	<OnboardingFlow
 		onSubmit={handleOnboardingSubmit}
@@ -729,12 +720,20 @@
 />
 
 <style>
-	@keyframes spin {
-		from {
-			transform: rotate(0deg);
-		}
+	.check-path {
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		fill: none;
+		stroke-dasharray: 1;
+		stroke-dashoffset: 1;
+		animation: draw-check 420ms ease-out 700ms forwards;
+	}
+
+	@keyframes draw-check {
 		to {
-			transform: rotate(360deg);
+			stroke-dashoffset: 0;
 		}
 	}
 </style>
