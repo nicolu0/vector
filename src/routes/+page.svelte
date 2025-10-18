@@ -67,46 +67,47 @@
 				body: JSON.stringify(payload)
 			});
 
-			if (!response.ok) {
-				let detail: string | null = null;
-				try {
-					const data = await response.json();
-					if (typeof data?.message === 'string') detail = data.message;
-				} catch {
-					const text = await response.text();
-					detail = text || null;
-				}
+			// if (!response.ok) {
+			// 	let detail: string | null = null;
+			// 	try {
+			// 		const data = await response.json();
+			// 		if (typeof data?.message === 'string') detail = data.message;
+			// 	} catch {
+			// 		const text = await response.text();
+			// 		detail = text || null;
+			// 	}
 
-				if (response.status === 401) {
-					const message = detail ?? 'Sign in to claim your free project credit.';
-					await showToast(message, 'danger');
-					savePendingGeneration(payload);
-					window.dispatchEvent(
-						new CustomEvent('vector:auth-required', {
-							detail: { message, reason: 'generate' as const }
-						})
-					);
-					isGenerating = false;
-					return;
-				}
-				if (response.status === 402) {
-					const message =
-						detail ?? 'You are out of credits. Visit your profile to review your balance.';
-					await showToast(message, 'danger');
-					window.dispatchEvent(
-						new CustomEvent('vector:credits-updated', { detail: { credits: 0 } })
-					);
-					isGenerating = false;
-					return;
-				}
+			// 	if (response.status === 401) {
+			// 		const message = detail ?? 'Sign in to claim your free project credit.';
+			// 		await showToast(message, 'danger');
+			// 		savePendingGeneration(payload);
+			// 		window.dispatchEvent(
+			// 			new CustomEvent('vector:auth-required', {
+			// 				detail: { message, reason: 'generate' as const }
+			// 			})
+			// 		);
+			// 		isGenerating = false;
+			// 		return;
+			// 	}
+			// 	if (response.status === 402) {
+			// 		const message =
+			// 			detail ?? 'You are out of credits. Visit your profile to review your balance.';
+			// 		await showToast(message, 'danger');
+			// 		window.dispatchEvent(
+			// 			new CustomEvent('vector:credits-updated', { detail: { credits: 0 } })
+			// 		);
+			// 		isGenerating = false;
+			// 		return;
+			// 	}
 
-				const message = detail || 'We ran into an issue generating your project. Please try again.';
-				await showToast(message, 'danger');
-				isGenerating = false;
-				return;
-			}
+			// 	const message = detail || 'We ran into an issue generating your project. Please try again.';
+			// 	await showToast(message, 'danger');
+			// 	isGenerating = false;
+			// 	return;
+			// }
 
 			const project = await response.json();
+			console.log('Project generation response:', project);
 			const creditsHeader = response.headers.get('x-vector-user-credits');
 			if (creditsHeader !== null) {
 				const numericCredits = Number.parseInt(creditsHeader, 10);
@@ -117,24 +118,156 @@
 				}
 			}
 			const usedFallback = response.headers.get('x-vector-project-source') === 'fallback';
+            const errorMessage = response.headers.get('x-vector-project-error');
+
+			if (usedFallback && errorMessage) {
+				console.error('Project generation failed, using fallback:', decodeURIComponent(errorMessage));
+			}
+
+			console.log('Project generation completed:', { source: response.headers.get('x-vector-project-source'), fallback: usedFallback });
 			clearPendingGeneration();
 			await goto('/project', { state: { project, fallback: usedFallback } });
 		} catch (err) {
+            console.log('Project generation error:', err);
 			const message = 'We ran into an issue generating your project. Please try again.';
 			await showToast(message, 'danger');
+			isGenerating = false;
+			onboardingSubmitting = false;
+		}
+	}
+
+	async function handleOnboardingSubmit(answers: {
+		education: 'high_school' | 'college';
+		goal: 'full_time' | 'internship';
+		project: 'research' | 'industry';
+	}) {
+		if (onboardingSubmitting) return;
+		onboardingError = null;
+		onboardingSubmitting = true;
+
+		try {
+			// Save onboarding data to database first
+			const {
+				data: { user },
+				error: uerr
+			} = await supabase.auth.getUser();
+			if (uerr) throw uerr;
+			if (!user) throw new Error('Not signed in');
+
+			const { error } = await supabase
+				.from('users')
+				.upsert(
+					{
+						user_id: user.id,
+						edu_level: answers.education,
+						goal: answers.goal,
+						project_type: answers.project
+					},
+					{ onConflict: 'user_id' }
+				)
+				.select('user_id');
+
+			if (error) throw error;
+
+			// Update local onboarding state
+			onboardingRow = {
+				edu_level: answers.education,
+				goal: answers.goal,
+				project_type: answers.project
+			};
+
+			// Now generate the project with default interests if needed
+			isGenerating = true;
+			showOnboarding = false;
+			clearPendingGeneration();
+
+			// If no interests provided, use a default based on onboarding answers
+			const defaultInterests = getDefaultInterests(answers);
+			const interests = input.trim() || defaultInterests;
+			const tags = Array.from(picked);
+
+			if (!interests.trim() && tags.length === 0) {
+				// If still no interests or tags, show a helpful message
+				await showToast('Please enter your interests to generate a project', 'warning');
+				isGenerating = false;
+				onboardingSubmitting = false;
+				return;
+			}
+
+			// Generate project with the determined interests
+			const payload = { interests, tags };
+			await generateProjectWithPayload(payload);
+		} catch (err) {
+			onboardingError =
+				err instanceof Error ? err.message : 'Unable to save your onboarding answers.';
+			onboardingSubmitting = false;
 			isGenerating = false;
 		}
 	}
 
-	async function handleOnboardingSubmit() {
-		if (onboardingSubmitting) return;
-		onboardingError = null;
-		onboardingSubmitting = true;
-		isGenerating = true;
-		showOnboarding = false;
-		clearPendingGeneration();
-		await generateProject();
+	function getDefaultInterests(answers: {
+		education: 'high_school' | 'college';
+		goal: 'full_time' | 'internship';
+		project: 'research' | 'industry';
+	}) {
+		// Generate default interests based on onboarding answers
+		const interestsMap: Record<string, string> = {
+			'high_school_full_time_research': 'computer science, programming, research',
+			'high_school_full_time_industry': 'software development, web development, programming',
+			'high_school_internship_research': 'machine learning, data science, research',
+			'high_school_internship_industry': 'software engineering, full stack development',
+			'college_full_time_research': 'machine learning, artificial intelligence, research',
+			'college_full_time_industry': 'software engineering, system design, algorithms',
+			'college_internship_research': 'deep learning, computer vision, research',
+			'college_internship_industry': 'full stack development, DevOps, cloud computing'
+		};
+
+		const key = `${answers.education}_${answers.goal}_${answers.project}`;
+		return interestsMap[key] || 'software development, programming';
 	}
+
+	async function generateProjectWithPayload(payload: { interests: string; tags: string[] }) {
+        isGenerating = true;
+        try {
+            const response = await fetch('/api/generate-project', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(payload)
+            });
+
+            // Handle non-OK without double-reading body
+            if (!response.ok) {
+            let detail: string | null = null;
+            try {
+                const data = await response.json(); // read ONCE
+                if (typeof data?.message === 'string') detail = data.message;
+            } catch {
+                detail = await response.text(); // still read ONCE total (json OR text)
+            }
+            throw new Error(detail ?? `HTTP ${response.status}`);
+            }
+
+            const project = await response.json(); // success path: read ONCE
+            const usedFallback = response.headers.get('x-vector-project-source') === 'fallback';
+            const creditsHeader = response.headers.get('x-vector-user-credits');
+            if (creditsHeader) {
+            const n = Number.parseInt(creditsHeader, 10);
+            if (!Number.isNaN(n)) {
+                window.dispatchEvent(new CustomEvent('vector:credits-updated', { detail: { credits: n } }));
+            }
+            }
+
+            // Persist for the /project page (choose A2/A3 approach)
+            sessionStorage.setItem('vector:last-project', JSON.stringify(project));
+
+            await goto('/project', { state: { project, fallback: usedFallback } });
+        } catch (err) {
+            await showToast('We ran into an issue generating your project. Please try again.', 'danger');
+        } finally {
+            isGenerating = false;
+            onboardingSubmitting = false;
+        }
+    }
 
 	const {
 		placeholder = `Tell us about your project idea. If you already have a resumé, drop it into the textbox.`,
@@ -347,7 +480,7 @@
 		} else if (!onboardingComplete) {
 			showOnboarding = true;
 		} else {
-			generateProject();
+			generateProjectWithPayload({ interests, tags });
 		}
 	}
 

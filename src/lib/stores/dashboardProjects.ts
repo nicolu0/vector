@@ -9,17 +9,26 @@ export type StoredProject = Project & {
 };
 
 
+export type Deliverable = {
+	task: string;
+	spec: string;
+	implementation: string[];
+	code: string;
+};
+
+export type LearningMaterial = {
+	title: string;
+	body: string;
+};
+
 export type Section = {
 	name: string;
 	overview: string;
-	required_skills?: string[];
-	what_and_how?: string[];
-	learning_materials?: string[];
-	code_snippets?: string[];
-	python_functions?: string[];
+	deliverables: Deliverable[];
+	learning_materials: LearningMaterial[];
 };
 
-export type Metadata = Section[]; // <-- NEW (was an object before)
+export type Metadata = Section[];
 
 export type Project = {
 	id?: string;
@@ -29,8 +38,7 @@ export type Project = {
 	description: string | null;
 	jobs: { title: string; url: string }[];
 	skills: string[];
-	prerequisites: string[];
-	metadata: Metadata; // array now
+	metadata: Metadata;
 	status?: string | null;
 	created_at?: string | null;
 };
@@ -83,12 +91,59 @@ function sanitizeJobs(value: unknown): Project['jobs'] {
 }
 
 /**
- * New metadata schema: array (sections or other items).
- * We accept arrays and pass through JSON-serializable items as-is.
- * Non-arrays become [].
+ * Sanitize and validate metadata according to the new schema structure.
+ * Metadata should be an array of sections with deliverables and learning_materials.
  */
 function sanitizeMetadata(value: unknown): Project['metadata'] {
-	return Array.isArray(value) ? (value as Project['metadata']) : ([] as Project['metadata']);
+	if (!Array.isArray(value)) return [];
+
+	return value.map((section: unknown) => {
+		if (!section || typeof section !== 'object') {
+			return {
+				name: 'Unknown Section',
+				overview: 'No overview available',
+				deliverables: [],
+				learning_materials: []
+			};
+		}
+
+		const s = section as Record<string, unknown>;
+
+		return {
+			name: typeof s.name === 'string' ? s.name : 'Unknown Section',
+			overview: typeof s.overview === 'string' ? s.overview : 'No overview available',
+			deliverables: Array.isArray(s.deliverables) ? s.deliverables.map((d: unknown) => {
+				if (!d || typeof d !== 'object') {
+					return {
+						task: 'Unknown Task',
+						spec: 'No specification',
+						implementation: [],
+						code: ''
+					};
+				}
+				const deliverable = d as Record<string, unknown>;
+				return {
+					task: typeof deliverable.task === 'string' ? deliverable.task : 'Unknown Task',
+					spec: typeof deliverable.spec === 'string' ? deliverable.spec : 'No specification',
+					implementation: Array.isArray(deliverable.implementation) ? deliverable.implementation.filter((item: unknown) => typeof item === 'string') : [],
+					code: typeof deliverable.code === 'string' ? deliverable.code : ''
+				};
+			}) : [],
+			learning_materials: Array.isArray(s.learning_materials) ? s.learning_materials.map((m: unknown) => {
+				if (!m || typeof m !== 'object') {
+					return {
+						title: 'Unknown Material',
+						body: 'No content available'
+					};
+				}
+				const material = m as Record<string, unknown>;
+				return {
+					title: typeof material.title === 'string' ? material.title : 'Unknown Material',
+					body: typeof material.body === 'string' ? material.body : 'No content available'
+				};
+			}) : []
+		};
+	});
 }
 
 async function load(options?: { force?: boolean }) {
@@ -139,7 +194,7 @@ async function load(options?: { force?: boolean }) {
 			const { data, error } = await supabase
 				.from('projects')
 				.select(
-					'id, title, difficulty, timeline, description, jobs, skills, prerequisites, metadata, status, created_at'
+					'id, title, difficulty, timeline, description, jobs, skills, metadata, status, created_at'
 				)
 				.eq('user_id', session.user.id)
 				.order('created_at', { ascending: false });
@@ -153,7 +208,6 @@ async function load(options?: { force?: boolean }) {
 					...typed,
 					jobs: sanitizeJobs(typed.jobs),
 					skills: ensureStringArray(typed.skills),
-					prerequisites: ensureStringArray(typed.prerequisites),
 					metadata: sanitizeMetadata(typed.metadata),
 					status: normalizeProjectStatusValue(typed.status ?? null)
 				};

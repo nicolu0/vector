@@ -4,7 +4,6 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 	import type { StoredProject } from '$lib/stores/dashboardProjects';
-	import type { Milestone } from '$lib/types/project';
 	import { tick } from 'svelte';
 
 	const { conversationId, projectId, project, userId, loading, errorMessage } = $props<{
@@ -190,19 +189,39 @@
 	}
 
 	function buildProjectContextPayload(currentProject: StoredProject) {
-		const rawMilestones =
-			currentProject.metadata?.milestones?.map((ms) => {
-				if (!ms || typeof ms !== 'object') return null;
-				const { name, objective, success_metrics } = ms as typeof ms & {
-					success_metrics?: unknown;
-				};
-				if (typeof name !== 'string' || typeof objective !== 'string') return null;
-				const metrics = Array.isArray(success_metrics)
-					? success_metrics.filter((x): x is string => typeof x === 'string' && x.trim())
-					: [];
-				return { name, objective, success_metrics: metrics };
-			}) ?? [];
-		const milestones = rawMilestones.filter(Boolean) as Milestone[];
+		// Convert the new metadata format (array of sections) to the old format expected by the mentor API
+		const sections = Array.isArray(currentProject.metadata) ? currentProject.metadata : [];
+
+		const formattedSections = sections.map((section) => {
+			if (!section || typeof section !== 'object') return null;
+
+			const { name, overview, deliverables = [], learning_materials = [] } = section as Record<string, unknown>;
+
+			if (typeof name !== 'string' || typeof overview !== 'string') return null;
+
+			return {
+				name,
+				overview,
+				deliverables: Array.isArray(deliverables) ? deliverables.map((d: unknown) => {
+					if (!d || typeof d !== 'object') return { task: '', spec: '', implementation: [], code: '' };
+					const deliverable = d as Record<string, unknown>;
+					return {
+						task: typeof deliverable.task === 'string' ? deliverable.task : '',
+						spec: typeof deliverable.spec === 'string' ? deliverable.spec : '',
+						implementation: Array.isArray(deliverable.implementation) ? deliverable.implementation.filter((item: unknown) => typeof item === 'string') : [],
+						code: typeof deliverable.code === 'string' ? deliverable.code : ''
+					};
+				}) : [],
+				learning_materials: Array.isArray(learning_materials) ? learning_materials.map((m: unknown) => {
+					if (!m || typeof m !== 'object') return { title: '', body: '' };
+					const material = m as Record<string, unknown>;
+					return {
+						title: typeof material.title === 'string' ? material.title : '',
+						body: typeof material.body === 'string' ? material.body : ''
+					};
+				}) : []
+			};
+		}).filter(Boolean);
 
 		return {
 			title: currentProject.title,
@@ -210,7 +229,7 @@
 			difficulty: currentProject.difficulty,
 			timeline: currentProject.timeline,
 			skills: currentProject.skills ?? [],
-			metadata: { milestones },
+			metadata: formattedSections,
 			jobs: currentProject.jobs?.map((j) => ({ title: j.title, url: j.url })) ?? []
 		};
 	}
