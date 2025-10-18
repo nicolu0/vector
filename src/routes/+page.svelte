@@ -7,6 +7,138 @@
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
+	import CheckCircle from '$lib/components/CheckCircle.svelte';
+
+	let showResumeAdded = $state(false);
+
+	let selectedFileName = $state<string | null>(null);
+	let fileInputEl: HTMLInputElement | null = null;
+
+	// click handler to open the OS file picker
+	function openFilePicker() {
+		fileInputEl?.click();
+	}
+
+	// errors for the PDF flow
+	let pdfError: string | null = $state(null);
+
+	let pdfGetDocument: any; // resolved once on client
+	let pdfReady: Promise<void> | null = null;
+	let dragging = $state(false);
+
+	function onDragOver(e: DragEvent) {
+		e.preventDefault(); // required so drop fires
+		dragging = true;
+	}
+	function onDragLeave() {
+		dragging = false;
+	}
+	async function onDrop(e: DragEvent) {
+		e.preventDefault();
+		dragging = false;
+		const files = Array.from(e.dataTransfer?.files ?? []).filter(
+			(f) => f.type === 'application/pdf'
+		);
+		if (files.length === 0) return;
+		// handle first (or loop all if you want multi)
+		await handlePdf(files[0]); // reuses your existing handlePdf(...)
+	}
+
+	function ensurePdfReady() {
+		if (pdfReady) return pdfReady;
+		pdfReady = (async () => {
+			// Only modern entry; no legacy fallback
+			const mod: any = await import('pdfjs-dist');
+			const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default as string;
+
+			// Set the worker
+			(mod.GlobalWorkerOptions ?? mod.default?.GlobalWorkerOptions).workerSrc = workerUrl;
+
+			// Keep a reference to getDocument
+			pdfGetDocument = mod.getDocument ?? mod.default?.getDocument;
+			if (!pdfGetDocument) {
+				throw new Error('pdfjs getDocument not found (check pdfjs-dist version)');
+			}
+		})();
+		return pdfReady;
+	}
+
+	async function extractPdfText(file: File): Promise<string> {
+		await ensurePdfReady();
+
+		const data = await file.arrayBuffer();
+		const pdf = await pdfGetDocument({ data }).promise;
+
+		const pages: string[] = [];
+		for (let p = 1; p <= pdf.numPages; p++) {
+			const page = await pdf.getPage(p);
+			const content = await page.getTextContent();
+			const t = (content.items as any[])
+				.map((i) => (typeof i.str === 'string' ? i.str : ''))
+				.join(' ')
+				.replace(/\s+/g, ' ')
+				.trim();
+			if (t) pages.push(t);
+		}
+
+		return pages
+			.join('\n\n--- PAGE BREAK ---\n\n')
+			.replace(/\u00AD/g, '')
+			.replace(/ {2,}/g, ' ')
+			.trim();
+	}
+
+	async function onFileChange(e: Event) {
+		const el = e.target as HTMLInputElement;
+		const file = el.files?.[0];
+		if (file) await handlePdf(file);
+		el.value = ''; // allow re-picking the same file
+	}
+
+	async function handlePdf(file: File) {
+		pdfError = null;
+
+		if (file.type !== 'application/pdf') {
+			pdfError = 'Only PDF files are supported.';
+			await showToast(pdfError, 'warning');
+			return;
+		}
+		if (file.size > 25 * 1024 * 1024) {
+			pdfError = 'File too large. Max 25 MB.';
+			await showToast(pdfError, 'warning');
+			return;
+		}
+
+		// progress indicator (still writes into your existing `input`)
+		input = input?.trim() ? `${input}\n\n[Extracting PDF…]` : 'Extracting PDF…';
+
+		try {
+			const text = await extractPdfText(file);
+
+			console.log('[PDF] extracted chars:', text?.length ?? 0);
+			console.log('[PDF] text:\n', text);
+
+			input = text || '';
+			selectedFileName = file.name;
+
+			// show the transition screen
+			showResumeAdded = true;
+
+			// hide it after the animation; tweak timing to taste
+			setTimeout(() => {
+				showResumeAdded = false;
+			}, 1100);
+
+			if (!text) {
+				pdfError = 'No text found (likely a scanned PDF).';
+				await showToast(pdfError, 'warning');
+			}
+		} catch (err) {
+			console.error(err);
+			pdfError = 'Failed to extract text from PDF.';
+			await showToast(pdfError, 'danger');
+		}
+	}
 
 	type Answers = {
 		education: 'high_school' | 'college' | null;
@@ -439,50 +571,115 @@
 					{subhead}
 				</p>
 
-				<div class="relative mt-4" in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 400 }}>
-					<textarea
-						bind:this={textareaEl}
-						bind:value={input}
-						oninput={() => (errorMessage = null)}
-						onkeydown={keydown}
-						rows="3"
-						{placeholder}
-						class="h-[150px] w-full resize-none overflow-hidden rounded-3xl border border-stone-200/80 bg-white px-4 py-3 pr-12 text-[15px] leading-6 text-stone-800 ring-0 transition outline-none placeholder:text-stone-300"
-					/>
-					<button
-						data-chip
-						onclick={() => {
-							showInterestQuiz = true;
+				<div
+					class="relative mt-4"
+					aria-label="Drop PDF here"
+					in:fly={{ y: 18, duration: 500, easing: cubicOut, delay: 200 }}
+				>
+					<div
+						class={`group relative grid h-[300px] place-items-center rounded-2xl border
+      ${dragging ? 'ring-2 ring-stone-400' : ''}
+      ${
+				selectedFileName
+					? 'border-stone-400 bg-white'
+					: 'border-dashed border-stone-300 bg-stone-50'
+			}
+      cursor-pointer text-stone-600 transition`}
+						ondragover={onDragOver}
+						ondragleave={onDragLeave}
+						ondrop={onDrop}
+						onclick={openFilePicker}
+						role="button"
+						tabindex="0"
+						onkeydown={(e: KeyboardEvent) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								openFilePicker();
+							}
 						}}
-						class="absolute bottom-4 left-3 inline-flex items-center gap-2 rounded-full border border-[#2D2D2D] bg-[#2D2D2D] px-3 py-1.5 text-sm text-white transition hover:bg-stone-800 focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:outline-none"
+						aria-describedby="dropzone-help"
 					>
-						<span class="text-base leading-none">★</span>Rate My Resumé
-					</button>
+						{#if selectedFileName}
+							<!-- Selected file state -->
+							<div class="pointer-events-none flex flex-col items-center gap-2 px-6 text-center">
+								<svg viewBox="0 0 64 64" class="h-10 w-10" aria-hidden="true" role="img">
+									<path
+										d="M12 8a6 6 0 0 1 6-6h20.5L56 19.5V52a6 6 0 0 1-6 6H18a6 6 0 0 1-6-6V8z"
+										fill="#F2F2EF"
+									/>
+									<path d="M38.5 2v11a6 6 0 0 0 6 6H56L38.5 2z" fill="#D1D5DB" />
+									<rect x="8" y="38" width="40" height="18" rx="5" fill="#EF4444" />
+									<text
+										x="28"
+										y="50.5"
+										text-anchor="middle"
+										font-size="10.5"
+										font-weight="700"
+										fill="#FFFFFF"
+										font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji','Segoe UI Emoji'"
+									>
+										PDF
+									</text>
+								</svg>
 
-					<button
-						class="absolute right-3 bottom-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-stone-800 text-white transition hover:bg-stone-900 focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:outline-none"
-						onclick={submit}
-						disabled={isGenerating}
-						aria-label="Generate project"
-						title="Generate (Cmd/Ctrl + Enter)"
-					>
-						<svg
-							viewBox="0 0 24 24"
-							class="h-4 w-4"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-						>
-							<path d="M5 12h14" stroke-linecap="round" />
-							<path d="M13 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
-						</svg>
-					</button>
+								<div class="inline-flex items-center gap-2">
+									<span class="max-w-[520px] truncate text-sm font-medium text-stone-800">
+										{selectedFileName}
+									</span>
+								</div>
+								<div id="dropzone-help" class="text-xs text-stone-300">
+									Click to choose a different PDF • or drop another file
+								</div>
+							</div>
+						{:else}
+							<div class="pointer-events-none flex flex-col items-center gap-2 px-6 text-center">
+								<svg viewBox="0 0 64 64" class="h-10 w-10" aria-hidden="true" role="img">
+									<path
+										d="M12 8a6 6 0 0 1 6-6h20.5L56 19.5V52a6 6 0 0 1-6 6H18a6 6 0 0 1-6-6V8z"
+										fill="#D5D3D0"
+									/>
+									<path d="M38.5 2v11a6 6 0 0 0 6 6H56L38.5 2z" fill="#A69F9C" />
+									<rect x="8" y="34" width="40" height="18" rx="5" fill="#EF4444" />
+									<text
+										x="28"
+										y="46.5"
+										text-anchor="middle"
+										font-size="10.5"
+										font-weight="700"
+										fill="#FFFFFF"
+										font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji','Segoe UI Emoji'"
+									>
+										PDF
+									</text>
+								</svg>
+								<div class="text-sm text-stone-500">Share your resumé to get started</div>
+							</div>
+						{/if}
+
+						{#if dragging}
+							<div
+								class="pointer-events-none absolute inset-0 grid place-items-center rounded-3xl
+               bg-stone-50/70 text-sm text-stone-500"
+							>
+								Drop to import
+							</div>
+						{/if}
+					</div>
+
+					<!-- Hidden input (click-to-open support) -->
+					<input
+						bind:this={fileInputEl}
+						type="file"
+						accept="application/pdf"
+						class="hidden"
+						onchange={onFileChange}
+					/>
 				</div>
 			{/if}
 		</div>
 		{#if !showInterestQuiz}
 			<p class="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 text-center text-xs text-stone-600">
-				<span> Tip: click a topic to add it, or press Cmd/Ctrl+Enter to generate. </span>
+				<span> Tip: Don't have a resumé yet? Start your first project </span>
 			</p>
 		{/if}
 	</main>
@@ -502,8 +699,16 @@
 		</div>
 	</div>
 {/if}
-{#if showInterestQuiz}
-	<Quiz {closeQuiz} {finishQuiz} />
+{#if showResumeAdded}
+	<div
+		class="fixed inset-0 z-[70] grid place-items-center bg-white/80 backdrop-blur-sm"
+		aria-live="polite"
+	>
+		<div class="flex flex-col items-center text-stone-800">
+			<CheckCircle size={200} duration={900} />
+			<div class="mt-4 text-base font-semibold">Resumé added</div>
+		</div>
+	</div>
 {/if}
 {#if showOnboarding}
 	<OnboardingFlow
