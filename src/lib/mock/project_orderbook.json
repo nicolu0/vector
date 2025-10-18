@@ -19,564 +19,637 @@
         {
             "name": "1. Core Enumerations & Type Aliases",
             "overview": "Define the strongly-typed building blocks for the order book: trade side, order type, and canonical integer aliases for price, quantity, and IDs. These headers will be included across the project and must remain minimal, dependency-light, and consistent.",
-            "what_and_how": [
+            "deliverables": [
               {
-                "file": "Side.h",
+                "task": "Side.h",
                 "spec": "Provide a scoped enumeration for the trade direction.",
-                "how_to_implement": [
-                  "Use enum class (scoped) to prevent implicit conversions and name collisions.",
-                  "Keep the header minimal: #pragma once and the enum declaration only.",
-                  "Names should be clear and stable across the codebase (e.g., Buy, Sell)."
-                ]
-              },
-              {
-                "file": "OrderType.h",
-                "spec": "Provide a scoped enumeration for supported order behaviors used throughout matching and policy checks.",
-                "how_to_implement": [
-                  "Use enum class to keep types safe and explicit.",
-                  "Include all order types that appear throughout the engine (GTC/IOC(FAK)/FOK/GFD/Market).",
-                  "Keep it header-only; no functions or extras."
-                ]
-              },
-              {
-                "file": "Usings.h",
-                "spec": "Define fixed-width aliases used everywhere for prices, quantities, and order IDs, plus a small container of IDs.",
-                "how_to_implement": [
-                  "Create using aliases: Price, Quantity, OrderId.",
-                  "Define OrderIds as std::vector<OrderId>.",
-                  "Keep the header very small; only include what’s necessary for the aliases (in the repo, only <vector> is included)."
-                ]
-              }
-            ],
-            "required_skills": [
-              "C++ header hygiene (#pragma once, minimal includes)",
-              "Scoped enumerations (enum class)",
-              "Type aliasing with using",
-              "Basic STL containers (std::vector)"
-            ],
-            "learning_materials": [
-              "Why enum class? Scoped enums avoid accidental int conversions and reduce naming conflicts.",
-              "using aliases encode domain semantics (Price, Quantity, OrderId) and enable easy type refactoring later.",
-              "Keep foundational headers tiny and dependency-light to avoid circular includes and speed up builds.",
-              "Consistent, fixed-width integer usage is important for determinism across platforms."
-            ],
-            "c++_functions": [
-              "enum class (scoped enumerations)",
-              "using (type aliases)",
-              "STL: std::vector",
-              "Fixed-width integer types (e.g., std::int32_t, std::uint32_t, std::uint64_t)"
-            ],
-            "code_snippets": [
-              {
-                "filename": "Side.h",
+                "implementation": [
+                  "Use `enum class` (scoped) to prevent implicit conversions and name collisions (compiler enforces type safety).",
+                  "Keep the header minimal: `#pragma once` and the enum declaration only—no includes required.",
+                  "Name the two values clearly (`Buy`, `Sell`) to align with matching logic and tests."
+                ],
                 "code": "#pragma once\n\nenum class Side\n{\n    Buy,\n    Sell\n};\n"
               },
               {
-                "filename": "OrderType.h",
+                "task": "OrderType.h",
+                "spec": "Provide a scoped enumeration for supported order behaviors used throughout matching and policy checks.",
+                "implementation": [
+                  "Use `enum class` to keep types explicit and avoid mixing with integers.",
+                  "List all policies referenced by the engine: `GoodTillCancel`, `FillAndKill` (IOC), `FillOrKill` (FOK), `GoodForDay`, `Market`.",
+                  "Keep it header-only with just `#pragma once`; no additional includes are needed."
+                ],
                 "code": "#pragma once\n\nenum class OrderType\n{\n\tGoodTillCancel,\n\tFillAndKill,\n\tFillOrKill,\n\tGoodForDay,\n\tMarket,\n};\n"
               },
               {
-                "filename": "Usings.h",
+                "task": "Usings.h",
+                "spec": "Define fixed-width aliases used everywhere for prices, quantities, and order IDs, plus a small container of IDs.",
+                "implementation": [
+                  "Add `#pragma once` and include only what's necessary: `<vector>` (the repo omits `<cstdint>` and relies on transitive includes, but keeping dependencies minimal is the goal).",
+                  "Create `using` aliases to encode domain semantics and portability: `Price` (`std::int32_t`), `Quantity` (`std::uint32_t`), `OrderId` (`std::uint64_t`).",
+                  "Define `OrderIds` as `std::vector<OrderId>` to collect IDs for batch operations (e.g., cancellations).",
+                  "Prefer fixed-width integer types for cross-platform determinism and to document size expectations."
+                ],
                 "code": "#pragma once\n\n#include <vector>\n\nusing Price = std::int32_t;\nusing Quantity = std::uint32_t;\nusing OrderId = std::uint64_t;\nusing OrderIds = std::vector<OrderId>;\n"
+              }
+            ],
+            "learning_materials": [
+              {
+                "title": "The goal: a safe, portable vocabulary for the engine",
+                "body": "This section creates the foundational types that every other component relies on. By naming domain concepts (`Side`, `OrderType`, `Price`, `Quantity`, `OrderId`) and making them explicit, the compiler can help you prevent entire classes of bugs (e.g., mixing up IDs and quantities) while keeping behavior consistent across platforms."
+              },
+              {
+                "title": "Why `enum class` (scoped) for correctness",
+                "body": "`enum class` avoids accidental integer conversions and name leakage. You write `Side::Buy` and `OrderType::Market`, which is self-documenting and resists misuse in arithmetic or comparisons. In a matching engine, these guarantees reduce subtle logic errors that are hard to detect in tests."
+              },
+              {
+                "title": "OrderType as a policy switchboard",
+                "body": "`OrderType` is the single source of truth for order behavior (GTC, FAK/IOC, FOK, GFD, Market). Later sections read this enum to enforce preconditions and postconditions. Centralizing policy here keeps matching logic compact, testable, and easy to extend."
+              },
+              {
+                "title": "Fixed-width aliases for determinism",
+                "body": "Using `std::int32_t`, `std::uint32_t`, and `std::uint64_t` fixes the size and signedness of your core values. This stabilizes serialization, hashing, and on-disk formats, and ensures behavior doesn't change when you switch compilers or platforms."
+              },
+              {
+                "title": "Minimal headers for fast builds and low coupling",
+                "body": "These headers are included nearly everywhere. Keeping them tiny (`#pragma once`, no extra includes) prevents include cycles and keeps compile times under control. Treat them as ABI-like contracts for the rest of the codebase."
+              },
+              {
+                "title": "Evolving safely",
+                "body": "If you later decide `Price` needs 64 bits or `OrderType` needs a new mode, you can change a single alias or add a new enum value without invasive refactors. Early investment in clear, minimal foundations pays off as the engine grows."
               }
             ]
         },
         {
             "name": "2. Constants",
             "overview": "Centralize sentinel values used throughout the engine (e.g., an invalid price) in a tiny header so all components share a single source of truth.",
-            "what_and_how": [
+            "deliverables": [
               {
-                "file": "include/Constants.h",
+                "task": "include/Constants.h",
                 "spec": "Expose project-wide constant(s) such as an invalid price sentinel to indicate an unset or unusable value.",
-                "how_to_implement": [
-                  "Create a lightweight header with `#pragma once`.",
-                  "Include the aliases header first (for `Price`) and `<limits>` for type traits.",
-                  "Define a small holder (e.g., a `struct`) and declare the sentinel as a class static data member, matching the repository style.",
-                  "Keep dependencies minimal so this header is safe to include from anywhere."
-                ]
+                "implementation": [
+                  "Create a lightweight header with `#pragma once` so it's safe to include anywhere.",
+                  "Include the aliases header first (for `Price`) and then `<limits>` to access `std::numeric_limits<T>`.",
+                  "Follow the repository style by defining a small holder type (e.g., a `struct Constants`) and declaring the sentinel as a `static` class data member.",
+                  "Use `std::numeric_limits<Price>::quiet_NaN()` exactly as in the repository for the invalid price sentinel (note: this mirrors the repo even though NaN is only meaningful for floating-point types).",
+                  "Keep dependencies minimal and avoid introducing additional includes beyond `\"Usings.h\"` and `<limits>`."
+                ],
+                "code": "#pragma once\n\n#include <limits>\n\n#include \"Usings.h\"\n\nstruct Constants\n{\n    static const Price InvalidPrice = std::numeric_limits<Price>::quiet_NaN();\n};\n"
               }
             ],
-            "required_skills": [
-              "C++ header hygiene (`#pragma once`, minimal includes)",
-              "Using standard type traits via `<limits>`",
-              "Declaring static class data members in headers"
-            ],
             "learning_materials": [
-              "Why centralize sentinels: prevents scattered magic numbers and keeps validation consistent.",
-              "Header-only constants: enable broad reuse without extra translation units.",
-              "Sentinel semantics: an invalid value communicates 'unset' or 'not applicable' through types rather than ad hoc checks."
-            ],
-            "c++_functions": [
-              "std::numeric_limits<T>",
-              "Header includes: <limits>",
-              "Static data members inside a struct/class"
-            ],
-            "code_snippets": [
               {
-                "filename": "Constants.h",
-                "code": "#pragma once\n\n#include <limits>\n\n#include \"Usings.h\"\n\nstruct Constants\n{\n    static const Price InvalidPrice = std::numeric_limits<Price>::quiet_NaN();\n};\n"
+                "title": "Overall goal: one, shared contract for “invalid” values",
+                "body": "By defining a single sentinel in one header, the entire codebase checks for invalid or unset prices the same way. This avoids scattered magic numbers (e.g., -1 in one module, 0 in another), makes intent obvious at call sites, and turns future refactors into a one-line change."
+              },
+              {
+                "title": "When (and when not) to use NaN as a sentinel",
+                "body": "NaN is ideal for floating-point sentinels because arithmetic with NaN propagates and equality checks fail, making accidental use obvious. However, NaN does not exist for integral types. The repository mirrors a NaN-style pattern for `Price` even though `Price` is integral; understand this is for fidelity with the repo rather than semantic correctness. If you adopt floating-point prices later, prefer `std::isnan()` over `==` comparisons."
+              },
+              {
+                "title": "Practical alternatives for integral sentinels",
+                "body": "If `Price` remains integral, consider: (1) reserving a domain-outside value (e.g., `std::numeric_limits<Price>::min()`), (2) wrapping in a tagged type with an explicit validity bit, or (3) using `std::optional<Price>` where absence is meaningful. These approaches preserve type correctness without relying on floating-point semantics."
+              },
+              {
+                "title": "Header-only constants without linker headaches",
+                "body": "Static data members in headers can trigger ODR issues. If you broaden usage, prefer `inline` variables (C++17) for header-defined constants, or move the definition to a `.cpp` file. For this project, we mirror the repository's header-only style; if you hit multiple-definition errors, add `inline` or refactor to an out-of-line definition."
+              },
+              {
+                "title": "Comparison patterns and test strategy",
+                "body": "Centralize all invalid-price checks on `Constants::InvalidPrice` (or a helper function) to keep behavior consistent. Add tests that confirm the sentinel is distinct from all valid inputs, that order creation/matching rejects or converts sentinel-priced orders as expected, and that any serialization/deserialization preserves and recognizes the sentinel."
+              },
+              {
+                "title": "Keep foundations lean",
+                "body": "This header is included by core types. Limiting includes to `\"Usings.h\"` and `<limits>` keeps compile times down and avoids dependency tangles. Avoid adding heavy headers (I/O, formatting) to foundational files."
               }
             ]
         },
         {
             "name": "3. Level Types & Aggregated Views",
             "overview": "Define simple, POD-style structures to represent per-price aggregated quantities and expose a read-only snapshot of the order book's bid and ask levels. These types are used by the order book to report state for testing, monitoring, or UI display without exposing internal storage details.",
-            "what_and_how": [
+            "deliverables": [
               {
-                "file": "include/LevelInfo.h",
+                "task": "include/LevelInfo.h",
                 "spec": "A lightweight struct holding a price and the total remaining quantity at that price level, plus an alias for a collection of levels.",
-                "how_to_implement": [
-                  "Keep the struct trivial (plain fields) for easy copying and debugging.",
-                  "Include the shared type aliases so Price and Quantity are consistent across the project.",
-                  "Provide a `using LevelInfos = std::vector<LevelInfo>;` alias for convenience when returning multiple levels."
-                ]
-              },
-              {
-                "file": "include/OrderbookLevelInfos.h",
-                "spec": "A small wrapper that bundles bid and ask `LevelInfos` and exposes const getters, serving as the read-only snapshot type returned by the order book.",
-                "how_to_implement": [
-                  "Store two `LevelInfos` members: one for bids and one for asks.",
-                  "Initialize both via a constructor to keep the object valid upon creation.",
-                  "Expose const accessors (`GetBids`, `GetAsks`) and avoid mutating methods to preserve snapshot semantics."
-                ]
-              }
-            ],
-            "required_skills": [
-              "C++ structs and simple classes",
-              "Using STL containers (std::vector)",
-              "Header hygiene (#pragma once, minimal includes)",
-              "Const-correctness for accessor methods"
-            ],
-            "learning_materials": [
-              "Aggregated level views separate external reporting from internal storage (lists/maps), reducing coupling.",
-              "Plain-old-data (POD) structs are easy to pass by value, serialize, and log.",
-              "Returning const references from getters encourages immutable snapshot patterns."
-            ],
-            "c++_functions": [
-              "Struct and class definitions",
-              "Constructor initialization lists",
-              "STL: std::vector",
-              "Const-qualified member functions"
-            ],
-            "code_snippets": [
-              {
-                "filename": "LevelInfo.h",
+                "implementation": [
+                  "Use a trivial POD `struct` with plain public fields for straightforward copying, logging, and serialization.",
+                  "Add `#pragma once` and include the shared aliases header (`\"Usings.h\"`) so `Price` and `Quantity` are consistent.",
+                  "Create a convenience alias `using LevelInfos = std::vector<LevelInfo>;` for returning multiple levels.",
+                  "Rely on standard STL containers (`std::vector`) and simple struct definitions—no methods needed here.",
+                  "Prefer simple constructor-less structs to keep the snapshot type lightweight and dependency-free."
+                ],
                 "code": "#pragma once\n\n#include \"Usings.h\"\n\nstruct LevelInfo\n{\n    Price price_;\n    Quantity quantity_;\n};\n\nusing LevelInfos = std::vector<LevelInfo>;\n"
               },
               {
-                "filename": "OrderbookLevelInfos.h",
+                "task": "include/OrderbookLevelInfos.h",
+                "spec": "A small wrapper that bundles bid and ask `LevelInfos` and exposes const getters, serving as the read-only snapshot type returned by the order book.",
+                "implementation": [
+                  "Add `#pragma once` and include `\"LevelInfo.h\"`.",
+                  "Declare a small `class` that stores two members: `LevelInfos bids_` and `LevelInfos asks_`.",
+                  "Initialize both via a constructor initialization list to ensure valid state on creation.",
+                  "Expose const-qualified accessor methods (`GetBids() const`, `GetAsks() const`) to preserve immutability of snapshots.",
+                  "Keep the header minimal—no mutations or heavy logic; just constructor and const getters."
+                ],
                 "code": "#pragma once\n\n#include \"LevelInfo.h\"\n\nclass OrderbookLevelInfos\n{\npublic:\n    OrderbookLevelInfos(const LevelInfos& bids, const LevelInfos& asks)\n        : bids_{ bids }\n        , asks_{ asks }\n    { }\n\n    const LevelInfos& GetBids() const { return bids_; }\n    const LevelInfos& GetAsks() const { return asks_; }\n\nprivate:\n    LevelInfos bids_;\n    LevelInfos asks_;\n};\n"
+              }
+            ],
+            "learning_materials": [
+              {
+                "title": "Big picture: stable, read-only views over mutable internals",
+                "body": "Your matching engine stores orders in structures optimized for performance (maps of price → lists of orders). Exposing those internals would couple callers (UI/tests/analytics) to implementation details. By returning compact, aggregated views (`LevelInfo` and `OrderbookLevelInfos`), you present a stable API while retaining freedom to change internal storage later."
+              },
+              {
+                "title": "Why use POD for LevelInfo",
+                "body": "Plain-old-data structs compile fast, copy cheaply, and serialize predictably. They have no custom constructors or destructors and play nicely with logging, telemetry, and foreign language bindings. Keeping `LevelInfo` method-free ensures it stays a transport type; all business logic remains in the order book."
+              },
+              {
+                "title": "Immutability via const accessors",
+                "body": "`OrderbookLevelInfos` exposes `const LevelInfos&` getters. This signals a snapshot contract—consumers can read but not mutate. Immutability prevents accidental state changes by readers and makes multi-threaded read paths safer and easier to reason about."
+              },
+              {
+                "title": "Ordering guarantees come from the ladders",
+                "body": "Bids are maintained as `std::map<Price, ... , std::greater<Price>>` (best first) and asks as `std::map<Price, ... , std::less<Price>>` (best first). When you aggregate to `LevelInfos`, iteration preserves these orderings, so consumers naturally see best-of-book at index 0 without extra sorting."
+              },
+              {
+                "title": "Why `std::vector` for LevelInfos",
+                "body": "Snapshots are typically small (one entry per active price level), and vectors offer contiguous storage, cache-friendly iteration, and straightforward ABI/FFI behavior. Returning `std::vector` is a pragmatic default that's widely compatible and easy to extend."
+              },
+              {
+                "title": "Testing the snapshot contract",
+                "body": "Good tests verify: (1) multiple orders at one price aggregate correctly; (2) partial fills and cancellations adjust only the remaining quantity; (3) non-resting orders (e.g., FAK that don't rest) never appear; (4) ordering is best-first; (5) empty book returns empty bid/ask arrays. These tests protect the public contract without depending on internal storage."
               }
             ]
         },
         {
             "name": "4. Trade Records",
             "overview": "Introduce lightweight types to represent executed trades. Each match produces two trade fragments—one for the bid and one for the ask—which are bundled into a single Trade object. A collection of these is returned by the matching engine to describe what executed.",
-            "what_and_how": [
+            "deliverables": [
               {
-                "file": "include/TradeInfo.h",
+                "task": "include/TradeInfo.h",
                 "spec": "A plain struct describing one side of a trade: which order participated, at what price, and for what quantity.",
-                "how_to_implement": [
-                  "Keep it POD-style (no methods) for easy copying, logging, and testing.",
-                  "Include the shared aliases header so `OrderId`, `Price`, and `Quantity` are consistent across the project.",
-                  "Name fields clearly to match their semantics (order id, execution price, matched quantity)."
-                ]
-              },
-              {
-                "file": "include/Trade.h",
-                "spec": "A small class that bundles two TradeInfo records—bid and ask—into a single Trade object, plus a convenient alias for a vector of trades.",
-                "how_to_implement": [
-                  "Store two private `TradeInfo` members for the bid and ask sides; initialize via a simple constructor.",
-                  "Expose const accessors for read-only retrieval.",
-                  "Provide a `using Trades = std::vector<Trade>;` alias to represent batches of executions."
-                ]
-              }
-            ],
-            "required_skills": [
-              "C++ header hygiene (#pragma once, minimal includes)",
-              "Structs and small classes",
-              "Constructor initialization lists",
-              "STL containers (std::vector)"
-            ],
-            "learning_materials": [
-              "Trade events are inherently two-sided; modeling both sides explicitly simplifies auditing and testing.",
-              "Keeping TradeInfo as a POD makes it trivial to store, log, and serialize.",
-              "Returning a `std::vector<Trade>` allows the matcher to report sweeps (multiple fills from a single incoming order)."
-            ],
-            "c++_functions": [
-              "Struct and class definitions",
-              "Constructor initialization list",
-              "STL: std::vector"
-            ],
-            "code_snippets": [
-              {
-                "filename": "TradeInfo.h",
+                "implementation": [
+                  "Create a trivial POD `struct` with three public fields: `OrderId`, `Price`, and `Quantity`. This keeps copying/logging/serialization simple.",
+                  "Add `#pragma once` and include the shared aliases header (`\"Usings.h\"`) so field types are consistent across the project.",
+                  "Keep the type method-free; it's a data carrier used by matching and reporting.",
+                  "Use clear, semantic field names (e.g., `orderId_`, `price_`, `quantity_`) to align with trade logs."
+                ],
                 "code": "#pragma once\n\n#include \"Usings.h\"\n\nstruct TradeInfo\n{\n    OrderId orderId_;\n    Price price_;\n    Quantity quantity_;\n};\n"
               },
               {
-                "filename": "Trade.h",
+                "task": "include/Trade.h",
+                "spec": "A small class that bundles two TradeInfo records—bid and ask—into a single Trade object, plus a convenient alias for a vector of trades.",
+                "implementation": [
+                  "Add `#pragma once` and include `\"TradeInfo.h\"`.",
+                  "Declare a lightweight `class` with two private members of type `TradeInfo` (bid and ask).",
+                  "Provide a simple constructor that initializes both members via an initialization list.",
+                  "Expose const-qualified accessors (`GetBidTrade() const`, `GetAskTrade() const`) for read-only retrieval.",
+                  "Add a convenience alias `using Trades = std::vector<Trade>;` to represent batches of executions returned by the matcher.",
+                  "Rely only on standard containers (`std::vector`) and straightforward class/constructor patterns to keep the header dependency-light."
+                ],
                 "code": "#pragma once\n\n#include \"TradeInfo.h\"\n\nclass Trade\n{\npublic:\n    Trade(const TradeInfo& bidTrade, const TradeInfo& askTrade)\n        : bidTrade_{ bidTrade }\n        , askTrade_{ askTrade }\n    { }\n\n    const TradeInfo& GetBidTrade() const { return bidTrade_; }\n    const TradeInfo& GetAskTrade() const { return askTrade_; }\n\nprivate:\n    TradeInfo bidTrade_;\n    TradeInfo askTrade_;\n};\n\nusing Trades = std::vector<Trade>;\n"
+              }
+            ],
+            "learning_materials": [
+              {
+                "title": "Big picture: trades are two-sided events",
+                "body": "Every execution pairs a buyer and a seller. Modeling both legs explicitly (bid and ask) inside one Trade object preserves causality, simplifies reconciliation, and mirrors real market data where a fill references both participants."
+              },
+              {
+                "title": "Keep TradeInfo as POD for hot paths",
+                "body": "A plain struct with fundamental fields (IDs, price, quantity) is cheap to copy, easy to log/serialize, and friendly for analytics or FFI layers. No constructors, virtuals, or hidden allocator state means predictable performance in the matching loop."
+              },
+              {
+                "title": "Deterministic ordering aids auditing",
+                "body": "The matcher emits trades in FIFO order per price level and in the order levels are crossed. Deterministic sequencing makes replay, P&L attribution, and incident investigation straightforward."
+              },
+              {
+                "title": "Batch results with `std::vector<Trade>`",
+                "body": "Sweeps across multiple levels produce several fills. Returning a contiguous vector lets callers apply the entire batch atomically (positions, risk, downstream events) while staying cache-friendly."
+              },
+              {
+                "title": "Minimal fields, maximal utility",
+                "body": "`orderId_`, `price_`, and `quantity_` are enough to update positions, compute P&L, and build a fill history. Additional metadata (timestamps, fees, liquidity tags) can be layered on later without changing matching logic."
               }
             ]
         },
         {
             "name": "5. The Order Object",
             "overview": "Implement the core Order type that models a single instruction on the book. It owns immutable identity (order id, side, type, price at creation) and mutable state (remaining quantity). It provides safe fill semantics, derived status accessors, and a helper to convert Market orders into GoodTillCancel limits at runtime.",
-            "what_and_how": [
+            "deliverables": [
               {
-                "file": "include/Order.h",
-                "spec": "Declare the Order class with constructors for limit and market orders, read-only accessors, a safe Fill method, and a Market→GTC conversion helper. Also expose storage aliases used by the book (shared_ptr + list).",
-                "how_to_implement": [
-                  "Include headers for enums (OrderType.h, Side.h), aliases (Usings.h), constants (Constants.h), and standard utilities (`<list>`, `<exception>`, `<format>`).",
-                  "Store `OrderType`, `OrderId`, `Side`, `Price`, `Quantity initialQuantity_`, and `Quantity remainingQuantity_` as private members.",
-                  "Provide two constructors: (1) full constructor for any type; (2) convenience constructor for Market initializing price to the invalid sentinel.",
-                  "Expose const accessors for id, side, price, type, initial/remaining quantities, and derived filled quantity; add `IsFilled()`.",
-                  "Implement `Fill(Quantity)` to decrease remaining quantity with bounds checking; throw on overfill.",
-                  "Implement `ToGoodTillCancel(Price)` to convert a Market order to a priced GTC order; throw if called on non-Market."
-                ]
+                "task": "include/Order.h (header skeleton, includes, private data)",
+                "spec": "Create the header guard and required includes, then declare the `Order` class shell with its private data members. Public members (constructors, accessors, mutators) are defined in separate tasks.",
+                "implementation": [
+                  "Add `#pragma once` at the top.",
+                  "Standard includes: `<list>` (for `OrderPointers`), `<exception>` (for `std::logic_error`), `<format>` (for formatted error messages).",
+                  "Project includes: `\"OrderType.h\"`, `\"Side.h\"`, `\"Usings.h\"`, `\"Constants.h\"`.",
+                  "Declare `class Order { ... };` with a `public:` section (methods supplied by other tasks) and a `private:` section containing the exact data members from the repository."
+                ],
+                "code": "#pragma once\n\n#include <list>\n#include <exception>\n#include <format>\n\n#include \"OrderType.h\"\n#include \"Side.h\"\n#include \"Usings.h\"\n#include \"Constants.h\"\n\nclass Order\n{\npublic:\n    // Constructors, accessors, and mutators are provided in separate tasks below.\n\nprivate:\n    OrderType orderType_;\n    OrderId   orderId_;\n    Side      side_;\n    Price     price_;\n    Quantity  initialQuantity_;\n    Quantity  remainingQuantity_;\n};\n"
+              },
+              {
+                "task": "Constructors",
+                "spec": "Provide a full constructor for any order type and a convenience constructor for Market orders.",
+                "implementation": [
+                  "Full ctor initializes all fields and sets `remainingQuantity_ = quantity`.",
+                  "Market convenience ctor delegates to the full ctor with `OrderType::Market` and `Constants::InvalidPrice`."
+                ],
+                "code": "public:\n    Order(OrderType orderType, OrderId orderId, Side side, Price price, Quantity quantity)\n        : orderType_{ orderType }\n        , orderId_{ orderId }\n        , side_{ side }\n        , price_{ price }\n        , initialQuantity_{ quantity }\n        , remainingQuantity_{ quantity }\n    { }\n\n    Order(OrderId orderId, Side side, Quantity quantity)\n        : Order(OrderType::Market, orderId, side, Constants::InvalidPrice, quantity)\n    { }\n"
+              },
+              {
+                "task": "Accessors",
+                "spec": "Expose const-qualified getters and derived state helpers.",
+                "implementation": [
+                  "Getters return identity and state without side effects.",
+                  "Derived helpers compute filled quantity and filled status from existing fields."
+                ],
+                "code": "public:\n    OrderId   GetOrderId()           const { return orderId_; }\n    Side      GetSide()              const { return side_; }\n    Price     GetPrice()             const { return price_; }\n    OrderType GetOrderType()         const { return orderType_; }\n    Quantity  GetInitialQuantity()   const { return initialQuantity_; }\n    Quantity  GetRemainingQuantity() const { return remainingQuantity_; }\n    Quantity  GetFilledQuantity()    const { return GetInitialQuantity() - GetRemainingQuantity(); }\n    bool      IsFilled()             const { return GetRemainingQuantity() == 0; }\n"
+              },
+              {
+                "task": "Mutators & Helpers",
+                "spec": "Implement safe state changes and policy-bound transformations.",
+                "implementation": [
+                  "`Fill(Quantity)`: throw `std::logic_error` if `quantity > remaining`; otherwise decrement `remainingQuantity_`.",
+                  "`ToGoodTillCancel(Price)`: only valid for `OrderType::Market`; set `price_` and flip `orderType_` to `GoodTillCancel`."
+                ],
+                "code": "public:\n    void Fill(Quantity quantity)\n    {\n        if (quantity > GetRemainingQuantity())\n            throw std::logic_error(std::format(\"Order ({}) cannot be filled for more than its remaining quantity.\", GetOrderId()));\n        remainingQuantity_ -= quantity;\n    }\n\n    void ToGoodTillCancel(Price price)\n    {\n        if (GetOrderType() != OrderType::Market)\n            throw std::logic_error(std::format(\"Order ({}) cannot have its price adjusted, only market orders can.\", GetOrderId()));\n        price_ = price;\n        orderType_ = OrderType::GoodTillCancel;\n    }\n"
+              },
+              {
+                "task": "Aliases",
+                "spec": "Publish storage aliases used throughout the order book.",
+                "implementation": [
+                  "Define `OrderPointer` as `std::shared_ptr<Order>` and `OrderPointers` as `std::list<OrderPointer>` directly in the header after the class."
+                ],
+                "code": "using OrderPointer  = std::shared_ptr<Order>;\nusing OrderPointers = std::list<OrderPointer>;\n"
               }
             ],
-            "required_skills": [
-              "C++ class design (constructors, member initialization, accessors)",
-              "Exception handling (`std::logic_error`)",
-              "C++20 text formatting (`std::format`)",
-              "Smart pointers (`std::shared_ptr`) and container selection (`std::list`)"
-            ],
             "learning_materials": [
-              "Price–time priority requires stable iterators at each price level; `std::list` preserves iterator validity as orders append.",
-              "Derived state (`filled = initial - remaining`) avoids consistency bugs versus storing a separate filled member.",
-              "Market orders start unpriced; converting them to GTC at the worst opposing price routes all matching through one path.",
-              "Defensive programming: validate mutations (e.g., `Fill`) and signal misuse via exceptions with clear diagnostics."
-            ],
-            "c++_functions": [
-              "Constructors and member initializer lists",
-              "Const-qualified getters",
-              "`std::logic_error` (exceptions)",
-              "`std::format` (C++20 formatting)",
-              "`std::shared_ptr`, `std::make_shared`",
-              "`std::list` (stable iterators for per-price FIFO queues)"
-            ],
-            "implementation_api_contract": {
-              "constructors": [
-                "Order(OrderType orderType, OrderId orderId, Side side, Price price, Quantity quantity)",
-                "Order(OrderId orderId, Side side, Quantity quantity)  // Market convenience ctor"
-              ],
-              "accessors": [
-                "OrderId GetOrderId() const",
-                "Side GetSide() const",
-                "Price GetPrice() const",
-                "OrderType GetOrderType() const",
-                "Quantity GetInitialQuantity() const",
-                "Quantity GetRemainingQuantity() const",
-                "Quantity GetFilledQuantity() const",
-                "bool IsFilled() const"
-              ],
-              "mutators_and_helpers": [
-                "void Fill(Quantity quantity)  // throws std::logic_error if quantity > remaining",
-                "void ToGoodTillCancel(Price price)  // throws if orderType != Market"
-              ],
-              "aliases": [
-                "using OrderPointer = std::shared_ptr<Order>;",
-                "using OrderPointers = std::list<OrderPointer>;"
-              ],
-              "includes": [
-                "<list>",
-                "<exception>",
-                "<format>",
-                "\"OrderType.h\"",
-                "\"Side.h\"",
-                "\"Usings.h\"",
-                "\"Constants.h\""
-              ]
-            },
-            "code_snippets": [
               {
-                "filename": "Order.h",
-                "code": "#pragma once\n\n#include <list>\n#include <exception>\n#include <format>\n\n#include \"OrderType.h\"\n#include \"Side.h\"\n#include \"Usings.h\"\n#include \"Constants.h\"\n\n\nclass Order\n{\npublic:\n    Order(OrderType orderType, OrderId orderId, Side side, Price price, Quantity quantity)\n        : orderType_{ orderType }\n        , orderId_{ orderId }\n        , side_{ side }\n        , price_{ price }\n        , initialQuantity_{ quantity }\n        , remainingQuantity_{ quantity }\n    { }\n\n    Order(OrderId orderId, Side side, Quantity quantity)\n        : Order(OrderType::Market, orderId, side, Constants::InvalidPrice, quantity)\n    { }\n\n    OrderId GetOrderId() const { return orderId_; }\n    Side GetSide() const { return side_; }\n    Price GetPrice() const { return price_; }\n    OrderType GetOrderType() const { return orderType_; }\n    Quantity GetInitialQuantity() const { return initialQuantity_; }\n    Quantity GetRemainingQuantity() const { return remainingQuantity_; }\n    Quantity GetFilledQuantity() const { return GetInitialQuantity() - GetRemainingQuantity(); }\n    bool IsFilled() const { return GetRemainingQuantity() == 0; }\n    void Fill(Quantity quantity)\n    {\n        if (quantity > GetRemainingQuantity())\n            throw std::logic_error(std::format(\"Order ({}) cannot be filled for more than its remaining quantity.\", GetOrderId()));\n\n        remainingQuantity_ -= quantity;\n    }\n    void ToGoodTillCancel(Price price) \n    { \n        if (GetOrderType() != OrderType::Market)\n            throw std::logic_error(std::format(\"Order ({}) cannot have its price adjusted, only market orders can.\", GetOrderId()));\n\n        price_ = price;\n        orderType_ = OrderType::GoodTillCancel;\n    }\n\nprivate:\n    OrderType orderType_;\n    OrderId orderId_;\n    Side side_;\n    Price price_;\n    Quantity initialQuantity_;\n    Quantity remainingQuantity_;\n};\n\nusing OrderPointer = std::shared_ptr<Order>;\nusing OrderPointers = std::list<OrderPointer>;\n"
+                "title": "Role of `Order` in the engine",
+                "body": "The `Order` encapsulates trading intent and lifecycle state (identity, side, type, initial and remaining quantities). Storage (where the order lives in the book) is handled by the order book. This separation keeps the object portable across data structures and simplifies reasoning about correctness."
+              },
+              {
+                "title": "Why lists for price-time priority",
+                "body": "`std::list` preserves iterator stability, allowing O(1) removal using a saved iterator even as new orders arrive. That property is crucial for price-time priority and fast cancels within a level, and it avoids costly scans or invalidation issues common with `std::vector` growth."
+              },
+              {
+                "title": "Derive state; don't duplicate it",
+                "body": "Compute `filled = initial - remaining` and `isFilled = (remaining == 0)` instead of storing extra fields. Derived values reduce invariants you need to maintain and eliminate subtle drift bugs after fills, cancels, or modifications."
+              },
+              {
+                "title": "Defensive mutation and clear errors",
+                "body": "Mutations like `Fill` validate preconditions and throw on violations (e.g., overfill). Using `std::format` to include the `OrderId` yields precise diagnostics for logs and tests, making faults obvious and actionable."
+              },
+              {
+                "title": "Market → GTC conversion unifies matching",
+                "body": "Treat market orders as unpriced until they're converted to GTC at a safe bound (worst opposing price). This funnels all paths through one matching algorithm, simplifies policy handling (FAK/FOK), and ensures trades have an explicit execution price."
+              },
+              {
+                "title": "Shared ownership and lifecycle",
+                "body": "The same order is referenced by the ID index and the per-price queue. `std::shared_ptr<Order>` allows those structures to share ownership without bespoke lifetime management. The `OrderPointer`/`OrderPointers` aliases standardize usage and make later refactors straightforward."
+              },
+              {
+                "title": "Testing the invariants",
+                "body": "Write tests that confirm: constructors initialize remaining = initial; `Fill` reduces remaining and flags `IsFilled` at zero; `Fill` throws on overfill; market ctor uses the invalid price sentinel; `ToGoodTillCancel` sets price and flips type and throws on non-market orders."
               }
             ]
         },
         {
             "name": "6. Order Modification",
             "overview": "Provide a lightweight value type to represent cancel-and-replace semantics. This object carries the new desired fields (price, side, quantity) for an existing order ID and can materialize a fresh Order instance while preserving the original order type.",
-            "what_and_how": [
+            "deliverables": [
               {
-                "file": "include/OrderModify.h",
+                "task": "include/OrderModify.h",
                 "spec": "Declare a small class that stores OrderId, Side, Price, and Quantity, exposes trivial getters, and provides a factory method to create a new Order from these fields while accepting an explicit OrderType.",
-                "how_to_implement": [
-                  "Include \"Order.h\" so you can construct new orders and return OrderPointer.",
-                  "Store four private members: orderId_, price_, side_, quantity_.",
-                  "Provide a simple constructor initializing all four members.",
-                  "Expose const getters for each field to keep the object immutable from the outside.",
-                  "Implement ToOrderPointer(OrderType type) using std::make_shared<Order>(...) to produce a new order that reuses the same OrderId and applies the current Side/Price/Quantity."
-                ]
+                "implementation": [
+                  "Add `#pragma once` and include only what you use: `\"Order.h\"` (needed for `Order`, `OrderPointer`, and `std::make_shared`).",
+                  "Store four private members: `OrderId orderId_; Price price_; Side side_; Quantity quantity_;`.",
+                  "Provide a simple constructor that initializes all four members via an initialization list.",
+                  "Expose const-qualified getters: `GetOrderId()`, `GetPrice()`, `GetSide()`, `GetQuantity()` — keep them trivial (no side effects).",
+                  "Implement `OrderPointer ToOrderPointer(OrderType type) const` using `std::make_shared<Order>(type, GetOrderId(), GetSide(), GetPrice(), GetQuantity());`.",
+                  "Keep the header dependency-light: no extra includes beyond `\"Order.h\"`; avoid adding logic unrelated to describing a modification intent.",
+                  "Tip: Treat this as a pure value object — no mutation methods — so cancel-and-replace flows remain simple to reason about."
+                ],
+                "code": "#pragma once\n\n#include \"Order.h\"\n\nclass OrderModify\n{\npublic:\n    OrderModify(OrderId orderId, Side side, Price price, Quantity quantity)\n        : orderId_{ orderId }\n        , price_{ price }\n        , side_{ side }\n        , quantity_{ quantity }\n    { }\n\n    OrderId GetOrderId() const { return orderId_; }\n    Price GetPrice() const { return price_; }\n    Side GetSide() const { return side_; }\n    Quantity GetQuantity() const { return quantity_; }\n\n    OrderPointer ToOrderPointer(OrderType type) const\n    {\n        return std::make_shared<Order>(type, GetOrderId(), GetSide(), GetPrice(), GetQuantity());\n    }\n\nprivate:\n    OrderId orderId_;\n    Price price_;\n    Side side_;\n    Quantity quantity_;\n};\n"
               }
             ],
-            "required_skills": [
-              "C++ class design (value types, constructors, accessors)",
-              "Header hygiene (#pragma once, minimal includes)",
-              "Smart pointers (std::shared_ptr) and factories (std::make_shared)"
-            ],
             "learning_materials": [
-              "Cancel-and-replace flows: most matching engines implement modification as a logical cancel of the old order followed by the addition of a new order.",
-              "Immutability at the edge: keeping OrderModify as a simple value object avoids partial updates and makes the API easy to reason about.",
-              "Separation of concerns: OrderModify describes intent; Orderbook owns the actual cancel and re-add logic."
-            ],
-            "c++_functions": [
-              "Constructors and member initializer lists",
-              "Const-qualified getters",
-              "std::make_shared (factory for std::shared_ptr)"
-            ],
-            "code_snippets": [
               {
-                "filename": "OrderModify.h",
-                "code": "#pragma once\n\n#include \"Order.h\"\n\nclass OrderModify\n{\npublic:\n    OrderModify(OrderId orderId, Side side, Price price, Quantity quantity)\n        : orderId_{ orderId }\n        , price_{ price }\n        , side_{ side }\n        , quantity_{ quantity }\n    { }\n\n    OrderId GetOrderId() const { return orderId_; }\n    Price GetPrice() const { return price_; }\n    Side GetSide() const { return side_; }\n    Quantity GetQuantity() const { return quantity_; }\n\n    OrderPointer ToOrderPointer(OrderType type) const\n    {\n        return std::make_shared<Order>(type, GetOrderId(), GetSide(), GetPrice(), GetQuantity());\n    }\n\nprivate:\n    OrderId orderId_;\n    Price price_;\n    Side side_;\n    Quantity quantity_;\n};\n"
+                "title": "Why engines use cancel-and-replace for modifications",
+                "body": "Most matching engines implement a modification as a logical cancel of the existing order followed by the addition of a new order. This preserves price-time fairness: changing price or side would otherwise leapfrog time priority. Modeling this with a tiny value object (OrderModify) makes the workflow explicit and reproducible."
+              },
+              {
+                "title": "Immutability makes intent clear and safe",
+                "body": "OrderModify is a pure value object: it holds the desired new fields and exposes only const getters. There are no mutators, so you can pass it around freely without worrying about concurrent edits. The book decides when (and if) to apply it by performing a cancel-and-replace."
+              },
+              {
+                "title": "Preserving order type during replace",
+                "body": "The modification does not choose the order type; the book copies the original type from the live order and applies the new price/side/quantity via `ToOrderPointer(type)`. This separation prevents callers from accidentally changing policy (e.g., FOK to GTC) when they intend only to adjust size or price."
+              },
+              {
+                "title": "Separation of concerns: construction vs. enforcement",
+                "body": "OrderModify simply describes intent. Validation (e.g., duplicate IDs, resting rules, FAK/FOK feasibility) and lifecycle changes are enforced inside the Orderbook. Keeping these responsibilities separate makes the code easier to test and reason about."
               }
             ]
         },
         {
             "name": "7. Orderbook: Internal Storage & Private APIs",
             "overview": "Define the in-memory structure of the matching engine and its private helpers. This header declares price ladders for bids/asks, an O(1) order index for fast cancels/modifies, per-price level metadata for bookkeeping and FOK checks, and internal methods for matching and maintenance.",
-            "what_and_how": [
+            "deliverables": [
               {
-                "file": "include/Orderbook.h",
+                "task": "include/Orderbook.h",
                 "spec": "Declare the Orderbook class with all internal data structures and private APIs required by the engine. Include nested helper structs for order location and per-level aggregates, ordered maps for price ladders, an ID index, and concurrency members for the GFD pruning thread.",
-                "how_to_implement": [
-                  "Use two ordered maps for the price ladders: bids sorted with std::greater<Price> (best bid first) and asks sorted with std::less<Price> (best ask first). Each price maps to a std::list of shared_ptr<Order> to preserve FIFO and stable iterators.",
-                  "Maintain an O(1) lookup from OrderId to an OrderEntry that holds both the OrderPointer and its list iterator for fast erasure during cancels/fills.",
-                  "Track per-price metadata (LevelData) to keep aggregate quantity and count current via event hooks; store it in an unordered_map keyed by Price.",
-                  "Expose private helper methods: CanMatch, CanFullyFill, MatchOrders for core matching logic; OnOrderAdded/Cancelled/Matched and UpdateLevelData for bookkeeping; CancelOrders/CancelOrderInternal for internal removals; PruneGoodForDayOrders for scheduled cleanup.",
-                  "Add thread-safety primitives: a mutex protecting state, a condition_variable and atomic flag for clean shutdown of the GFD pruning thread. Delete copy/move to avoid accidental sharing of internal state."
-                ]
+                "implementation": [
+                  "Price ladders: use two ordered maps—`std::map<Price, OrderPointers, std::greater<Price>>` for bids (best first) and `std::map<Price, OrderPointers, std::less<Price>>` for asks (best first). Each value is a `std::list<OrderPointer>` to preserve FIFO and iterator stability.",
+                  "O(1) ID index: maintain `std::unordered_map<OrderId, OrderEntry>` where `OrderEntry` holds `{ OrderPointer, OrderPointers::iterator }` so cancels/fills can erase in O(1) using the saved iterator.",
+                  "Per-level metadata: add `struct LevelData { Quantity quantity_; Quantity count_; enum class Action { Add, Remove, Match }; }` and store it in `std::unordered_map<Price, LevelData> data_` to support quick FOK feasibility and housekeeping.",
+                  "Private helpers: declare `CanMatch(Side, Price) const`, `CanFullyFill(Side, Price, Quantity) const`, `Trades MatchOrders()`, and the event hooks `OnOrderAdded`, `OnOrderCancelled`, `OnOrderMatched`, plus `UpdateLevelData(Price, Quantity, LevelData::Action)` to centralize aggregate updates.",
+                  "Cancellation utilities: include `CancelOrders(OrderIds)` and `CancelOrderInternal(OrderId)` for internal removals without re-checking invariants.",
+                  "GFD maintenance: declare `void PruneGoodForDayOrders();` and add thread members to run it in the background: `std::thread ordersPruneThread_; std::condition_variable shutdownConditionVariable_; std::atomic<bool> shutdown_{false};`",
+                  "Thread safety: protect all shared state with `mutable std::mutex ordersMutex_`. Public mutators will lock this; internal helpers assume the caller holds the lock.",
+                  "Special member functions: disable copying/moving to avoid accidental sharing of internal state (delete copy/move ctor/assignment).",
+                  "Includes: add `<map>`, `<unordered_map>`, `<thread>`, `<condition_variable>`, `<mutex>`, and project headers `\"Usings.h\"`, `\"Order.h\"`, `\"OrderModify.h\"`, `\"OrderbookLevelInfos.h\"`, `\"Trade.h\"`.",
+                  "Rationale: ordered maps give deterministic top-of-book selection; lists provide stable iterators for price–time priority; the ID index avoids linear scans; centralized level updates keep invariants consistent."
+                ],
+                "code": "#pragma once\n\n#include <map>\n#include <unordered_map>\n#include <thread>\n#include <condition_variable>\n#include <mutex>\n\n#include \"Usings.h\"\n#include \"Order.h\"\n#include \"OrderModify.h\"\n#include \"OrderbookLevelInfos.h\"\n#include \"Trade.h\"\n\nclass Orderbook\n{\nprivate:\n\n    struct OrderEntry\n    {\n        OrderPointer order_{ nullptr };\n        OrderPointers::iterator location_;\n    };\n\n    struct LevelData\n    {\n        Quantity quantity_{ };\n        Quantity count_{ };\n\n        enum class Action\n        {\n            Add,\n            Remove,\n            Match,\n        };\n    };\n\n    std::unordered_map<Price, LevelData> data_;\n    std::map<Price, OrderPointers, std::greater<Price>> bids_;\n    std::map<Price, OrderPointers, std::less<Price>> asks_;\n    std::unordered_map<OrderId, OrderEntry> orders_;\n    mutable std::mutex ordersMutex_;\n    std::thread ordersPruneThread_;\n    std::condition_variable shutdownConditionVariable_;\n    std::atomic<bool> shutdown_{ false };\n\n    void PruneGoodForDayOrders();\n\n    void CancelOrders(OrderIds orderIds);\n    void CancelOrderInternal(OrderId orderId);\n\n    void OnOrderCancelled(OrderPointer order);\n    void OnOrderAdded(OrderPointer order);\n    void OnOrderMatched(Price price, Quantity quantity, bool isFullyFilled);\n    void UpdateLevelData(Price price, Quantity quantity, LevelData::Action action);\n\n    bool CanFullyFill(Side side, Price price, Quantity quantity) const;\n    bool CanMatch(Side side, Price price) const;\n    Trades MatchOrders();\n\npublic:\n\n    Orderbook();\n    Orderbook(const Orderbook&) = delete;\n    void operator=(const Orderbook&) = delete;\n    Orderbook(Orderbook&&) = delete;\n    void operator=(Orderbook&&) = delete;\n    ~Orderbook();\n\n    Trades AddOrder(OrderPointer order);\n    void CancelOrder(OrderId orderId);\n    Trades ModifyOrder(OrderModify order);\n\n    std::size_t Size() const;\n    OrderbookLevelInfos GetOrderInfos() const;\n};\n"
               }
             ],
-            "required_skills": [
-              "C++ STL associative containers (std::map with custom comparators; std::unordered_map)",
-              "Linked-list iterators (std::list) and iterator stability",
-              "RAII locking (std::scoped_lock, std::unique_lock), condition variables, and std::atomic<bool>",
-              "Designing private helper APIs and invariants for matching engines"
-            ],
             "learning_materials": [
-              "Price–time priority: ordered maps (bids desc, asks asc) plus per-price FIFO queues preserve market semantics.",
-              "OrderEntry (pointer + iterator) enables O(1) cancels/modifies without scanning a price level.",
-              "LevelData aggregates ({quantity, count}) allow fast feasibility checks (e.g., FOK) and consistent housekeeping.",
-              "Background services (e.g., GFD pruning) require clear ownership and shutdown protocols to avoid races or leaks."
-            ],
-            "c++_functions": [
-              "std::map with std::greater<T>/std::less<T> comparators",
-              "std::unordered_map for O(1) keyed lookups",
-              "std::list and iterators for FIFO per price level",
-              "std::scoped_lock, std::unique_lock, std::condition_variable",
-              "std::atomic<bool> for thread-safe flags"
-            ],
-            "code_snippets": [
               {
-                "filename": "Orderbook.h",
-                "code": "#pragma once\n\n#include <map>\n#include <unordered_map>\n#include <thread>\n#include <condition_variable>\n#include <mutex>\n\n#include \"Usings.h\"\n#include \"Order.h\"\n#include \"OrderModify.h\"\n#include \"OrderbookLevelInfos.h\"\n#include \"Trade.h\"\n\nclass Orderbook\n{\nprivate:\n\n    struct OrderEntry\n    {\n        OrderPointer order_{ nullptr };\n        OrderPointers::iterator location_;\n    };\n\n    struct LevelData\n    {\n        Quantity quantity_{ };\n        Quantity count_{ };\n\n        enum class Action\n        {\n            Add,\n            Remove,\n            Match,\n        };\n    };\n\n    std::unordered_map<Price, LevelData> data_;\n    std::map<Price, OrderPointers, std::greater<Price>> bids_;\n    std::map<Price, OrderPointers, std::less<Price>> asks_;\n    std::unordered_map<OrderId, OrderEntry> orders_;\n    mutable std::mutex ordersMutex_;\n    std::thread ordersPruneThread_;\n    std::condition_variable shutdownConditionVariable_;\n    std::atomic<bool> shutdown_{ false };\n\n    void PruneGoodForDayOrders();\n\n    void CancelOrders(OrderIds orderIds);\n    void CancelOrderInternal(OrderId orderId);\n\n    void OnOrderCancelled(OrderPointer order);\n    void OnOrderAdded(OrderPointer order);\n    void OnOrderMatched(Price price, Quantity quantity, bool isFullyFilled);\n    void UpdateLevelData(Price price, Quantity quantity, LevelData::Action action);\n\n    bool CanFullyFill(Side side, Price price, Quantity quantity) const;\n    bool CanMatch(Side side, Price price) const;\n    Trades MatchOrders();\n\npublic:\n\n    Orderbook();\n    Orderbook(const Orderbook&) = delete;\n    void operator=(const Orderbook&) = delete;\n    Orderbook(Orderbook&&) = delete;\n    void operator=(Orderbook&&) = delete;\n    ~Orderbook();\n\n    Trades AddOrder(OrderPointer order);\n    void CancelOrder(OrderId orderId);\n    Trades ModifyOrder(OrderModify order);\n\n    std::size_t Size() const;\n    OrderbookLevelInfos GetOrderInfos() const;\n};\n"
+                "title": "Price-Time Priority via Maps + Lists",
+                "body": "Exchanges execute by price first and time second. `std::map` keeps prices sorted so `bids_.begin()` is always the best bid and `asks_.begin()` the best ask; `std::list` at each price preserves FIFO and stable iterators so the earliest order at that price is matched first without invalidating references."
+              },
+              {
+                "title": "O(1) Cancels with an Iterator-Carrying Index",
+                "body": "By indexing `OrderId -> {OrderPointer, list-iterator}` in an `unordered_map`, cancels and fills can erase a specific order directly from its price-level list in constant time, avoiding linear scans and keeping hot paths predictable."
+              },
+              {
+                "title": "Per-Level Aggregates Enable Fast FOK Checks",
+                "body": "`LevelData` tracks total quantity and order count per price. `CanFullyFill` walks only the relevant price levels until the desired size is covered or the price constraint is exceeded, turning a potential O(orders) decision into O(levels)."
+              },
+              {
+                "title": "Centralized Bookkeeping via Event Hooks",
+                "body": "All aggregate mutations flow through `OnOrderAdded`, `OnOrderCancelled`, and `OnOrderMatched`, which in turn call `UpdateLevelData`. Centralizing these transitions ensures consistent arithmetic and clean erasure rules when levels empty."
+              },
+              {
+                "title": "Clear Concurrency Model",
+                "body": "One mutex (`ordersMutex_`) guards all shared structures. Public mutators acquire it; private helpers assume the lock is held. The GFD thread coordinates with the main thread via a condition variable and an atomic shutdown flag for clean sleep/wake and teardown."
+              },
+              {
+                "title": "Deterministic Interfaces and Extensibility",
+                "body": "Hiding internals behind a stable header lets you evolve implementations (e.g., different containers or new order types) without breaking callers. Deterministic ordering and explicit helpers make the system easy to test and extend."
               }
             ]
         },
         {
-            "name": "8. Matching Engine (Core Loop)",
-            "overview": "Implement the core crossing logic that repeatedly matches the best bid against the best ask, executes trades at FIFO within each price level, updates per-level metadata, prunes empty levels, and enforces IOC/FAK post-conditions.",
-            "what_and_how": [
+            "name": "8. Matching Engine",
+            "overview": "Implement the core crossing logic that repeatedly matches the best bid against the best ask, executes trades FIFO within each price level, updates per-level metadata, prunes empty levels, and enforces IOC/FAK post-conditions.",
+            "deliverables": [
               {
-                "file": "src/Orderbook.cpp",
-                "spec": "Define a private method that produces a batch of executions by crossing top-of-book levels until no further matches are possible. It must: select best bid/ask, match front orders FIFO, fill quantities, emit trades, update level metadata, erase emptied levels, and cancel any remaining IOC (FillAndKill) order left at the top.",
-                "how_to_implement": [
-                  "Guard against empty ladders: exit when either side is empty or when bestBid < bestAsk.",
-                  "Operate at the best levels only: use `*bids_.begin()` and `*asks_.begin()` to reference best price buckets.",
-                  "Within each best price pair, match the front orders (FIFO) using `std::min(remainingBid, remainingAsk)`; call `Fill()` on both.",
-                  "Erase filled orders from both the per-price list and the global `orders_` index; if a price list becomes empty, erase that price level and its metadata entry.",
-                  "For every fill, create a `Trade` with two `TradeInfo` records (bid side and ask side) and push it into the `Trades` vector.",
-                  "Notify per-level bookkeeping through `OnOrderMatched(price, qty, isFullyFilled)` for both sides.",
-                  "After the crossing loop, if the best resting order is `FillAndKill`, cancel it using `CancelOrder`."
-                ]
+                "task": "src/Orderbook.cpp",
+                "spec": "Define the private method `Trades MatchOrders()` that produces a batch of executions by crossing top-of-book levels until no further matches are possible. It must: select best bid/ask, match front orders FIFO, fill quantities, emit trades, update level metadata, erase emptied levels, and cancel any remaining IOC (FillAndKill) order left at the top.",
+                "implementation": [
+                  "Guard exit conditions early: if either ladder is empty or if the best bid price is less than the best ask price, stop the loop.",
+                  "Select best levels using associative container primitives: dereference `*bids_.begin()` and `*asks_.begin()` (structured bindings help readability).",
+                  "Within a price pair, match in FIFO order: access the front elements of the per-price `std::list` (`front()`), compute the execution size with `std::min(bidRemaining, askRemaining)`, and call `Fill()` on both orders.",
+                  "Clean up filled orders immediately: if an order `IsFilled()`, `pop_front()` it from the list and erase its ID from `orders_` to maintain O(1) removal via the saved iterator.",
+                  "Emit trade records per fill: push a `Trade` constructed from two `TradeInfo` fragments (bid and ask) into a pre-reserved `Trades` vector. Use `trades.reserve(orders_.size())` before the loop to minimize reallocations.",
+                  "Bookkeeping on every fill: call `OnOrderMatched(price, quantity, isFullyFilled)` for both sides so level metadata stays correct.",
+                  "Prune empty levels: after the inner FIFO loop, if a level list becomes empty, erase that price from the ladder map and remove its metadata entry from `data_`.",
+                  "Handle IOC/FAK post-condition: after the outer loop, if the top resting order on either side is `OrderType::FillAndKill`, cancel it via `CancelOrder(orderId)`.",
+                  "Keep the loop compact and deterministic for testability; avoid mutating the bound map entries until the inner loop completes."
+                ],
+                "code": "Trades Orderbook::MatchOrders()\n{\n\tTrades trades;\n\ttrades.reserve(orders_.size());\n\n\twhile (true)\n\t{\n\t\tif (bids_.empty() || asks_.empty())\n\t\t\tbreak;\n\n\t\tauto& [bidPrice, bids] = *bids_.begin();\n\t\tauto& [askPrice, asks] = *asks_.begin();\n\n\t\tif (bidPrice < askPrice)\n\t\t\tbreak;\n\n\t\twhile (!bids.empty() && !asks.empty())\n\t\t{\n\t\t\tauto bid = bids.front();\n\t\t\tauto ask = asks.front();\n\n\t\t\tQuantity quantity = std::min(bid->GetRemainingQuantity(), ask->GetRemainingQuantity());\n\n\t\t\tbid->Fill(quantity);\n\t\t\task->Fill(quantity);\n\n\t\t\tif (bid->IsFilled())\n\t\t\t{\n\t\t\t\tbids.pop_front();\n\t\t\t\torders_.erase(bid->GetOrderId());\n\t\t\t}\n\n\t\t\tif (ask->IsFilled())\n\t\t\t{\n\t\t\t\tasks.pop_front();\n\t\t\t\torders_.erase(ask->GetOrderId());\n\t\t\t}\n\n\n\t\t\ttrades.push_back(Trade{\n\t\t\t\tTradeInfo{ bid->GetOrderId(), bid->GetPrice(), quantity },\n\t\t\t\tTradeInfo{ ask->GetOrderId(), ask->GetPrice(), quantity } \n\t\t\t\t});\n\n\t\t\tOnOrderMatched(bid->GetPrice(), quantity, bid->IsFilled());\n\t\t\tOnOrderMatched(ask->GetPrice(), quantity, ask->IsFilled());\n\t\t}\n\n        if (bids.empty())\n        {\n            bids_.erase(bidPrice);\n            data_.erase(bidPrice);\n        }\n\n        if (asks.empty())\n        {\n            asks_.erase(askPrice);\n            data_.erase(askPrice);\n        }\n\t}\n\n\tif (!bids_.empty())\n\t{\n\t\tauto& [_, bids] = *bids_.begin();\n\t\tauto& order = bids.front();\n\t\tif (order->GetOrderType() == OrderType::FillAndKill)\n\t\t\tCancelOrder(order->GetOrderId());\n\t}\n\n\tif (!asks_.empty())\n\t{\n\t\tauto& [_, asks] = *asks_.begin();\n\t\tauto& order = asks.front();\n\t\tif (order->GetOrderType() == OrderType::FillAndKill)\n\t\t\tCancelOrder(order->GetOrderId());\n\t}\n\n\treturn trades;\n}\n"
               }
             ],
-            "required_skills": [
-              "Associative container traversal (std::map begin/rbegin, structured bindings)",
-              "Linked-list queue operations (front/pop_front) on per-price lists",
-              "Safe state mutation and invariant maintenance across multiple containers",
-              "Batching outputs into a result vector without unnecessary reallocations"
-            ],
             "learning_materials": [
-              "Price–time priority: always consume from the best price first and the oldest order at that price.",
-              "Deterministic matching: keeping all fills within a single loop ensures stable and testable outcomes.",
-              "Housekeeping matters: removing filled orders and empty levels prevents memory and logic drift.",
-              "Event-driven bookkeeping: level metadata stays correct by updating it on every match."
-            ],
-            "c++_functions": [
-              "std::map::begin(), std::map::rbegin(), std::map::erase()",
-              "std::list::front(), std::list::pop_front(), std::list::empty()",
-              "std::min() for fill quantity selection",
-              "Structured bindings (C++17) for map entries",
-              "Vector reservation (`trades.reserve(...)`) to reduce reallocations"
-            ],
-            "code_snippets": [
               {
-                "filename": "Orderbook.cpp (MatchOrders)",
-                "code": "Trades Orderbook::MatchOrders()\n{\n\tTrades trades;\n\ttrades.reserve(orders_.size());\n\n\twhile (true)\n\t{\n\t\tif (bids_.empty() || asks_.empty())\n\t\t\tbreak;\n\n\t\tauto& [bidPrice, bids] = *bids_.begin();\n\t\tauto& [askPrice, asks] = *asks_.begin();\n\n\t\tif (bidPrice < askPrice)\n\t\t\tbreak;\n\n\t\twhile (!bids.empty() && !asks.empty())\n\t\t{\n\t\t\tauto bid = bids.front();\n\t\t\tauto ask = asks.front();\n\n\t\t\tQuantity quantity = std::min(bid->GetRemainingQuantity(), ask->GetRemainingQuantity());\n\n\t\t\tbid->Fill(quantity);\n\t\t\task->Fill(quantity);\n\n\t\t\tif (bid->IsFilled())\n\t\t\t{\n\t\t\t\tbids.pop_front();\n\t\t\t\torders_.erase(bid->GetOrderId());\n\t\t\t}\n\n\t\t\tif (ask->IsFilled())\n\t\t\t{\n\t\t\t\tasks.pop_front();\n\t\t\t\torders_.erase(ask->GetOrderId());\n\t\t\t}\n\n\n\t\t\ttrades.push_back(Trade{\n\t\t\t\tTradeInfo{ bid->GetOrderId(), bid->GetPrice(), quantity },\n\t\t\t\tTradeInfo{ ask->GetOrderId(), ask->GetPrice(), quantity } \n\t\t\t\t});\n\n\t\t\tOnOrderMatched(bid->GetPrice(), quantity, bid->IsFilled());\n\t\t\tOnOrderMatched(ask->GetPrice(), quantity, ask->IsFilled());\n\t\t}\n\n        if (bids.empty())\n        {\n            bids_.erase(bidPrice);\n            data_.erase(bidPrice);\n        }\n\n        if (asks.empty())\n        {\n            asks_.erase(askPrice);\n            data_.erase(askPrice);\n        }\n\t}\n\n\tif (!bids_.empty())\n\t{\n\t\tauto& [_, bids] = *bids_.begin();\n\t\tauto& order = bids.front();\n\t\tif (order->GetOrderType() == OrderType::FillAndKill)\n\t\t\tCancelOrder(order->GetOrderId());\n\t}\n\n\tif (!asks_.empty())\n\t{\n\t\tauto& [_, asks] = *asks_.begin();\n\t\tauto& order = asks.front();\n\t\tif (order->GetOrderType() == OrderType::FillAndKill)\n\t\t\tCancelOrder(order->GetOrderId());\n\t}\n\n\treturn trades;\n}\n"
+                "title": "Price-Time Priority in Practice",
+                "body": "Always pair the best/highest bid (`bids_.begin()` with `std::greater`) with the best/lowest ask (`asks_.begin()` with `std::less`). Within a price level, consume from `list.front()` to preserve FIFO. This mirrors common exchange rules and yields deterministic outcomes."
+              },
+              {
+                "title": "Loop Invariants & Early Exits",
+                "body": "Before matching, confirm both ladders are non-empty and `bestBid >= bestAsk`. If not, break immediately. Keeping these invariants explicit ensures the loop’s cost scales with executed volume, not with the total number of resting orders."
+              },
+              {
+                "title": "Safe Mutation Sequence",
+                "body": "Compute `qty = min(bidRemaining, askRemaining)`, call `Fill()` on both orders, then conditionally pop fully filled orders and erase their IDs from `orders_`. This order prevents dangling iterators/IDs and maintains the O(1) cancel/index contract."
+              },
+              {
+                "title": "Deterministic Trade Emission",
+                "body": "Emit one `Trade` per fill with both legs (`TradeInfo` for bid and ask) in loop order. Pre-reserve the result vector to reduce reallocations during sweeps. Deterministic emission simplifies replay, auditing, and unit testing."
+              },
+              {
+                "title": "Metadata Coherence & Level Pruning",
+                "body": "Call `OnOrderMatched` for both sides every time to keep `LevelData` in sync. When a per-price list empties, erase that level from both the ladder and `data_`. This prevents stale levels and keeps snapshots fast."
+              },
+              {
+                "title": "IOC/FAK Policy Enforcement",
+                "body": "After matching completes, if the top resting order on either side is `FillAndKill`, cancel it. Doing this after the loop guarantees that IOC orders never persist on the book while still allowing partial fills that occurred during crossing."
+              },
+              {
+                "title": "Concurrency Boundary",
+                "body": "`MatchOrders()` assumes the caller already holds the mutex guarding shared state. Public API functions acquire the lock before invoking it, keeping the hot loop tight and free from lock churn."
+              },
+              {
+                "title": "Tests That Prove Correctness",
+                "body": "Write tests for: (1) no-cross early exit; (2) full/partial fills and correct iterator cleanup; (3) multi-level sweeps; (4) IOC residual cancel; (5) `GetOrderInfos()` accuracy after each trade batch. These validate both correctness and invariants."
               }
             ]
         },
         {
             "name": "9. Public APIs: Add / Cancel / Modify (with Market, FAK, FOK) & Level Snapshot",
             "overview": "Expose the external interface of the order book. AddOrder admits new orders and applies order-type semantics (Market conversion, FAK, FOK). CancelOrder removes an order by ID. ModifyOrder performs cancel-and-replace while preserving the original order type. Size reports active orders, and GetOrderInfos returns an aggregate snapshot of bid/ask levels.",
-            "what_and_how": [
+            "deliverables": [
               {
-                "file": "src/Orderbook.cpp",
-                "spec": "Implement public methods that external callers use to interact with the book. Enforce uniqueness of OrderId, apply order-type preconditions, enqueue to the appropriate ladder, and trigger matching. Provide read-only utilities for size and level snapshots.",
-                "how_to_implement": [
-                  "Guard public mutating methods with a lock (scoped/unique) on the shared state mutex.",
-                  "In AddOrder: reject duplicate OrderIds; convert Market to GoodTillCancel at the worst opposing price (if the opposing side exists), otherwise return empty trades; enforce FillAndKill precondition via CanMatch; enforce FillOrKill via CanFullyFill; enqueue to the correct side while capturing a list iterator; index into orders_ and fire OnOrderAdded; then call MatchOrders and return Trades.",
-                  "In CancelOrder: lock and delegate to CancelOrderInternal to erase from ladders + index, and update level metadata via OnOrderCancelled.",
-                  "In ModifyOrder: under lock, fetch the current OrderType; then cancel and re-add using OrderModify::ToOrderPointer(orderType).",
-                  "In Size: lock and return orders_.size().",
-                  "In GetOrderInfos: aggregate remaining quantities per price level across bids_ and asks_, and return an OrderbookLevelInfos snapshot."
-                ]
-              }
-            ],
-            "required_skills": [
-              "Thread-safe public API design (mutex locking strategy)",
-              "Applying order-type semantics (Market/FAK/FOK) before enqueueing",
-              "Associative container operations (maps, unordered_map) with iterators",
-              "Aggregation over containers (accumulate/loops) for read-only snapshots"
-            ],
-            "learning_materials": [
-              "Single-path matching: converting Market to GTC at a bounded price lets the same matching logic handle all orders.",
-              "Precondition checks for FAK/FOK prevent resting when policy forbids it.",
-              "Stable per-level FIFO via std::list ensures price–time priority; capturing the iterator enables O(1) erasure on cancel/fill.",
-              "Separating mutation (Add/Cancel/Modify) from reporting (GetOrderInfos) clarifies invariants and testability."
-            ],
-            "c++_functions": [
-              "std::scoped_lock / std::unique_lock for mutex protection",
-              "std::unordered_map::contains / ::at / ::erase",
-              "std::map::rbegin / ::begin / ::erase",
-              "std::prev (to capture list back iterator after push_back)",
-              "std::accumulate for aggregations",
-              "Structured bindings for map entries"
-            ],
-            "code_snippets": [
-              {
-                "filename": "Orderbook.cpp (AddOrder)",
+                "task": "src/Orderbook.cpp — AddOrder",
+                "spec": "Implement AddOrder: validate uniqueness, apply Market/FAK/FOK rules, enqueue on the correct ladder, index by ID, fire bookkeeping, and trigger matching.",
+                "implementation": [
+                  "Lock `ordersMutex_` with a scoped guard.",
+                  "Reject duplicate `OrderId` via `orders_.contains`.",
+                  "Market handling: convert Market → GTC at the worst opposing price if the other side exists; otherwise return `{}`.",
+                  "Preconditions: FAK requires `CanMatch`; FOK requires `CanFullyFill`.",
+                  "Enqueue into `bids_` or `asks_`, capture iterator with `std::prev` after `push_back`.",
+                  "Insert into `orders_` as `{OrderPointer, iterator}` and call `OnOrderAdded`.",
+                  "Call `MatchOrders()` and return the resulting trades."
+                ],
                 "code": "Trades Orderbook::AddOrder(OrderPointer order)\n{\n\tstd::scoped_lock ordersLock{ ordersMutex_ };\n\n\tif (orders_.contains(order->GetOrderId()))\n\t\treturn { };\n\n\tif (order->GetOrderType() == OrderType::Market)\n\t{\n\t\tif (order->GetSide() == Side::Buy && !asks_.empty())\n\t\t{\n\t\t\tconst auto& [worstAsk, _] = *asks_.rbegin();\n\t\t\torder->ToGoodTillCancel(worstAsk);\n\t\t}\n\t\telse if (order->GetSide() == Side::Sell && !bids_.empty())\n\t\t{\n\t\t\tconst auto& [worstBid, _] = *bids_.rbegin();\n\t\t\torder->ToGoodTillCancel(worstBid);\n\t\t}\n\t\telse\n\t\t\treturn { };\n\t}\n\n\tif (order->GetOrderType() == OrderType::FillAndKill && !CanMatch(order->GetSide(), order->GetPrice()))\n\t\treturn { };\n\n\tif (order->GetOrderType() == OrderType::FillOrKill && !CanFullyFill(order->GetSide(), order->GetPrice(), order->GetInitialQuantity()))\n\t\treturn { };\n\n\tOrderPointers::iterator iterator;\n\n\tif (order->GetSide() == Side::Buy)\n\t{\n\t\tauto& orders = bids_[order->GetPrice()];\n\t\torders.push_back(order);\n\t\titerator = std::prev(orders.end());\n\t}\n\telse\n\t{\n\t\tauto& orders = asks_[order->GetPrice()];\n\t\torders.push_back(order);\n\t\titerator = std::prev(orders.end());\n\t}\n\n\torders_.insert({ order->GetOrderId(), OrderEntry{ order, iterator } });\n\t\n\tOnOrderAdded(order);\n\t\n\treturn MatchOrders();\n\n}\n"
               },
               {
-                "filename": "Orderbook.cpp (CancelOrder)",
+                "task": "src/Orderbook.cpp — CancelOrder",
+                "spec": "Implement CancelOrder: thread-safe public wrapper that delegates to the internal cancel logic.",
+                "implementation": [
+                  "Lock `ordersMutex_` with a scoped guard.",
+                  "Call `CancelOrderInternal(orderId)` which removes from ladders and index and fires `OnOrderCancelled`."
+                ],
                 "code": "void Orderbook::CancelOrder(OrderId orderId)\n{\n\tstd::scoped_lock ordersLock{ ordersMutex_ };\n\n\tCancelOrderInternal(orderId);\n}\n"
               },
               {
-                "filename": "Orderbook.cpp (ModifyOrder)",
+                "task": "src/Orderbook.cpp — ModifyOrder",
+                "spec": "Implement ModifyOrder: preserve the original OrderType, cancel the existing order, and add a new one constructed from OrderModify.",
+                "implementation": [
+                  "Lock, ensure the order exists; capture its `OrderType` from `orders_.at(id)`.",
+                  "Unlock scope ends; call `CancelOrder(id)` then `AddOrder(orderModify.ToOrderPointer(orderType))`."
+                ],
                 "code": "Trades Orderbook::ModifyOrder(OrderModify order)\n{\n\tOrderType orderType;\n\n\t{\n\t\tstd::scoped_lock ordersLock{ ordersMutex_ };\n\n\t\tif (!orders_.contains(order.GetOrderId()))\n\t\t\treturn { };\n\n\t\tconst auto& [existingOrder, _] = orders_.at(order.GetOrderId());\n\t\torderType = existingOrder->GetOrderType();\n\t}\n\n\tCancelOrder(order.GetOrderId());\n\treturn AddOrder(order.ToOrderPointer(orderType));\n}\n"
               },
               {
-                "filename": "Orderbook.cpp (Size)",
+                "task": "src/Orderbook.cpp — Size",
+                "spec": "Implement Size: report the number of active (indexed) orders.",
+                "implementation": [
+                  "Lock `ordersMutex_` and return `orders_.size()`."
+                ],
                 "code": "std::size_t Orderbook::Size() const\n{\n\tstd::scoped_lock ordersLock{ ordersMutex_ };\n\treturn orders_.size(); \n}\n"
               },
               {
-                "filename": "Orderbook.cpp (GetOrderInfos)",
+                "task": "src/Orderbook.cpp — GetOrderInfos (Level Snapshot)",
+                "spec": "Implement GetOrderInfos: return aggregated per-price quantities for bids and asks, ordered best-first on each side.",
+                "implementation": [
+                  "Prepare `LevelInfos bidInfos, askInfos` and reserve using `orders_.size()`.",
+                  "Define a local lambda that sums remaining quantities in an `OrderPointers` list via `std::accumulate`.",
+                  "Iterate `bids_` and `asks_`, pushing aggregated `LevelInfo` entries in their natural map order.",
+                  "Return `OrderbookLevelInfos{ bidInfos, askInfos }`."
+                ],
                 "code": "OrderbookLevelInfos Orderbook::GetOrderInfos() const\n{\n\tLevelInfos bidInfos, askInfos;\n\tbidInfos.reserve(orders_.size());\n\taskInfos.reserve(orders_.size());\n\n\tauto CreateLevelInfos = [](Price price, const OrderPointers& orders)\n\t{\n\t\treturn LevelInfo{ price, std::accumulate(orders.begin(), orders.end(), (Quantity)0,\n\t\t\t[](Quantity runningSum, const OrderPointer& order)\n\t\t\t{ return runningSum + order->GetRemainingQuantity(); }) };\n\t};\n\n\tfor (const auto& [price, orders] : bids_)\n\t\tbidInfos.push_back(CreateLevelInfos(price, orders));\n\n\tfor (const auto& [price, orders] : asks_)\n\t\taskInfos.push_back(CreateLevelInfos(price, orders));\n\n\treturn OrderbookLevelInfos{ bidInfos, askInfos };\n\n}\n"
+              }
+            ],
+            "learning_materials": [
+              {
+                "title": "Unifying Market Orders via Conversion",
+                "body": "Converting Market orders to priced GTC at the worst opposing level lets the matcher handle all orders along a single, deterministic code path. If the opposing ladder is empty, returning an empty trade set is correct—there’s nothing to execute against."
+              },
+              {
+                "title": "Preconditions for FAK and FOK",
+                "body": "FAK (IOC) should not rest; `CanMatch` ensures at least one immediate cross exists before enqueueing. FOK requires the entire desired size be available at acceptable prices; `CanFullyFill` uses per-level aggregates to make this decision before any insertion."
+              },
+              {
+                "title": "O(1) Removal with Iterator Capture",
+                "body": "After appending to a per-price list, capturing `std::prev(orders.end())` provides a stable iterator stored in the ID index. Future cancels and full fills erase in constant time without scanning the list."
+              },
+              {
+                "title": "Locking Strategy at the API Boundary",
+                "body": "Public mutating APIs take the mutex once, perform minimal container work, and then call into the matcher (which assumes the lock is held). Early returns keep critical sections short, reducing contention and preventing nested-lock deadlocks."
+              },
+              {
+                "title": "Consistent, Read-Only Snapshots",
+                "body": "`GetOrderInfos()` aggregates remaining quantities per price from the canonical ladders. Because all mutating paths keep containers and aggregates in sync, consumers can rely on these snapshots for UI depth and risk checks without touching internals."
+              },
+              {
+                "title": "Modify as Cancel-and-Replace with Type Preservation",
+                "body": "A modification captures the existing order's `OrderType`, cancels the old order, and adds a new one with updated fields but the same policy. This preserves rules (e.g., GTC remains GTC) and yields a clean audit trail and queue position semantics."
+              },
+              {
+                "title": "Complexity & Testing",
+                "body": "Lookups in `orders_` are average O(1); map node access is O(log N); list appends are O(1). Write tests for duplicates, Market with empty opposing side, FAK/FOK preconditions, modify correctness, cancel removal, and snapshot accuracy after trades."
               }
             ]
         },
         {
-            "name": "10. Good-for-Day (GFD) Cancellation Service",
+            "name": "10. Good-for-Day Cancellation Service",
             "overview": "Add a background maintenance loop that cancels all GoodForDay orders at a fixed daily cutoff time. The service sleeps until the next cutoff (e.g., 16:00 local), then batches cancellations safely with minimal locking. The thread is started in the constructor and shut down cleanly in the destructor.",
-            "what_and_how": [
+            "deliverables": [
               {
-                "file": "src/Orderbook.cpp",
-                "spec": "Implement a private maintenance routine that schedules to the next daily deadline, wakes up (or is signaled to shut down), scans for GoodForDay orders, and cancels them in a single locked region. Ensure clean startup/shutdown semantics by starting the worker in the constructor and joining it in the destructor.",
-                "how_to_implement": [
-                  "Start a worker thread in the `Orderbook` constructor that runs `PruneGoodForDayOrders()`.",
-                  "In `PruneGoodForDayOrders()`, compute the next local 16:00 using `<chrono>` and `<ctime>` utilities.",
-                  "Use a `std::condition_variable` to sleep until the deadline or shutdown signal while holding a `std::unique_lock`.",
-                  "Upon wakeup (timeout), gather GoodForDay order IDs under a short `std::scoped_lock`, then call `CancelOrders(orderIds)` to batch-cancel inside a single critical section.",
-                  "In the destructor, set the shutdown flag (`std::atomic<bool>`), notify the condition variable, and `join()` the thread.",
-                  "Keep time calculations outside the locked sections to avoid blocking other API calls."
-                ]
-              }
-            ],
-            "required_skills": [
-              "C++ threading with std::thread",
-              "Mutex/lock management (std::mutex, std::unique_lock, std::scoped_lock)",
-              "Condition variables for timed waits",
-              "Time calculations with <chrono> and <ctime>",
-              "Atomic flags for shutdown coordination"
-            ],
-            "learning_materials": [
-              "Why batch cancellations: acquiring the mutex once to cancel many orders reduces contention and cache thrashing.",
-              "Timed waits with condition variables: efficiently sleep until a deadline but allow immediate wake-up on shutdown.",
-              "Local time scheduling: converting between system_clock and calendar time to target a wall-clock event.",
-              "Separation of concerns: background maintenance is isolated; public APIs remain simple and responsive."
-            ],
-            "c++_functions": [
-              "std::thread (constructor, join)",
-              "std::mutex, std::unique_lock, std::scoped_lock",
-              "std::condition_variable::wait_for",
-              "std::atomic<bool>::store / ::load",
-              "std::chrono::system_clock, std::chrono::hours, std::chrono::milliseconds",
-              "std::localtime_s, std::mktime"
-            ],
-            "code_snippets": [
-              {
-                "filename": "Orderbook.cpp (constructor & destructor)",
+                "task": "src/Orderbook.cpp — constructor & destructor wiring",
+                "spec": "Start the background worker in the constructor and ensure a clean shutdown in the destructor by signaling, notifying, and joining.",
+                "implementation": [
+                  "Start the worker thread in the `Orderbook` constructor with a lambda that runs `PruneGoodForDayOrders()`.",
+                  "In the destructor: set the atomic shutdown flag, notify the condition variable, and `join()` the worker to guarantee no background access after destruction.",
+                  "Do not hold the main mutex while joining; the worker releases it before exiting, preventing deadlocks."
+                ],
                 "code": "Orderbook::Orderbook() : ordersPruneThread_{ [this] { PruneGoodForDayOrders(); } } { }\n\nOrderbook::~Orderbook()\n{\n    shutdown_.store(true, std::memory_order_release);\n    shutdownConditionVariable_.notify_one();\n    ordersPruneThread_.join();\n}\n"
               },
               {
-                "filename": "Orderbook.cpp (PruneGoodForDayOrders)",
+                "task": "src/Orderbook.cpp — PruneGoodForDayOrders (maintenance loop)",
+                "spec": "Compute the next local 16:00, sleep until then (or until shutdown), collect GoodForDay order IDs under a short lock, and batch-cancel them in one pass.",
+                "implementation": [
+                  "Use `std::chrono::system_clock` and `<ctime>` to compute the next local 16:00; if current time is past cutoff, roll to the next day.",
+                  "Sleep using `std::condition_variable::wait_for` with a `std::unique_lock` so the thread can be woken immediately on shutdown.",
+                  "On timeout, briefly lock the order book, scan `orders_` for `OrderType::GoodForDay`, collect `OrderIds`, then release.",
+                  "Call `CancelOrders(orderIds)` to perform all removals inside one critical section to minimize contention.",
+                  "Exit immediately if `shutdown_` is observed after a wake or before doing any work."
+                ],
                 "code": "void Orderbook::PruneGoodForDayOrders()\n{    \n    using namespace std::chrono;\n    const auto end = hours(16);\n\n\twhile (true)\n\t{\n\t\tconst auto now = system_clock::now();\n\t\tconst auto now_c = system_clock::to_time_t(now);\n\t\tstd::tm now_parts;\n\t\tlocaltime_s(&now_parts, &now_c);\n\n\t\tif (now_parts.tm_hour >= end.count())\n\t\t\tnow_parts.tm_mday += 1;\n\n\t\tnow_parts.tm_hour = end.count();\n\t\tnow_parts.tm_min = 0;\n\t\tnow_parts.tm_sec = 0;\n\n\t\tauto next = system_clock::from_time_t(mktime(&now_parts));\n\t\tauto till = next - now + milliseconds(100);\n\n\t\t{\n\t\t\tstd::unique_lock ordersLock{ ordersMutex_ };\n\n\t\t\tif (shutdown_.load(std::memory_order_acquire) ||\n\t\t\t\tshutdownConditionVariable_.wait_for(ordersLock, till) == std::cv_status::no_timeout)\n\t\t\t\treturn;\n\t\t}\n\n\t\tOrderIds orderIds;\n\n\t\t{\n\t\t\tstd::scoped_lock ordersLock{ ordersMutex_ };\n\n\t\t\tfor (const auto& [_, entry] : orders_)\n\t\t\t{\n\t\t\t\tconst auto& [order, _] = entry;\n\n\t\t\t\tif (order->GetOrderType() != OrderType::GoodForDay)\n\t\t\t\t\tcontinue;\n\n\t\t\t\torderIds.push_back(order->GetOrderId());\n\t\t\t}\n\t\t}\n\n\t\tCancelOrders(orderIds);\n\t}\n}\n"
+              }
+            ],
+            "learning_materials": [
+              {
+                "title": "What this service guarantees (and why it matters)",
+                "body": "Good-for-Day (GFD) is a policy promise: orders of this type must not survive past a daily cutoff. Implementing a deterministic, wall-clock–driven cancellation path ensures policy enforcement without relying on users to cancel manually. It also keeps the book clean for the next session, improving performance and correctness for snapshots, FOK checks, and matching."
+              },
+              {
+                "title": "Wall-clock scheduling vs. fixed-duration timers",
+                "body": "End-of-day is a human time boundary, not a fixed delay. By computing the next local 16:00 with `system_clock` + `localtime_s`/`mktime`, the service stays correct across DST shifts and month/year rollovers. A simple `wait_for(24h)` would drift on 23/25-hour days and miss the actual cutoff."
+              },
+              {
+                "title": "Contention minimization through batching",
+                "body": "Collect first, cancel once. Scanning under a short lock and then performing a single batched `CancelOrders` dramatically reduces the number of lock acquisitions, improves cache locality for container erasures, and keeps user-facing APIs responsive during end-of-day bursts."
+              },
+              {
+                "title": "Clean shutdown and safety",
+                "body": "The destructor signals shutdown, notifies the condition variable, and joins. This guarantees no background thread touches internal data after destruction. Using an atomic flag with a release/acquire pair provides a clear happens-before relationship between signal and exit."
+              },
+              {
+                "title": "Testability strategies without waiting for 16:00",
+                "body": "You can validate logic by (1) factoring the GFD ID collection into a helper and exercising it with synthetic books, (2) shortening the wait by adjusting the computed deadline in tests, or (3) forcing a wake via `notify_one()` and verifying that only GFD orders are cancelled and snapshots reflect the change."
               }
             ]
         },
         {
             "name": "11. Level Metadata Bookkeeping",
             "overview": "Maintain fast, per-price aggregates (total quantity and order count) via event-style hooks so feasibility checks (e.g., FOK) and housekeeping remain O(levels) instead of O(orders). Updates happen only through centralized helpers to keep invariants consistent.",
-            "what_and_how": [
+            "deliverables": [
               {
-                "file": "include/Orderbook.h",
+                "task": "include/Orderbook.h",
                 "spec": "Declare the LevelData structure (per-price aggregates) and the private event/update APIs that keep it in sync with order lifecycle events.",
-                "how_to_implement": [
-                  "Embed a small `LevelData` struct holding `quantity_` and `count_` along with an `Action` enum { Add, Remove, Match }.",
-                  "Store the metadata in `std::unordered_map<Price, LevelData> data_` for O(1)-ish access keyed by price.",
-                  "Declare private helpers: `OnOrderAdded`, `OnOrderCancelled`, `OnOrderMatched`, and `UpdateLevelData`."
-                ]
+                "implementation": [
+                  "Embed a compact POD-style `struct LevelData { Quantity quantity_; Quantity count_; enum class Action { Add, Remove, Match }; };`.",
+                  "Store per-price metadata in `std::unordered_map<Price, LevelData> data_` for near O(1) access keyed by price.",
+                  "Declare private hooks that mirror order lifecycle transitions: `OnOrderAdded(OrderPointer)`, `OnOrderCancelled(OrderPointer)`, `OnOrderMatched(Price, Quantity, bool)`, and the central `UpdateLevelData(Price, Quantity, LevelData::Action)`.",
+                  "Design notes: all aggregate mutations must flow through `UpdateLevelData` to keep arithmetic and erasure rules consistent; callers should not adjust `data_` directly."
+                ],
+                "code": "#pragma once\n\n#include <map>\n#include <unordered_map>\n#include <thread>\n#include <condition_variable>\n#include <mutex>\n\n#include \"Usings.h\"\n#include \"Order.h\"\n#include \"OrderModify.h\"\n#include \"OrderbookLevelInfos.h\"\n#include \"Trade.h\"\n\nclass Orderbook\n{\nprivate:\n\n    struct OrderEntry\n    {\n        OrderPointer order_{ nullptr };\n        OrderPointers::iterator location_;\n    };\n\n    struct LevelData\n    {\n        Quantity quantity_{ };\n        Quantity count_{ };\n\n        enum class Action\n        {\n            Add,\n            Remove,\n            Match,\n        };\n    };\n\n    std::unordered_map<Price, LevelData> data_;\n    std::map<Price, OrderPointers, std::greater<Price>> bids_;\n    std::map<Price, OrderPointers, std::less<Price>> asks_;\n    std::unordered_map<OrderId, OrderEntry> orders_;\n    mutable std::mutex ordersMutex_;\n    std::thread ordersPruneThread_;\n    std::condition_variable shutdownConditionVariable_;\n    std::atomic<bool> shutdown_{ false };\n\n    void PruneGoodForDayOrders();\n\n    void CancelOrders(OrderIds orderIds);\n    void CancelOrderInternal(OrderId orderId);\n\n    void OnOrderCancelled(OrderPointer order);\n    void OnOrderAdded(OrderPointer order);\n    void OnOrderMatched(Price price, Quantity quantity, bool isFullyFilled);\n    void UpdateLevelData(Price price, Quantity quantity, LevelData::Action action);\n\n    bool CanFullyFill(Side side, Price price, Quantity quantity) const;\n    bool CanMatch(Side side, Price price) const;\n    Trades MatchOrders();\n\npublic:\n\n    Orderbook();\n    Orderbook(const Orderbook&) = delete;\n    void operator=(const Orderbook&) = delete;\n    Orderbook(Orderbook&&) = delete;\n    void operator=(Orderbook&&) = delete;\n    ~Orderbook();\n\n    Trades AddOrder(OrderPointer order);\n    void CancelOrder(OrderId orderId);\n    Trades ModifyOrder(OrderModify order);\n\n    std::size_t Size() const;\n    OrderbookLevelInfos GetOrderInfos() const;\n};\n"
               },
               {
-                "file": "src/Orderbook.cpp",
+                "task": "src/Orderbook.cpp",
                 "spec": "Implement the event hooks so every add/cancel/fill flows through `UpdateLevelData`, which adjusts `count_` and `quantity_` consistently and erases empty levels.",
-                "how_to_implement": [
-                  "On add: increment `count_` and add the order's initial quantity.",
-                  "On cancel: decrement `count_` and subtract the order's remaining quantity (what still sat on the book).",
-                  "On match: subtract the matched quantity; if the order was fully filled, also decrement `count_`.",
-                  "In `UpdateLevelData`, centralize the arithmetic and erase the price from `data_` when `count_` reaches zero."
-                ]
-              }
-            ],
-            "required_skills": [
-              "Associative containers (`std::unordered_map`)",
-              "Designing and enforcing invariants across event hooks",
-              "Encapsulation of state transitions in helper functions",
-              "Understanding of matching side-effects on level aggregates"
-            ],
-            "learning_materials": [
-              "Aggregating per-price metadata makes FOK checks and UI summaries efficient and decoupled from per-order structures.",
-              "Event-driven updates localize complexity: all mutations to aggregates happen in one place (`UpdateLevelData`).",
-              "Consistent rules: add uses initial qty; cancel uses remaining qty; match uses the actual filled qty."
-            ],
-            "c++_functions": [
-              "std::unordered_map (insert, operator[], erase)",
-              "Enum classes for action tags",
-              "Private helper methods for lifecycle events",
-              "Conditional arithmetic and invariant checks"
-            ],
-            "code_snippets": [
-              {
-                "filename": "Orderbook.cpp (OnOrderCancelled / OnOrderAdded / OnOrderMatched / UpdateLevelData)",
+                "implementation": [
+                  "On add: call `UpdateLevelData(order->GetPrice(), order->GetInitialQuantity(), Action::Add)` (use initial quantity to reflect full resting size).",
+                  "On cancel: call `UpdateLevelData(order->GetPrice(), order->GetRemainingQuantity(), Action::Remove)` (only what still rested is removed).",
+                  "On match: call `UpdateLevelData(price, matchedQty, isFullyFilled ? Action::Remove : Action::Match)` so `count_` decrements only when an order is fully consumed.",
+                  "In `UpdateLevelData`:",
+                  "  • Adjust `count_` by +1 for Add, -1 for Remove, and 0 for Match.",
+                  "  • For quantity: Add → `+= quantity`; Remove/Match → `-= quantity`.",
+                  "  • If `count_ == 0`, erase the price key from `data_` to keep the map minimal.",
+                  "Implementation tips: use `auto& d = data_[price];` to create-or-access the bucket; keep arithmetic branchless where practical while preserving readability."
+                ],
                 "code": "void Orderbook::OnOrderCancelled(OrderPointer order)\n{\n    UpdateLevelData(order->GetPrice(), order->GetRemainingQuantity(), LevelData::Action::Remove);\n}\n\nvoid Orderbook::OnOrderAdded(OrderPointer order)\n{\n    UpdateLevelData(order->GetPrice(), order->GetInitialQuantity(), LevelData::Action::Add);\n}\n\nvoid Orderbook::OnOrderMatched(Price price, Quantity quantity, bool isFullyFilled)\n{\n    UpdateLevelData(price, quantity, isFullyFilled ? LevelData::Action::Remove : LevelData::Action::Match);\n}\n\nvoid Orderbook::UpdateLevelData(Price price, Quantity quantity, LevelData::Action action)\n{\n    auto& data = data_[price];\n\n    data.count_ += action == LevelData::Action::Remove ? -1 : action == LevelData::Action::Add ? 1 : 0;\n    if (action == LevelData::Action::Remove || action == LevelData::Action::Match)\n    {\n        data.quantity_ -= quantity;\n    }\n    else\n    {\n        data.quantity_ += quantity;\n    }\n\n    if (data.count_ == 0)\n        data_.erase(price);\n}\n"
               }
+            ],
+            "learning_materials": [
+              {
+                "title": "Goal of this layer: fast feasibility & clean invariants",
+                "body": "Level metadata exists to answer questions like “can a FOK fill at or better than P?” without scanning every order. By maintaining per-price totals and counts, you turn potentially O(orders) checks into O(levels), while a single update function guarantees arithmetic and erasure rules stay consistent."
+              },
+              {
+                "title": "Two aggregates, two purposes",
+                "body": "`quantity_` is the sum of *remaining* sizes at a price; it powers FOK checks and depth snapshots. `count_` is the number of active orders; it tells you when a level should be considered empty and erased. Tracking both avoids recomputing from lists and keeps snapshots and feasibility queries fast."
+              },
+              {
+                "title": "Event-driven updates prevent drift",
+                "body": "All mutations flow through `OnOrderAdded`, `OnOrderCancelled`, and `OnOrderMatched`, which in turn call `UpdateLevelData`. This funnel guarantees a single place defines: Add uses initial quantity; Cancel uses remaining; Match subtracts exactly the traded size and decrements `count_` only on full fills."
+              },
+              {
+                "title": "Erasing empty levels keeps everything tight",
+                "body": "When `count_` reaches zero, immediately erase the price key. This keeps `data_` sparse, speeds iteration for feasibility and snapshots, reduces memory, and prevents stale entries from corrupting decisions."
+              },
+              {
+                "title": "Concurrency boundary = correctness boundary",
+                "body": "`UpdateLevelData` is called while holding the order book's mutex, in lockstep with ladder mutations and the ID index. Keeping reads/writes to `data_` inside that boundary prevents torn views and race-induced inconsistencies."
+              },
+              {
+                "title": "Testing the contract",
+                "body": "Build tests around transitions: (1) Add two orders at the same price → `count_ = 2`, `quantity_ = q1 + q2`. (2) Partial match → `count_` unchanged, `quantity_` reduced by match size. (3) Full match of a remaining stub → `count_` decremented. (4) Cancel partial → subtract only remaining and erase the level when `count_` hits zero."
+              }
             ]
-        }
+        }          
     ]
   }
-  

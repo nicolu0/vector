@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Toast from '$lib/components/Toast.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
@@ -7,7 +8,21 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { dashboardProjects } from '$lib/stores/dashboardProjects';
 	import { isProject, type Project } from '$lib/types/project';
-	import { getContext } from 'svelte';
+	import { getContext, tick } from 'svelte';
+	import { onMount } from 'svelte';
+
+	type ToastTone = 'neutral' | 'success' | 'warning' | 'danger';
+	let toastOpen = $state(false);
+	let toastMessage = $state('');
+	let toastTone = $state<ToastTone>('neutral');
+
+	async function showToast(message: string, tone: ToastTone = 'neutral') {
+		toastMessage = message;
+		toastTone = tone;
+		toastOpen = false;
+		await tick();
+		toastOpen = true;
+	}
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -88,29 +103,39 @@
 			saving = false;
 		}
 	}
+	onMount(() => {
+		if (usingFallback) {
+			showToast('This is hardcoded... text 5109358199 any complaints.', 'warning');
+		}
+	});
 </script>
 
-<!-- page -->
-<div class="min-h-dvh w-full bg-stone-50 px-4 pb-8 text-stone-800">
-	<button
-		type="button"
-		class=" inline-flex items-center gap-2 p-4 text-sm text-stone-600 transition hover:text-stone-900"
-		aria-label="Back"
-		onclick={() => goto('/')}
-	>
-		<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
-			<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-		</svg>
-		Back
-	</button>
-	<div class="mx-auto w-full max-w-4xl space-y-8">
-		{#if usingFallback}
-			<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-				We couldn't find a freshly generated project for this session, so you're viewing the sample
-				preview. Head back to tailor a new one.
-			</div>
-		{/if}
+<div class="flex h-full w-full flex-col bg-stone-50">
+	<div class="flex w-full px-2 py-2">
+		<button
+			type="button"
+			class="inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs text-stone-400 transition hover:text-stone-900"
+			aria-label="Back"
+			onclick={() => goto('/')}
+		>
+			<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+			</svg>
+			Back
+		</button>
+	</div>
 
-		<ProjectDetail {project} showSaveButton={true} {saving} {saveError} {saveProject} />
+	<!-- This wrapper is the scroller's *bounded* container -->
+	<div class="mx-auto min-h-0 w-full max-w-4xl flex-1 px-4">
+		<!-- Make ProjectDetail fill that space -->
+		<div class="h-full overflow-y-auto pb-8">
+			<ProjectDetail {project} {saving} {saveError} {saveProject} showSaveButton />
+		</div>
 	</div>
 </div>
+<Toast
+	message={toastMessage}
+	tone={toastTone}
+	open={toastOpen}
+	on:dismiss={() => (toastOpen = false)}
+/>

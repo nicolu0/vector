@@ -35,6 +35,7 @@
       ],
       "what_and_how": [
         {
+          "task": "Create a dataset",
           "file": "dataset.py",
           "spec": "Load a small corpus into a single Python string for experimentation.",
           "how_to_implement": [
@@ -43,6 +44,7 @@
           ]
         },
         {
+          "task": "Create vocbaulary",
           "file": "char_vocab.py",
           "spec": "Build a character-level vocabulary and ID maps.",
           "how_to_implement": [
@@ -51,6 +53,7 @@
           ]
         },
         {
+          "task": "Encode and Decode",
           "file": "char_tokenizer.py",
           "spec": "Encode/decode by single characters using the maps.",
           "how_to_implement": [
