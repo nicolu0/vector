@@ -106,36 +106,6 @@
 
 	let currentIndex = $derived(sections.findIndex((s) => s === selectedSection));
 
-		try {
-			const { data, error } = await supabase
-				.from('messages')
-				.insert([
-					{
-						conversation_id: conversationId,
-						user_id: userId,
-						content: trimmed,
-						role: 'user',
-						sequence: optimistic.sequence,
-						action: null
-					}
-				])
-				.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
-				.single();
-			if (error) throw error;
-			if (!data) throw new Error('Message insert returned no data.');
-			messages = messages.map((m) =>
-				m.id === optimistic.id ? ({ ...data, pending: false } as ChatMessage) : m
-			);
-			if (shouldUpdateStatus && projectId) void updateProjectStatus(projectId);
-			if (project) void generateMentorResponse();
-		} catch (err) {
-			messages = messages.filter((m) => m.id !== optimistic.id);
-			sendError = err instanceof Error ? err.message : 'Unable to send message right now.';
-		} finally {
-			sendInFlight = false;
-		}
-	}
-
 	async function updateProjectStatus(projectId: string) {
 		try {
 			const { error } = await supabase
@@ -168,24 +138,31 @@
 				return {
 					name,
 					overview,
-					deliverables: Array.isArray(o.deliverables) ? o.deliverables.map((d: unknown) => {
-						if (!d || typeof d !== 'object') return { task: '', spec: '', implementation: [], code: '' };
-						const deliverable = d as Record<string, unknown>;
-						return {
-							task: typeof deliverable.task === 'string' ? deliverable.task : '',
-							spec: typeof deliverable.spec === 'string' ? deliverable.spec : '',
-							implementation: Array.isArray(deliverable.implementation) ? deliverable.implementation.filter((item: unknown) => typeof item === 'string') : [],
-							code: typeof deliverable.code === 'string' ? deliverable.code : ''
-						};
-					}) : [],
-					learning_materials: Array.isArray(o.learning_materials) ? o.learning_materials.map((m: unknown) => {
-						if (!m || typeof m !== 'object') return { title: '', body: '' };
-						const material = m as Record<string, unknown>;
-						return {
-							title: typeof material.title === 'string' ? material.title : '',
-							body: typeof material.body === 'string' ? material.body : ''
-						};
-					}) : []
+					deliverables: Array.isArray(o.deliverables)
+						? o.deliverables.map((d: unknown) => {
+								if (!d || typeof d !== 'object')
+									return { task: '', spec: '', implementation: [], code: '' };
+								const deliverable = d as Record<string, unknown>;
+								return {
+									task: typeof deliverable.task === 'string' ? deliverable.task : '',
+									spec: typeof deliverable.spec === 'string' ? deliverable.spec : '',
+									implementation: Array.isArray(deliverable.implementation)
+										? deliverable.implementation.filter((item: unknown) => typeof item === 'string')
+										: [],
+									code: typeof deliverable.code === 'string' ? deliverable.code : ''
+								};
+							})
+						: [],
+					learning_materials: Array.isArray(o.learning_materials)
+						? o.learning_materials.map((m: unknown) => {
+								if (!m || typeof m !== 'object') return { title: '', body: '' };
+								const material = m as Record<string, unknown>;
+								return {
+									title: typeof material.title === 'string' ? material.title : '',
+									body: typeof material.body === 'string' ? material.body : ''
+								};
+							})
+						: []
 				};
 			})
 			.filter(Boolean) as ProjectSection[];
@@ -230,7 +207,6 @@
 			return;
 		}
 		if (currentIndex == null || currentIndex < 0) return;
-		gotoSection(currentIndex + 1);
 	}
 
 	function toggleSectionsDropdown() {
@@ -303,8 +279,8 @@
 	const deliverableFiles = $derived<string[]>(
 		Array.from(
 			new Set(
-				(selectedSection?.what_and_how ?? [])
-					.map((d) => d?.file)
+				(selectedSection?.deliverables ?? [])
+					.map((d) => d?.task)
 					.filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
 			)
 		)
@@ -557,9 +533,7 @@ function demo() {
 							{#if selectedSection.deliverables?.length}
 								<div class="mt-2">
 									<p class="text-xs font-semibold tracking-tight text-stone-900">Deliverables</p>
-									<ul
-										class="mt-1 divide-y divide-stone-200 rounded-lg text-xs"
-									>
+									<ul class="mt-1 divide-y divide-stone-200 rounded-lg text-xs">
 										{#each selectedSection.deliverables as item, i (item.task)}
 											<li class="p-0">
 												<details class="group">
@@ -570,27 +544,27 @@ function demo() {
 															<button
 																type="button"
 																class="group relative grid h-3 w-3 place-items-center rounded-full focus:outline-none
-    {isDone(item.file) ? 'bg-stone-900' : ''}"
+    {isDone(item.task) ? 'bg-stone-900' : ''}"
 																role="checkbox"
-																aria-checked={isDone(item.file)}
-																aria-label={isLoading(item.file)
+																aria-checked={isDone(item.task)}
+																aria-label={isLoading(item.task)
 																	? 'Marking as done…'
-																	: isDone(item.file)
+																	: isDone(item.task)
 																		? 'Mark as not done'
 																		: 'Mark as done'}
-																title={isLoading(item.file)
+																title={isLoading(item.task)
 																	? 'Marking as done…'
-																	: isDone(item.file)
+																	: isDone(item.task)
 																		? 'Mark as not done'
 																		: 'Mark as done'}
 																onclick={(e) => {
-																	if (isLoading(item.file) || isCompleting(item.file)) return;
-																	if (isDone(item.file)) toggleDone(item.file, e);
-																	else markDoneAsync(item.file, e);
+																	if (isLoading(item.task) || isCompleting(item.task)) return;
+																	if (isDone(item.task)) toggleDone(item.task, e);
+																	else markDoneAsync(item.task, e);
 																}}
-																disabled={isLoading(item.file) || isCompleting(item.file)}
+																disabled={isLoading(item.task) || isCompleting(item.task)}
 															>
-																{#if isLoading(item.file)}
+																{#if isLoading(item.task)}
 																	<!-- (unchanged) your existing spinner -->
 																	<svg
 																		class="absolute inset-0 h-3 w-3 animate-spin"
@@ -619,7 +593,7 @@ function demo() {
 																			style="shape-rendering: geometricPrecision;"
 																		/>
 																	</svg>
-																{:else if isCompleting(item.file)}
+																{:else if isCompleting(item.task)}
 																	<!-- NEW: draw the ring, then we’ll flip to completed (check) -->
 																	<svg
 																		class="absolute inset-0 h-3 w-3"
@@ -650,7 +624,7 @@ function demo() {
 																			vector-effect="non-scaling-stroke"
 																		/>
 																	</svg>
-																{:else if isDone(item.file)}
+																{:else if isDone(item.task)}
 																	<!-- (unchanged) your existing check -->
 																	<svg
 																		viewBox="0 0 24 24"
@@ -684,15 +658,15 @@ function demo() {
 															</button>
 
 															<span
-																class="file-label strike-anim min-w-0 font-mono tracking-tighter break-words
+																class="task-label strike-anim min-w-0 font-mono tracking-tighter break-words
            {isDone(item.task) ? 'done text-stone-400' : 'text-stone-800'}"
 															>
-																{item.task ?? 'Create ' + item.file}
+																{item.task ?? 'Create ' + item.task}
 															</span>
 														</div>
 
 														<div class="flex flex-row items-center justify-center gap-1">
-															{#if isLoading(item.file)}
+															{#if isLoading(item.task)}
 																<span
 																	class="file-label sheen relative inline-flex min-w-0 items-center gap-1 self-end text-[9px] text-stone-400"
 																	transition:fly|global={{
@@ -765,22 +739,22 @@ function demo() {
 																<button
 																	type="button"
 																	class="flex w-full items-center justify-between bg-stone-900 px-3 py-1.5 text-[11px] text-stone-50 hover:bg-stone-800 focus:ring-2 focus:ring-stone-400/40 focus:outline-none"
-																	onclick={(e) => toggleHint(item.file, e)}
-																	aria-expanded={!!hintOpen[item.file]}
-																	aria-controls={hintIdFor(item.file)}
+																	onclick={(e) => toggleHint(item.task, e)}
+																	aria-expanded={!!hintOpen[item.task]}
+																	aria-controls={hintIdFor(item.task)}
 																>
 																	<!-- left: filename -->
-																	<span class="font-mono tracking-tight">{item.file}</span>
+																	<span class="font-mono tracking-tight">{item.task}</span>
 
 																	<!-- right: Show/Hide + chevron -->
 																	<span class="inline-flex items-center gap-1 text-stone-200">
-																		{hintOpen[item.file] ? 'Hide Hint' : 'Show Hint'}
+																		{hintOpen[item.task] ? 'Hide Hint' : 'Show Hint'}
 																		<svg
 																			class="h-3 w-3 transition-transform duration-200"
 																			viewBox="0 0 20 20"
 																			fill="currentColor"
 																			aria-hidden="true"
-																			style:transform={`rotate(${hintOpen[item.file] ? 180 : 0}deg)`}
+																			style:transform={`rotate(${hintOpen[item.task] ? 180 : 0}deg)`}
 																		>
 																			<path
 																				fill-rule="evenodd"
@@ -792,16 +766,16 @@ function demo() {
 																</button>
 
 																<!-- Expanding body -->
-																{#if hintOpen[item.file]}
+																{#if hintOpen[item.task]}
 																	<div
-																		id={hintIdFor(item.file)}
+																		id={hintIdFor(item.task)}
 																		class="bg-stone-950/95"
 																		in:slide={{ duration: 180, easing: cubicOut }}
 																		out:slide={{ duration: 140, easing: cubicOut }}
 																	>
 																		<pre
 																			class="max-h-40 overflow-auto px-4 py-3 text-[11px] leading-relaxed text-stone-100 md:px-5">
-<code>{hintText[item.file] ?? `// no hint for ${item.file}`}</code>
+<code>{hintText[item.task] ?? `// no hint for ${item.task}`}</code>
         </pre>
 																	</div>
 																{/if}
