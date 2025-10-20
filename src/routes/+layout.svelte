@@ -226,7 +226,7 @@
 		</div>
 	</header>
 
-	<main id="app-main" class="min-h-0 flex-1 overflow-auto">
+	<main id="app-main" class="overflow-clipped min-h-0 flex-1">
 		{@render children()}
 	</main>
 

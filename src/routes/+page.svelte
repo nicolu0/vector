@@ -3,11 +3,10 @@
 	import Toast from '$lib/components/Toast.svelte';
 	import { cubicOut } from 'svelte/easing';
 	import OnboardingFlow from '$lib/components/OnboardingFlow.svelte';
-	import Quiz from '$lib/components/Quiz.svelte';
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
-	import CheckCircle from '$lib/components/CheckCircle.svelte';
+	import { setResume } from '$lib/stores/resume';
 
 	let showResumeAdded = $state(false);
 
@@ -21,6 +20,10 @@
 
 	// errors for the PDF flow
 	let pdfError: string | null = $state(null);
+
+	function isPdf(file: File) {
+		return file.type === 'application/pdf' || /\.pdf$/i.test(file.name ?? '');
+	}
 
 	let pdfGetDocument: any; // resolved once on client
 	let pdfReady: Promise<void> | null = null;
@@ -36,12 +39,18 @@
 	async function onDrop(e: DragEvent) {
 		e.preventDefault();
 		dragging = false;
-		const files = Array.from(e.dataTransfer?.files ?? []).filter(
-			(f) => f.type === 'application/pdf'
-		);
-		if (files.length === 0) return;
-		// handle first (or loop all if you want multi)
-		await handlePdf(files[0]); // reuses your existing handlePdf(...)
+
+		const list = Array.from(e.dataTransfer?.files ?? []);
+		if (list.length === 0) return;
+
+		const file = list[0];
+		if (!isPdf(file)) {
+			pdfError = 'Only PDF files are supported.';
+			await showToast(pdfError, 'danger');
+			return;
+		}
+
+		await handlePdf(file);
 	}
 
 	function ensurePdfReady() {
@@ -91,8 +100,17 @@
 	async function onFileChange(e: Event) {
 		const el = e.target as HTMLInputElement;
 		const file = el.files?.[0];
-		if (file) await handlePdf(file);
-		el.value = ''; // allow re-picking the same file
+		el.value = ''; // allow picking same file again
+
+		if (!file) return;
+
+		if (!isPdf(file)) {
+			pdfError = 'Only PDF files are supported.';
+			await showToast(pdfError, 'danger');
+			return;
+		}
+
+		await handlePdf(file);
 	}
 
 	async function handlePdf(file: File) {
@@ -114,6 +132,7 @@
 
 		try {
 			const text = await extractPdfText(file);
+			setResume(file, text);
 
 			console.log('[PDF] extracted chars:', text?.length ?? 0);
 			console.log('[PDF] text:\n', text);
@@ -556,7 +575,7 @@
 		class="flex min-h-[calc(100svh-56px)] w-full flex-col items-center justify-center bg-stone-50 px-6"
 		aria-busy={isGenerating}
 	>
-		<div class="mb-18 w-full max-w-3xl">
+		<div class="mb-10 w-full max-w-3xl">
 			{#if mounted}
 				<div
 					class="text-center text-4xl font-semibold tracking-tight text-stone-800 sm:text-5xl"
@@ -600,13 +619,13 @@
 							<div class="pointer-events-none flex flex-col items-center gap-2 px-6 text-center">
 								<div
 									class="inline-flex items-center gap-2"
-									in:fly={{ y: 2, duration: 500, easing: cubicOut, delay: 300 }}
+									in:fly={{ y: 2, duration: 500, easing: cubicOut, delay: 200 }}
 								>
 									<!-- smaller black circle + animated white check -->
-									<div class="h-3 w-3 rounded-full bg-stone-900">
+									<div class="h-5 w-5 rounded-full bg-stone-900">
 										<svg
 											viewBox="0 0 24 24"
-											class="h-3 w-3 text-stone-50"
+											class="h-5 w-5 text-stone-50"
 											fill="none"
 											aria-hidden="true"
 										>
@@ -622,23 +641,56 @@
 										</svg>
 									</div>
 
-									<span class="max-w-[520px] truncate text-sm font-medium text-stone-800">
+									<span class="max-w-[520px] truncate text-lg font-medium text-stone-800">
 										{selectedFileName}
 									</span>
 								</div>
 
 								<div
 									id="dropzone-help"
-									class="text-xs text-stone-300"
-									in:fly={{ y: 2, duration: 500, easing: cubicOut, delay: 600 }}
+									class="text-xs text-stone-400"
+									in:fly={{ y: 2, duration: 500, easing: cubicOut, delay: 300 }}
 								>
 									Click to choose a different PDF • or drop another file
+								</div>
+								<div
+									class="pointer-events-auto absolute right-3 bottom-3 z-50"
+									in:fly={{ x: -5, duration: 500, easing: cubicOut, delay: 800 }}
+								>
+									<button
+										type="button"
+										class="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-3 py-1.5 text-xs font-medium text-stone-50 shadow-sm transition
+           hover:bg-stone-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400/50
+           disabled:cursor-not-allowed disabled:opacity-50"
+										onclick={(e) => {
+											e.stopPropagation();
+											goto('/resume');
+										}}
+										disabled={!selectedFileName}
+										aria-disabled={!selectedFileName}
+										title={selectedFileName ? 'Continue' : 'Select a PDF to continue'}
+									>
+										<span>Continue</span>
+										<svg
+											viewBox="0 0 24 24"
+											class="h-3.5 w-3.5"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="1.8"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											aria-hidden="true"
+										>
+											<path d="M3 12h14" />
+											<path d="M13 7l5 5-5 5" />
+										</svg>
+									</button>
 								</div>
 							</div>
 						{:else}
 							<div class="pointer-events-none flex flex-col items-center gap-2 px-6 text-center">
 								<div class="flex flex-row items-center gap-2">
-									<svg viewBox="0 0 64 64" class="h-7 w-7" aria-hidden="true" role="img">
+									<svg viewBox="0 0 64 64" class="h-6 w-6" aria-hidden="true" role="img">
 										<path
 											d="M12 8a6 6 0 0 1 6-6h20.5L56 19.5V52a6 6 0 0 1-6 6H18a6 6 0 0 1-6-6V8z"
 											fill="#D5D3D0"
@@ -657,9 +709,7 @@
 											PDF
 										</text>
 									</svg>
-									<span class=" text-md font-medium text-stone-700">
-										Share your resumé to get started
-									</span>
+									<span class="text-xl font-medium text-stone-500"> Upload Your Resumé </span>
 								</div>
 								<div id="dropzone-help" class="text-xs text-stone-400">
 									Click to select a file • or drag and drop it in the box
@@ -668,7 +718,6 @@
 						{/if}
 					</div>
 
-					<!-- Hidden input (click-to-open support) -->
 					<input
 						bind:this={fileInputEl}
 						type="file"
@@ -685,21 +734,6 @@
 			</p>
 		{/if}
 	</main>
-{/if}
-{#if isGenerating}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-stone-50 px-6">
-		<div class="w-full max-w-sm p-8 text-center text-stone-800">
-			<div
-				class="mx-auto flex h-12 w-12 items-center justify-center rounded-full border-4 border-stone-200 border-t-stone-800"
-				aria-hidden="true"
-				style="animation: spin 1s linear infinite"
-			></div>
-			<div class="mt-4 text-lg font-semibold">Generating your project</div>
-			<p class="mt-2 text-sm text-stone-500">
-				We’re crafting a tailored project using your inputs.
-			</p>
-		</div>
-	</div>
 {/if}
 {#if showOnboarding}
 	<OnboardingFlow
@@ -728,7 +762,7 @@
 		fill: none;
 		stroke-dasharray: 1;
 		stroke-dashoffset: 1;
-		animation: draw-check 420ms ease-out 700ms forwards;
+		animation: draw-check 420ms ease-out 400ms forwards;
 	}
 
 	@keyframes draw-check {
