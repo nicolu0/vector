@@ -106,14 +106,121 @@
 
 	let currentIndex = $derived(sections.findIndex((s) => s === selectedSection));
 
-	async function gotoSection(index: number) {
-		if (index < 0 || index >= sections.length) return;
-		selectSection(index);
-		await tick();
-		// Reset scroll to the top of the materials pane
-		if (messagesContainer) {
-			messagesContainer.scrollTop = 0;
-			updateScrollThumb();
+		try {
+			const { data, error } = await supabase
+				.from('messages')
+				.insert([
+					{
+						conversation_id: conversationId,
+						user_id: userId,
+						content: trimmed,
+						role: 'user',
+						sequence: optimistic.sequence,
+						action: null
+					}
+				])
+				.select('id, conversation_id, user_id, content, sequence, created_at, role, action')
+				.single();
+			if (error) throw error;
+			if (!data) throw new Error('Message insert returned no data.');
+			messages = messages.map((m) =>
+				m.id === optimistic.id ? ({ ...data, pending: false } as ChatMessage) : m
+			);
+			if (shouldUpdateStatus && projectId) void updateProjectStatus(projectId);
+			if (project) void generateMentorResponse();
+		} catch (err) {
+			messages = messages.filter((m) => m.id !== optimistic.id);
+			sendError = err instanceof Error ? err.message : 'Unable to send message right now.';
+		} finally {
+			sendInFlight = false;
+		}
+	}
+
+	async function updateProjectStatus(projectId: string) {
+		try {
+			const { error } = await supabase
+				.from('projects')
+				.update({ status: 'in_progress' })
+				.eq('id', projectId)
+				.in('status', ['not_started', 'not started', 'Not Started']);
+			if (error) throw error;
+			dashboardProjects.setProjectStatus(projectId, 'in_progress');
+		} catch (err) {
+			console.error('Failed to update project status', err);
+		}
+	}
+
+	/** New metadata schema: metadata is an array of “sections”. */
+	function sanitizeSections(value: unknown): ProjectSection[] {
+		if (!Array.isArray(value)) return [];
+		return value
+			.map((item) => {
+				if (!item || typeof item !== 'object') return null;
+				const o = item as Record<string, unknown>;
+				const name = typeof o.name === 'string' ? o.name : null;
+				const overview = typeof o.overview === 'string' ? o.overview : null;
+
+				// Optional arrays; coerce to string[]
+				const arr = (v: unknown) =>
+					Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+
+				if (!name || !overview) return null;
+				return {
+					name,
+					overview,
+					deliverables: Array.isArray(o.deliverables) ? o.deliverables.map((d: unknown) => {
+						if (!d || typeof d !== 'object') return { task: '', spec: '', implementation: [], code: '' };
+						const deliverable = d as Record<string, unknown>;
+						return {
+							task: typeof deliverable.task === 'string' ? deliverable.task : '',
+							spec: typeof deliverable.spec === 'string' ? deliverable.spec : '',
+							implementation: Array.isArray(deliverable.implementation) ? deliverable.implementation.filter((item: unknown) => typeof item === 'string') : [],
+							code: typeof deliverable.code === 'string' ? deliverable.code : ''
+						};
+					}) : [],
+					learning_materials: Array.isArray(o.learning_materials) ? o.learning_materials.map((m: unknown) => {
+						if (!m || typeof m !== 'object') return { title: '', body: '' };
+						const material = m as Record<string, unknown>;
+						return {
+							title: typeof material.title === 'string' ? material.title : '',
+							body: typeof material.body === 'string' ? material.body : ''
+						};
+					}) : []
+				};
+			})
+			.filter(Boolean) as ProjectSection[];
+	}
+
+	function buildProjectContextPayload(currentProject: StoredProject) {
+		const sections = sanitizeSections(currentProject.metadata);
+
+		return {
+			title: currentProject.title,
+			description: currentProject.description,
+			difficulty: currentProject.difficulty,
+			timeline: currentProject.timeline,
+			skills: currentProject.skills ?? [],
+			metadata: sections,
+			jobs: currentProject.jobs?.map((j) => ({ title: j.title, url: j.url })) ?? []
+		};
+	}
+
+	function normalizeMessageRole(m: ChatMessage) {
+		if (m.role === 'mentor' || m.role === 'user') return m.role;
+		return m.user_id === userId ? 'user' : 'mentor';
+	}
+
+	// Parse mentor JSON content into { title, content, action }
+	function parseMentorPacket(s: string): MentorPacket {
+		try {
+			const o = JSON.parse(String(s ?? '{}'));
+			return {
+				title: typeof o?.title === 'string' && o.title.trim() ? o.title : 'Mentor',
+				content: typeof o?.content === 'string' ? o.content : '',
+				action: o && typeof o.action === 'object' ? o.action : null
+			};
+		} catch {
+			return { title: 'Mentor', content: String(s ?? ''), action: null };
 		}
 	}
 
@@ -450,12 +557,14 @@ function demo() {
 							{#if selectedSection.deliverables?.length}
 								<div class="mt-2">
 									<p class="text-xs font-semibold tracking-tight text-stone-900">Deliverables</p>
-									<ul class="mt-1 divide-y divide-stone-200 rounded-lg text-xs">
-										{#each selectedSection.what_and_how as item, i (item.file)}
+									<ul
+										class="mt-1 divide-y divide-stone-200 rounded-lg text-xs"
+									>
+										{#each selectedSection.deliverables as item, i (item.task)}
 											<li class="p-0">
 												<details class="group">
 													<summary
-														class="flex w-full cursor-pointer items-center justify-between px-2 py-2 select-none"
+														class="flex w-full cursor-pointer items-center justify-between px-3 py-2 select-none"
 													>
 														<div class="flex min-w-0 items-center gap-2">
 															<button
