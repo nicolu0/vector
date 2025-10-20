@@ -1,4 +1,8 @@
 <script lang="ts">
+	// Keep SSR ON. Gate all PDF.js work behind `browser` + dynamic imports.
+	import { browser } from '$app/environment';
+
+	// UI + deps
 	import { blur, fly, scale } from 'svelte/transition';
 	import Toast from '$lib/components/Toast.svelte';
 	import { cubicOut } from 'svelte/easing';
@@ -7,12 +11,26 @@
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
 	import { setResume } from '$lib/stores/resume';
-	export const ssr = false;
 
-	import * as pdfjs from 'pdfjs-dist';
-	import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+	// --- PDF.js gating (SSR-safe) ---
+	let pdfGetDocument: any = null;
+	let pdfReady = false;
 
-	pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+	async function ensurePdfReady() {
+		// Load only in the browser; never during SSR.
+		if (!browser) return;
+		if (pdfReady && pdfGetDocument) return;
+
+		// Dynamically import the library and its worker URL on the client.
+		const mod: any = await import('pdfjs-dist');
+		const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default as string;
+
+		// Configure workerSrc (module or default export depending on build)
+		(mod.GlobalWorkerOptions ?? mod.default?.GlobalWorkerOptions).workerSrc = workerUrl;
+
+		pdfGetDocument = mod.getDocument ?? mod.default?.getDocument;
+		pdfReady = Boolean(pdfGetDocument);
+	}
 
 	let showResumeAdded = $state(false);
 
@@ -28,11 +46,10 @@
 	let pdfError: string | null = $state(null);
 
 	function isPdf(file: File) {
+		// Accept either the MIME type or a .pdf filename (covers browsers that omit type)
 		return file.type === 'application/pdf' || /\.pdf$/i.test(file.name ?? '');
 	}
 
-	let pdfGetDocument: any; // resolved once on client
-	let pdfReady: Promise<void> | null = null;
 	let dragging = $state(false);
 
 	function onDragOver(e: DragEvent) {
@@ -60,6 +77,12 @@
 	}
 
 	async function extractPdfText(file: File): Promise<string> {
+		// Gate: ensure the engine is loaded client-side
+		await ensurePdfReady();
+		if (!browser || !pdfReady || !pdfGetDocument) {
+			throw new Error('PDF engine not ready (client-only).');
+		}
+
 		const data = await file.arrayBuffer();
 		const pdf = await pdfGetDocument({ data }).promise;
 
@@ -101,7 +124,8 @@
 	async function handlePdf(file: File) {
 		pdfError = null;
 
-		if (file.type !== 'application/pdf') {
+		// Unified PDF check to avoid false negatives on browsers that omit MIME type
+		if (!isPdf(file)) {
 			pdfError = 'Only PDF files are supported.';
 			await showToast(pdfError, 'warning');
 			return;
@@ -202,45 +226,6 @@
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify(payload)
 			});
-
-			// if (!response.ok) {
-			// 	let detail: string | null = null;
-			// 	try {
-			// 		const data = await response.json();
-			// 		if (typeof data?.message === 'string') detail = data.message;
-			// 	} catch {
-			// 		const text = await response.text();
-			// 		detail = text || null;
-			// 	}
-
-			// 	if (response.status === 401) {
-			// 		const message = detail ?? 'Sign in to claim your free project credit.';
-			// 		await showToast(message, 'danger');
-			// 		savePendingGeneration(payload);
-			// 		window.dispatchEvent(
-			// 			new CustomEvent('vector:auth-required', {
-			// 				detail: { message, reason: 'generate' as const }
-			// 			})
-			// 		);
-			// 		isGenerating = false;
-			// 		return;
-			// 	}
-			// 	if (response.status === 402) {
-			// 		const message =
-			// 			detail ?? 'You are out of credits. Visit your profile to review your balance.';
-			// 		await showToast(message, 'danger');
-			// 		window.dispatchEvent(
-			// 			new CustomEvent('vector:credits-updated', { detail: { credits: 0 } })
-			// 		);
-			// 		isGenerating = false;
-			// 		return;
-			// 	}
-
-			// 	const message = detail || 'We ran into an issue generating your project. Please try again.';
-			// 	await showToast(message, 'danger');
-			// 	isGenerating = false;
-			// 	return;
-			// }
 
 			const project = await response.json();
 			console.log('Project generation response:', project);
@@ -566,10 +551,7 @@
 				? parsed.tags.filter((tag): tag is string => typeof tag === 'string')
 				: [];
 			return { interests, tags };
-		} catch (
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			_err
-		) {
+		} catch {
 			return null;
 		}
 	}
@@ -578,10 +560,7 @@
 		if (typeof window === 'undefined') return;
 		try {
 			sessionStorage.removeItem(PENDING_GENERATION_KEY);
-		} catch (
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			_err
-		) {
+		} catch {
 			// ignore
 		}
 	}
@@ -602,6 +581,12 @@
 	}
 
 	onMount(() => {
+		// Optional: warm-load pdfjs in the background on the client.
+		// (Comment out if you strictly want lazy-load on first use.)
+		if (browser) {
+			ensurePdfReady().catch(() => {});
+		}
+
 		const handleSignedIn = () => {
 			resumePendingGeneration();
 		};
