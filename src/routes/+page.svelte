@@ -7,6 +7,12 @@
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
 	import { setResume } from '$lib/stores/resume';
+	export const ssr = false;
+
+	import * as pdfjs from 'pdfjs-dist';
+	import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+	pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 	let showResumeAdded = $state(false);
 
@@ -53,28 +59,7 @@
 		await handlePdf(file);
 	}
 
-	function ensurePdfReady() {
-		if (pdfReady) return pdfReady;
-		pdfReady = (async () => {
-			// Only modern entry; no legacy fallback
-			const mod: any = await import('pdfjs-dist');
-			const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default as string;
-
-			// Set the worker
-			(mod.GlobalWorkerOptions ?? mod.default?.GlobalWorkerOptions).workerSrc = workerUrl;
-
-			// Keep a reference to getDocument
-			pdfGetDocument = mod.getDocument ?? mod.default?.getDocument;
-			if (!pdfGetDocument) {
-				throw new Error('pdfjs getDocument not found (check pdfjs-dist version)');
-			}
-		})();
-		return pdfReady;
-	}
-
 	async function extractPdfText(file: File): Promise<string> {
-		await ensurePdfReady();
-
 		const data = await file.arrayBuffer();
 		const pdf = await pdfGetDocument({ data }).promise;
 
@@ -269,17 +254,23 @@
 				}
 			}
 			const usedFallback = response.headers.get('x-vector-project-source') === 'fallback';
-            const errorMessage = response.headers.get('x-vector-project-error');
+			const errorMessage = response.headers.get('x-vector-project-error');
 
 			if (usedFallback && errorMessage) {
-				console.error('Project generation failed, using fallback:', decodeURIComponent(errorMessage));
+				console.error(
+					'Project generation failed, using fallback:',
+					decodeURIComponent(errorMessage)
+				);
 			}
 
-			console.log('Project generation completed:', { source: response.headers.get('x-vector-project-source'), fallback: usedFallback });
+			console.log('Project generation completed:', {
+				source: response.headers.get('x-vector-project-source'),
+				fallback: usedFallback
+			});
 			clearPendingGeneration();
 			await goto('/project', { state: { project, fallback: usedFallback } });
 		} catch (err) {
-            console.log('Project generation error:', err);
+			console.log('Project generation error:', err);
 			const message = 'We ran into an issue generating your project. Please try again.';
 			await showToast(message, 'danger');
 			isGenerating = false;
@@ -363,14 +354,14 @@
 	}) {
 		// Generate default interests based on onboarding answers
 		const interestsMap: Record<string, string> = {
-			'high_school_full_time_research': 'computer science, programming, research',
-			'high_school_full_time_industry': 'software development, web development, programming',
-			'high_school_internship_research': 'machine learning, data science, research',
-			'high_school_internship_industry': 'software engineering, full stack development',
-			'college_full_time_research': 'machine learning, artificial intelligence, research',
-			'college_full_time_industry': 'software engineering, system design, algorithms',
-			'college_internship_research': 'deep learning, computer vision, research',
-			'college_internship_industry': 'full stack development, DevOps, cloud computing'
+			high_school_full_time_research: 'computer science, programming, research',
+			high_school_full_time_industry: 'software development, web development, programming',
+			high_school_internship_research: 'machine learning, data science, research',
+			high_school_internship_industry: 'software engineering, full stack development',
+			college_full_time_research: 'machine learning, artificial intelligence, research',
+			college_full_time_industry: 'software engineering, system design, algorithms',
+			college_internship_research: 'deep learning, computer vision, research',
+			college_internship_industry: 'full stack development, DevOps, cloud computing'
 		};
 
 		const key = `${answers.education}_${answers.goal}_${answers.project}`;
@@ -378,47 +369,49 @@
 	}
 
 	async function generateProjectWithPayload(payload: { interests: string; tags: string[] }) {
-        isGenerating = true;
-        try {
-            const response = await fetch('/api/generate-project', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(payload)
-            });
+		isGenerating = true;
+		try {
+			const response = await fetch('/api/generate-project', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
 
-            // Handle non-OK without double-reading body
-            if (!response.ok) {
-            let detail: string | null = null;
-            try {
-                const data = await response.json(); // read ONCE
-                if (typeof data?.message === 'string') detail = data.message;
-            } catch {
-                detail = await response.text(); // still read ONCE total (json OR text)
-            }
-            throw new Error(detail ?? `HTTP ${response.status}`);
-            }
+			// Handle non-OK without double-reading body
+			if (!response.ok) {
+				let detail: string | null = null;
+				try {
+					const data = await response.json(); // read ONCE
+					if (typeof data?.message === 'string') detail = data.message;
+				} catch {
+					detail = await response.text(); // still read ONCE total (json OR text)
+				}
+				throw new Error(detail ?? `HTTP ${response.status}`);
+			}
 
-            const project = await response.json(); // success path: read ONCE
-            const usedFallback = response.headers.get('x-vector-project-source') === 'fallback';
-            const creditsHeader = response.headers.get('x-vector-user-credits');
-            if (creditsHeader) {
-            const n = Number.parseInt(creditsHeader, 10);
-            if (!Number.isNaN(n)) {
-                window.dispatchEvent(new CustomEvent('vector:credits-updated', { detail: { credits: n } }));
-            }
-            }
+			const project = await response.json(); // success path: read ONCE
+			const usedFallback = response.headers.get('x-vector-project-source') === 'fallback';
+			const creditsHeader = response.headers.get('x-vector-user-credits');
+			if (creditsHeader) {
+				const n = Number.parseInt(creditsHeader, 10);
+				if (!Number.isNaN(n)) {
+					window.dispatchEvent(
+						new CustomEvent('vector:credits-updated', { detail: { credits: n } })
+					);
+				}
+			}
 
-            // Persist for the /project page (choose A2/A3 approach)
-            sessionStorage.setItem('vector:last-project', JSON.stringify(project));
+			// Persist for the /project page (choose A2/A3 approach)
+			sessionStorage.setItem('vector:last-project', JSON.stringify(project));
 
-            await goto('/project', { state: { project, fallback: usedFallback } });
-        } catch (err) {
-            await showToast('We ran into an issue generating your project. Please try again.', 'danger');
-        } finally {
-            isGenerating = false;
-            onboardingSubmitting = false;
-        }
-    }
+			await goto('/project', { state: { project, fallback: usedFallback } });
+		} catch (err) {
+			await showToast('We ran into an issue generating your project. Please try again.', 'danger');
+		} finally {
+			isGenerating = false;
+			onboardingSubmitting = false;
+		}
+	}
 
 	const {
 		placeholder = `Tell us about your project idea. If you already have a resumé, drop it into the textbox.`,
