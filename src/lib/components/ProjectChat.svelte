@@ -685,7 +685,7 @@ function demo() {
 
 															<span
 																class="file-label strike-anim min-w-0 font-mono tracking-tighter break-words
-           {isDone(item.file) ? 'done text-stone-400' : 'text-stone-800'}"
+           {isDone(item.task) ? 'done text-stone-400' : 'text-stone-800'}"
 															>
 																{item.task ?? 'Create ' + item.file}
 															</span>
@@ -821,23 +821,14 @@ function demo() {
 									<p class="text-xs font-semibold tracking-tight text-stone-900">
 										Learning Materials
 									</p>
-									<ul class="mt-1 list-disc pl-5 text-xs">
-										{#each selectedSection.learning_materials as item}
-											<li class="break-words">{item}</li>
+									<div class="mt-1 space-y-3">
+										{#each selectedSection.learning_materials as material}
+											<div class="rounded-lg border border-stone-200 bg-stone-50 p-3">
+												<h4 class="text-sm font-medium text-stone-900">{material.title}</h4>
+												<p class="mt-1 text-xs text-stone-600">{material.body}</p>
+											</div>
 										{/each}
-									</ul>
-								</div>
-							{/if}
-
-							<!-- Code Snippets (as bullet text; switch to <pre> if you later store code blocks) -->
-							{#if selectedSection.code_snippets?.length}
-								<div class="mt-2">
-									<p class="text-xs font-semibold tracking-tight text-stone-900">Code Snippets</p>
-									<ul class="mt-1 list-disc pl-5 text-xs">
-										{#each selectedSection.code_snippets as item}
-											<li class="break-words">{item}</li>
-										{/each}
-									</ul>
+									</div>
 								</div>
 							{/if}
 						</div>
