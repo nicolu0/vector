@@ -48,6 +48,7 @@
 	"dependencies": {
 		"@supabase/ssr": "^0.7.0",
 		"openai": "^6.2.0",
+		"pdfjs-dist": "^5.4.296",
 		"stripe": "^19.1.0"
 	}
 }

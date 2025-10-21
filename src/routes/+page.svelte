@@ -7,30 +7,29 @@
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
 	import { setResume } from '$lib/stores/resume';
+	import { browser } from '$app/environment';
 
 	let showResumeAdded = $state(false);
 
 	let selectedFileName = $state<string | null>(null);
-	let fileInputEl: HTMLInputElement | null = null;
+	let fileInputEl = $state<HTMLInputElement | null>(null);
 
-	// click handler to open the OS file picker
 	function openFilePicker() {
 		fileInputEl?.click();
 	}
 
-	// errors for the PDF flow
 	let pdfError: string | null = $state(null);
 
 	function isPdf(file: File) {
 		return file.type === 'application/pdf' || /\.pdf$/i.test(file.name ?? '');
 	}
 
-	let pdfGetDocument: any; // resolved once on client
+	let pdfGetDocument: any;
 	let pdfReady: Promise<void> | null = null;
 	let dragging = $state(false);
 
 	function onDragOver(e: DragEvent) {
-		e.preventDefault(); // required so drop fires
+		e.preventDefault();
 		dragging = true;
 	}
 	function onDragLeave() {
@@ -54,25 +53,29 @@
 	}
 
 	function ensurePdfReady() {
-		// if (pdfReady) return pdfReady;
-		// pdfReady = (async () => {
-		// 	const mod: any = await import('pdfjs-dist');
-		// 	const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default as string;
-		//
-		// 	// Set the worker
-		// 	(mod.GlobalWorkerOptions ?? mod.default?.GlobalWorkerOptions).workerSrc = workerUrl;
-		//
-		// 	// Keep a reference to getDocument
-		// 	pdfGetDocument = mod.getDocument ?? mod.default?.getDocument;
-		// 	if (!pdfGetDocument) {
-		// 		throw new Error('pdfjs getDocument not found (check pdfjs-dist version)');
-		// 	}
-		// })();
-		return true;
+		// Never touch pdfjs on the server
+		if (!browser) return Promise.resolve();
+
+		if (pdfReady) return pdfReady;
+		pdfReady = (async () => {
+			const mod: any = await import('pdfjs-dist');
+			const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default as string;
+
+			(mod.GlobalWorkerOptions ?? mod.default?.GlobalWorkerOptions).workerSrc = workerUrl;
+
+			pdfGetDocument = mod.getDocument ?? mod.default?.getDocument;
+			if (!pdfGetDocument) {
+				throw new Error('pdfjs getDocument not found (check pdfjs-dist version)');
+			}
+		})();
+		return pdfReady; // <— important: return the Promise, not a boolean
 	}
 
 	async function extractPdfText(file: File): Promise<string> {
 		await ensurePdfReady();
+		if (!browser || !pdfGetDocument) {
+			throw new Error('PDF engine not ready (client-only).');
+		}
 
 		const data = await file.arrayBuffer();
 		const pdf = await pdfGetDocument({ data }).promise;
@@ -100,7 +103,6 @@
 		const el = e.target as HTMLInputElement;
 		const file = el.files?.[0];
 		el.value = ''; // allow picking same file again
-
 		if (!file) return;
 
 		if (!isPdf(file)) {
@@ -115,7 +117,8 @@
 	async function handlePdf(file: File) {
 		pdfError = null;
 
-		if (file.type !== 'application/pdf') {
+		// Use the unified check; some browsers don't set the MIME type consistently
+		if (!isPdf(file)) {
 			pdfError = 'Only PDF files are supported.';
 			await showToast(pdfError, 'warning');
 			return;
@@ -126,7 +129,6 @@
 			return;
 		}
 
-		// progress indicator (still writes into your existing `input`)
 		input = input?.trim() ? `${input}\n\n[Extracting PDF…]` : 'Extracting PDF…';
 
 		try {
@@ -139,10 +141,7 @@
 			input = text || '';
 			selectedFileName = file.name;
 
-			// show the transition screen
 			showResumeAdded = true;
-
-			// hide it after the animation; tweak timing to taste
 			setTimeout(() => {
 				showResumeAdded = false;
 			}, 1100);
@@ -204,94 +203,6 @@
 		if (!error && data) onboardingRow = data as OnboardingRow;
 	}
 
-	async function generateProject() {
-		isGenerating = true;
-		const interests = input.trim();
-		const tags = Array.from(picked);
-		const payload = { interests, tags };
-
-		try {
-			const response = await fetch('/api/generate-project', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-
-			// if (!response.ok) {
-			// 	let detail: string | null = null;
-			// 	try {
-			// 		const data = await response.json();
-			// 		if (typeof data?.message === 'string') detail = data.message;
-			// 	} catch {
-			// 		const text = await response.text();
-			// 		detail = text || null;
-			// 	}
-
-			// 	if (response.status === 401) {
-			// 		const message = detail ?? 'Sign in to claim your free project credit.';
-			// 		await showToast(message, 'danger');
-			// 		savePendingGeneration(payload);
-			// 		window.dispatchEvent(
-			// 			new CustomEvent('vector:auth-required', {
-			// 				detail: { message, reason: 'generate' as const }
-			// 			})
-			// 		);
-			// 		isGenerating = false;
-			// 		return;
-			// 	}
-			// 	if (response.status === 402) {
-			// 		const message =
-			// 			detail ?? 'You are out of credits. Visit your profile to review your balance.';
-			// 		await showToast(message, 'danger');
-			// 		window.dispatchEvent(
-			// 			new CustomEvent('vector:credits-updated', { detail: { credits: 0 } })
-			// 		);
-			// 		isGenerating = false;
-			// 		return;
-			// 	}
-
-			// 	const message = detail || 'We ran into an issue generating your project. Please try again.';
-			// 	await showToast(message, 'danger');
-			// 	isGenerating = false;
-			// 	return;
-			// }
-
-			const project = await response.json();
-			console.log('Project generation response:', project);
-			const creditsHeader = response.headers.get('x-vector-user-credits');
-			if (creditsHeader !== null) {
-				const numericCredits = Number.parseInt(creditsHeader, 10);
-				if (!Number.isNaN(numericCredits)) {
-					window.dispatchEvent(
-						new CustomEvent('vector:credits-updated', { detail: { credits: numericCredits } })
-					);
-				}
-			}
-			const usedFallback = response.headers.get('x-vector-project-source') === 'fallback';
-			const errorMessage = response.headers.get('x-vector-project-error');
-
-			if (usedFallback && errorMessage) {
-				console.error(
-					'Project generation failed, using fallback:',
-					decodeURIComponent(errorMessage)
-				);
-			}
-
-			console.log('Project generation completed:', {
-				source: response.headers.get('x-vector-project-source'),
-				fallback: usedFallback
-			});
-			clearPendingGeneration();
-			await goto('/project', { state: { project, fallback: usedFallback } });
-		} catch (err) {
-			console.log('Project generation error:', err);
-			const message = 'We ran into an issue generating your project. Please try again.';
-			await showToast(message, 'danger');
-			isGenerating = false;
-			onboardingSubmitting = false;
-		}
-	}
-
 	async function handleOnboardingSubmit(answers: {
 		education: 'high_school' | 'college';
 		goal: 'full_time' | 'internship';
@@ -302,7 +213,6 @@
 		onboardingSubmitting = true;
 
 		try {
-			// Save onboarding data to database first
 			const {
 				data: { user },
 				error: uerr
@@ -325,32 +235,27 @@
 
 			if (error) throw error;
 
-			// Update local onboarding state
 			onboardingRow = {
 				edu_level: answers.education,
 				goal: answers.goal,
 				project_type: answers.project
 			};
 
-			// Now generate the project with default interests if needed
 			isGenerating = true;
 			showOnboarding = false;
 			clearPendingGeneration();
 
-			// If no interests provided, use a default based on onboarding answers
 			const defaultInterests = getDefaultInterests(answers);
 			const interests = input.trim() || defaultInterests;
 			const tags = Array.from(picked);
 
 			if (!interests.trim() && tags.length === 0) {
-				// If still no interests or tags, show a helpful message
 				await showToast('Please enter your interests to generate a project', 'warning');
 				isGenerating = false;
 				onboardingSubmitting = false;
 				return;
 			}
 
-			// Generate project with the determined interests
 			const payload = { interests, tags };
 			await generateProjectWithPayload(payload);
 		} catch (err) {
@@ -366,7 +271,6 @@
 		goal: 'full_time' | 'internship';
 		project: 'research' | 'industry';
 	}) {
-		// Generate default interests based on onboarding answers
 		const interestsMap: Record<string, string> = {
 			high_school_full_time_research: 'computer science, programming, research',
 			high_school_full_time_industry: 'software development, web development, programming',
@@ -391,19 +295,18 @@
 				body: JSON.stringify(payload)
 			});
 
-			// Handle non-OK without double-reading body
 			if (!response.ok) {
 				let detail: string | null = null;
 				try {
-					const data = await response.json(); // read ONCE
+					const data = await response.json();
 					if (typeof data?.message === 'string') detail = data.message;
 				} catch {
-					detail = await response.text(); // still read ONCE total (json OR text)
+					detail = await response.text();
 				}
 				throw new Error(detail ?? `HTTP ${response.status}`);
 			}
 
-			const project = await response.json(); // success path: read ONCE
+			const project = await response.json();
 			const usedFallback = response.headers.get('x-vector-project-source') === 'fallback';
 			const creditsHeader = response.headers.get('x-vector-user-credits');
 			if (creditsHeader) {
@@ -415,9 +318,7 @@
 				}
 			}
 
-			// Persist for the /project page (choose A2/A3 approach)
 			sessionStorage.setItem('vector:last-project', JSON.stringify(project));
-
 			await goto('/project', { state: { project, fallback: usedFallback } });
 		} catch (err) {
 			await showToast('We ran into an issue generating your project. Please try again.', 'danger');
@@ -449,14 +350,12 @@
 	const PENDING_GENERATION_KEY = 'vector:pending-generation';
 
 	const MASTER_SUGGESTIONS = [
-		// Bio/health
 		'gene editing',
 		'synthetic bio',
 		'protein design',
 		'wearables',
 		'sleep staging',
 		'ECG analysis',
-		// Robotics
 		'humanoids',
 		'robot arm',
 		'visual servoing',
@@ -467,7 +366,6 @@
 		'quad control',
 		'exoskeletons',
 		'prosthetics',
-		// Vision
 		'pose estimation',
 		'object tracking',
 		'depth sensing',
@@ -476,46 +374,38 @@
 		'super-resolution',
 		'OCR pipeline',
 		'video summarizer',
-		// Audio/Speech
 		'speaker diarization',
 		'keyword spotting',
 		'voice clone',
-		// NLP / LLM
 		'RAG search',
 		'LoRA finetune',
 		'tool use',
 		'agents',
 		'prompt eval',
 		'quantized LLMs',
-		// Web / Data
 		'web scraping',
 		'data viz',
 		'recsys',
 		'knowledge graph',
 		'semantic search',
-		// Finance
 		'trading bots',
 		'fraud detection',
 		'order book',
 		'market making',
-		// Games
 		'strategy games',
 		'chess engine',
 		'league analytics',
 		'match highlights',
 		'build optimizer',
-		// AR/3D
 		'AR try-on',
 		'3D scanning',
 		'photogrammetry',
-		// Climate/IoT
 		'energy monitor',
 		'solar forecast',
 		'air quality',
 		'smart irrigation'
 	];
 
-	// STATE (runes)
 	let chipsEl: HTMLDivElement;
 	let textareaEl: HTMLTextAreaElement;
 
@@ -524,14 +414,12 @@
 	let picked = $state(new Set<string>());
 
 	let suggestions = $state<string[]>([]);
-	let visibleCount = $state(999); // clamped to two rows after layout
+	let visibleCount = $state(999);
 	let isGenerating = $state(false);
 	let errorMessage = $state<string | null>(null);
 
-	// DERIVED
 	const visibleSuggestions = $derived(suggestions.slice(0, visibleCount));
 
-	// HELPERS
 	const shortLabel = (s: string) => s.trim().split(/\s+/).slice(0, 2).join(' ');
 	function sample(arr: string[], k = 20) {
 		const pool = [...arr];
@@ -566,7 +454,7 @@
 		if (typeof window === 'undefined') return;
 		try {
 			sessionStorage.setItem(PENDING_GENERATION_KEY, JSON.stringify(payload));
-		} catch (_err) {}
+		} catch {}
 	}
 
 	function loadPendingGeneration(): { interests: string; tags: string[] } | null {
@@ -580,10 +468,7 @@
 				? parsed.tags.filter((tag): tag is string => typeof tag === 'string')
 				: [];
 			return { interests, tags };
-		} catch (
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			_err
-		) {
+		} catch {
 			return null;
 		}
 	}
@@ -592,10 +477,7 @@
 		if (typeof window === 'undefined') return;
 		try {
 			sessionStorage.removeItem(PENDING_GENERATION_KEY);
-		} catch (
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			_err
-		) {
+		} catch {
 			// ignore
 		}
 	}
@@ -659,10 +541,9 @@
 		for (const el of items) {
 			const t = el.offsetTop;
 			if (!tops.includes(t)) tops.push(t);
-			if (tops.length === 3) break; // we only care if a 3rd row appears
+			if (tops.length === 3) break;
 		}
 
-		// If there are already ≤2 rows, show all; otherwise cut at first item in row 3
 		if (tops.length <= 2) {
 			visibleCount = items.length;
 			return;
@@ -755,13 +636,11 @@
 						aria-describedby="dropzone-help"
 					>
 						{#if selectedFileName}
-							<!-- Selected file state: small left icon + filename -->
 							<div class="pointer-events-none flex flex-col items-center gap-2 px-6 text-center">
 								<div
 									class="inline-flex items-center gap-2"
 									in:fly={{ y: 2, duration: 500, easing: cubicOut, delay: 200 }}
 								>
-									<!-- smaller black circle + animated white check -->
 									<div class="h-5 w-5 rounded-full bg-stone-900">
 										<svg
 											viewBox="0 0 24 24"
@@ -780,7 +659,6 @@
 											/>
 										</svg>
 									</div>
-
 									<span class="max-w-[520px] truncate text-lg font-medium text-stone-800">
 										{selectedFileName}
 									</span>
@@ -799,9 +677,7 @@
 								>
 									<button
 										type="button"
-										class="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-3 py-1.5 text-xs font-medium text-stone-50 shadow-sm transition
-           hover:bg-stone-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400/50
-           disabled:cursor-not-allowed disabled:opacity-50"
+										class="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-3 py-1.5 text-xs font-medium text-stone-50 shadow-sm transition hover:bg-stone-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400/50 disabled:cursor-not-allowed disabled:opacity-50"
 										onclick={(e) => {
 											e.stopPropagation();
 											goto('/resume');
