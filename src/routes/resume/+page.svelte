@@ -2,12 +2,15 @@
 	import { resumeStore, type ResumeData } from '$lib/stores/resume';
 	import ResumeRate from '$lib/components/ResumeRate.svelte';
 	import PdfViewer from '$lib/components/PdfViewer.svelte';
+	import WaitlistModal from '$lib/components/WaitlistModal.svelte';
 	import { onDestroy } from 'svelte';
 
 	// resume state
 	let resume = $state<ResumeData>({ file: null, url: null, text: '', filename: null });
 	const unsub = resumeStore.subscribe((v: ResumeData) => (resume = v));
 	onDestroy(unsub);
+
+	let showWaitlist = $state(false);
 
 	// --- Resizable split (same pattern as dashboard) ---
 	const HANDLE_WIDTH = 8; // interactive area (visual line can stay 1px)
@@ -103,5 +106,15 @@
 
 	<div class="min-h-0 min-w-0 flex-1 overflow-y-auto p-4">
 		<ResumeRate text={resume.text} />
+
+		<button
+			type="button"
+			class="mt-8 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-mono text-stone-700 transition hover:border-stone-400 hover:bg-stone-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-500"
+			onclick={() => (showWaitlist = true)}
+		>
+			Join the waitlist
+		</button>
 	</div>
 </div>
+
+<WaitlistModal open={showWaitlist} on:close={() => (showWaitlist = false)} />
