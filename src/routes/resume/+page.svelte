@@ -105,15 +105,12 @@
 	</div>
 
 	<div class="min-h-0 min-w-0 flex-1 overflow-y-auto p-4">
-		<ResumeRate text={resume.text} />
-
-		<button
-			type="button"
-			class="mt-8 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-mono text-stone-700 transition hover:border-stone-400 hover:bg-stone-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-500"
-			onclick={() => (showWaitlist = true)}
-		>
-			Join the waitlist
-		</button>
+		<ResumeRate
+			text={resume.text}
+			waitlist={() => {
+				showWaitlist = true;
+			}}
+		/>
 	</div>
 </div>
 

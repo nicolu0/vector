@@ -91,30 +91,23 @@
 		tabindex="-1"
 		onclick={handleBackdropClick}
 	>
+		{#if canDismiss}
+			<button
+				type="button"
+				class="fixed top-4 left-4 rounded-full p-1 text-stone-500 transition hover:text-stone-800 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-stone-500 disabled:cursor-not-allowed disabled:opacity-60"
+				onclick={attemptClose}
+				disabled={status === 'loading'}
+				aria-label="Close waitlist"
+			>
+				<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M6 6l12 12M6 18L18 6" stroke-linecap="round" />
+				</svg>
+			</button>
+		{/if}
 		<div
 			in:fly={{ y: 8, delay: 200, duration: 180 }}
 			class="relative w-full max-w-xl px-8 py-12 text-stone-800 sm:px-10"
 		>
-			{#if canDismiss}
-				<button
-					type="button"
-					class="absolute top-4 right-4 rounded-full p-1 text-stone-500 transition hover:text-stone-800 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-stone-500 disabled:cursor-not-allowed disabled:opacity-60"
-					onclick={attemptClose}
-					disabled={status === 'loading'}
-					aria-label="Close waitlist"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						class="h-4 w-4"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<path d="M6 6l12 12M6 18L18 6" stroke-linecap="round" />
-					</svg>
-				</button>
-			{/if}
-
 			<div class="flex flex-col items-center gap-12 pt-6 sm:pt-4">
 				<div class="flex w-full max-w-sm flex-col gap-2">
 					<div>
@@ -141,7 +134,7 @@
 									class="waitlist-input w-full border-0 bg-transparent font-mono !text-[#2D2D2D]
              transition selection:bg-[#2D2D2D] selection:text-stone-50
              focus:ring-0 focus:outline-none"
-									placeholder="join the waitlist w/ email"
+									placeholder="join the waitlist w/ your email"
 									type="email"
 									inputmode="email"
 									autocomplete="email"

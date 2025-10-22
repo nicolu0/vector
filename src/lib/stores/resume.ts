@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 
 export type ResumeData = {
 	file: File | null;
-	url: string | null;      // URL.createObjectURL(file)
+	url: string | null;
 	text: string;
 	filename: string | null;
 };

@@ -1,15 +1,16 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import type { ProjectRating, ProjectItem, ResumeProjects } from '$lib/types/resume';
+	import { onMount } from 'svelte';
+	import type { ProjectRating, ProjectItem, ResumeProjects } from '$lib/types/resume';
 
-	const { text } = $props<{
+	const { text, waitlist } = $props<{
 		text: string;
+		waitlist: () => void;
 	}>();
 
-    let overallStrength = $state<'Strong' | 'Average' | 'Needs Work'>('Average');
-    let PROJECTS = $state<ProjectItem[]>([]);
-    let loading = $state(true);
-    let error = $state<string | null>(null);
+	let overallStrength = $state<'Strong' | 'Average' | 'Needs Work'>('Average');
+	let PROJECTS = $state<ProjectItem[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
 
 	function ratingBadgeClasses(r: ProjectRating) {
 		switch (r) {
@@ -22,27 +23,27 @@
 		}
 	}
 
-    onMount(async () => {
-        try {
-            const res = await fetch('/api/format-resume', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text }),
-            });
-            console.log(res);
-            if (!res.ok) throw new Error('Failed to format resume');
-            const data = await res.json() as {
-                overall_strength: typeof overallStrength;
-                projects: ProjectItem[];
-            };
-            overallStrength = data.overall_strength ?? 'Average';
-            PROJECTS = data.projects ?? [];
-        } catch (e: any) {
-            error = e?.message ?? 'Failed to format resume';
-        } finally {
-            loading = false;
-        }
-    });
+	onMount(async () => {
+		try {
+			const res = await fetch('/api/format-resume', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ text })
+			});
+			console.log(res);
+			if (!res.ok) throw new Error('Failed to format resume');
+			const data = (await res.json()) as {
+				overall_strength: typeof overallStrength;
+				projects: ProjectItem[];
+			};
+			overallStrength = data.overall_strength ?? 'Average';
+			PROJECTS = data.projects ?? [];
+		} catch (e: any) {
+			error = e?.message ?? 'Failed to format resume';
+		} finally {
+			loading = false;
+		}
+	});
 </script>
 
 <div class="min-h-[calc(100svh-56px)] w-full bg-stone-50">
@@ -101,18 +102,25 @@
 
 						{#if p.notes.length > 0}
 							<div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-								<div
-									class="mb-1 inline-flex items-center gap-2 text-[11px] font-semibold tracking-tight text-amber-800"
-								>
-									<svg
-										viewBox="0 0 24 24"
-										class="h-3.5 w-3.5"
-										fill="currentColor"
-										aria-hidden="true"
+								<div class="flex w-full flex-row justify-between">
+									<div
+										class="mb-1 inline-flex items-center gap-2 text-[11px] font-semibold tracking-tight text-amber-800"
 									>
-										<path d="M11 7h2v6h-2zm0 8h2v2h-2z" /><path d="M1 21h22L12 2 1 21z" />
-									</svg>
-									Notes to improve
+										<svg
+											viewBox="0 0 24 24"
+											class="h-3.5 w-3.5"
+											fill="currentColor"
+											aria-hidden="true"
+										>
+											<path d="M11 7h2v6h-2zm0 8h2v2h-2z" /><path d="M1 21h22L12 2 1 21z" />
+										</svg>
+										Notes to improve
+									</div>
+									<button
+										onclick={waitlist}
+										class="mb-1 inline-flex items-center gap-2 text-[11px] font-semibold tracking-tight text-amber-800"
+										>Get Started</button
+									>
 								</div>
 								<ul class="list-disc space-y-1 pl-5 text-[11px] leading-5 text-amber-900">
 									{#each p.notes as n}
