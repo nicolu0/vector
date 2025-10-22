@@ -350,7 +350,7 @@ async function generateProjectWithOpenAI(input: { interests: string; tags: strin
 
   try {
     const response = await client.responses.create({
-      model: 'gpt-5-nano-2025-08-07',
+      model: 'gpt-5-2025-08-07',
       instructions:
         'You are an expert career mentor generating project briefs. Always respond with valid JSON.',
       input: prompt,

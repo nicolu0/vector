@@ -1,17 +1,15 @@
 <script lang="ts">
-	type ProjectRating = 'No change' | 'Small tweaks' | 'Needs Improvement';
+    import { onMount } from 'svelte';
+    import type { ProjectRating, ProjectItem, ResumeProjects } from '$lib/types/resume';
 
 	const { text } = $props<{
 		text: string;
 	}>();
 
-	type ProjectItem = {
-		title: string;
-		stack: string | null;
-		bullets: string[];
-		rating: { label: ProjectRating }; // ← score removed
-		notes: string[];
-	};
+    let overallStrength = $state<'Strong' | 'Average' | 'Needs Work'>('Average');
+    let PROJECTS = $state<ProjectItem[]>([]);
+    let loading = $state(true);
+    let error = $state<string | null>(null);
 
 	function ratingBadgeClasses(r: ProjectRating) {
 		switch (r) {
@@ -24,58 +22,27 @@
 		}
 	}
 
-	const PROJECTS: ProjectItem[] = [
-		{
-			title: '3 Arm Autonomous Mobile Manipulator',
-			stack: 'Python, ROS, OpenCV, MoveIt, Gmapping, Linux, RViz, Gazebo',
-			bullets: [
-				'Developed software for a 3-arm mobile manipulator to autonomously navigate to a fridge, detect and grab a drink, and return.',
-				'Used Gmapping + ROS Navigation Stack to map the room and navigate from doorway to fridge.',
-				'Employed MoveIt Commander to simulate arm trajectory validity and choose an optimal pose to open a fridge door in a 1 m × 1 m area.',
-				'Improved door-opening success rate from 0% → 40% over 100 simulation runs after algorithm updates.',
-				'Used OpenCV for object detection and Pick-and-Place sequence (scan, pre-grasp, grasp).',
-				'Computed drink location via focal-length equations + depth sensing; transformed world point into gripper frame.'
-			],
-			rating: { label: 'No change' },
-			notes: [
-				'Add repo/demo link (video/GIF).',
-				'Quantify navigation accuracy (e.g., success % per room layout).'
-			]
-		},
-		{
-			title: 'Robot Artist (UR5)',
-			stack: 'ROS, Python, OpenCV, Linux, Universal Robots UR5',
-			bullets: [
-				'Taught a UR5 robot arm to draw from a reference image using a Sharpie.',
-				'Manually implemented forward and inverse kinematics for UR5 based on link dimensions.',
-				'Built a stroke state machine (pre-draw height, drawing height, home position).',
-				'Created an image-processing pipeline to extract/trace contours with adjustable keypoints and contour count.',
-				'Completed full images within ~15 minutes at three detail levels; prepared for pointillism mode with higher detail.',
-				'Experimented with higher arm speeds (5,000+ points per image).'
-			],
-			rating: { label: 'Small tweaks' },
-			notes: [
-				'Call out error rate/precision (e.g., end-effector pixel-to-mm mapping error).',
-				'Mention safety/limits (joint/velocity constraints) to show robustness.'
-			]
-		},
-		{
-			title: 'Race Line Generation Algorithm',
-			stack: 'ROS, Python, OpenCV, Linux, RViz, Gazebo',
-			bullets: [
-				'Generated an optimal path based on upcoming turn radius, vehicle pose, and velocity; sent control signals to a simulated vehicle.',
-				'Implemented lateral control via Pure Pursuit using a constant look-ahead point.',
-				'Added three speed thresholds that adapt to road curvature for smoother speed transitions.',
-				'Captured velocity/acceleration/position across 100 simulation runs to analyze path and acceleration spikes.',
-				'Reduced lateral g-force ~50% (≈1.0G → 0.5G) for improved passenger comfort.'
-			],
-			rating: { label: 'Needs Improvement' },
-			notes: [
-				'Add baseline comparison (e.g., PID or Stanley) to anchor the 50% improvement.',
-				'Include real-time latency numbers and loop frequency.'
-			]
-		}
-	];
+    onMount(async () => {
+        try {
+            const res = await fetch('/api/format-resume', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text }),
+            });
+            console.log(res);
+            if (!res.ok) throw new Error('Failed to format resume');
+            const data = await res.json() as {
+                overall_strength: typeof overallStrength;
+                projects: ProjectItem[];
+            };
+            overallStrength = data.overall_strength ?? 'Average';
+            PROJECTS = data.projects ?? [];
+        } catch (e: any) {
+            error = e?.message ?? 'Failed to format resume';
+        } finally {
+            loading = false;
+        }
+    });
 </script>
 
 <div class="min-h-[calc(100svh-56px)] w-full bg-stone-50">
