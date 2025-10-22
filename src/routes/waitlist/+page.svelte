@@ -3,54 +3,8 @@
 	import vectorUrl from '$lib/assets/vector.svg?url';
 
 	let t: ReturnType<typeof setTimeout> | null = null;
-	const NAMES = [
-		'steve jobs',
-		'mark zuckerberg',
-		'elon musk',
-		'jeff bezos',
-		'sam altman',
-		'jensen huang'
-	];
 
-	let text = $state('');
-	let i = 0,
-		char = 0,
-		typing = true;
-	const TYPE_MS = 90,
-		DELETE_MS = 60,
-		HOLD_MS = 2000,
-		GAP_MS = 250;
-
-	function tick() {
-		const current = NAMES[i];
-		if (typing) {
-			if (char < current.length) {
-				text = current.slice(0, ++char);
-				t = setTimeout(tick, TYPE_MS);
-			} else {
-				typing = false;
-				t = setTimeout(tick, HOLD_MS);
-			}
-		} else {
-			if (char > 0) {
-				text = current.slice(0, --char);
-				t = setTimeout(tick, DELETE_MS);
-			} else {
-				typing = true;
-				i = (i + 1) % NAMES.length;
-				t = setTimeout(tick, GAP_MS);
-			}
-		}
-	}
-
-	$effect(() => {
-		tick();
-		return () => {
-			if (t) clearTimeout(t);
-		};
-	});
-
-	let emailEl: HTMLInputElement | null = null;
+	let emailEl: HTMLInputElement | null = $state(null);
 	let email = $state('');
 	let status = $state<'idle' | 'loading' | 'success' | 'error'>('idle');
 	let errMsg = $state('');
@@ -105,7 +59,6 @@
 		</div>
 	</div>
 
-	<!-- Row stays; we swap the left side based on status -->
 	<div class="flex w-full max-w-sm flex-row items-end gap-6">
 		<div class="relative w-full" class:underline-shrink={status === 'success'}>
 			{#if status !== 'success'}
@@ -129,7 +82,6 @@
 				<div class="pb-1 font-mono text-sm text-[#2D2D2D]">you’re on the waitlist.</div>
 			{/if}
 
-			<!-- animated underline -->
 			<span class="underline-bar" aria-hidden="true"></span>
 		</div>
 		<button
@@ -197,22 +149,6 @@
 	.headline {
 		column-gap: 0.5ch;
 		white-space: nowrap;
-	}
-
-	.type-box {
-		width: 100%;
-		display: inline-flex;
-		align-items: baseline;
-		white-space: nowrap;
-		overflow: hidden;
-		position: relative;
-	}
-	.typed {
-		padding-right: 1px;
-		padding-bottom: 1px;
-		line-height: 1em;
-		display: inline-block;
-		animation: caret-blink 1s step-end infinite;
 	}
 
 	.waitlist-input {
