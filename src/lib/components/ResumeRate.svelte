@@ -83,8 +83,14 @@
 
 			<div class="space-y-4">
 				{#if analysisStatus === 'loading'}
-					<div class="rounded-lg border border-stone-200 bg-white p-4 text-sm text-stone-500">
-						Analyzing resume…
+					<div
+						class="sheen flex items-center gap-3 overflow-hidden rounded-lg border border-stone-200 bg-white p-4 text-sm text-stone-500"
+					>
+						<span
+							class="h-4 w-4 animate-spin rounded-full border border-stone-300 border-t-stone-500"
+							aria-hidden="true"
+						/>
+						<span>Analyzing resume…</span>
 					</div>
 				{:else if analysisError}
 					<div class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
@@ -178,3 +184,42 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	.sheen {
+		position: relative;
+		overflow: hidden;
+	}
+
+	.sheen::after {
+		content: '';
+		position: absolute;
+		inset: -6px 0;
+		pointer-events: none;
+		background: linear-gradient(
+			110deg,
+			rgba(255, 255, 255, 0) 0%,
+			rgba(255, 255, 255, 0) 35%,
+			rgba(255, 255, 255, 0.5) 50%,
+			rgba(255, 255, 255, 0) 65%,
+			rgba(255, 255, 255, 0) 100%
+		);
+		transform: translateX(-80%);
+		animation: sheen-sweep 3s ease-in-out infinite;
+		mix-blend-mode: screen;
+		opacity: 0.8;
+	}
+
+	@keyframes sheen-sweep {
+		to {
+			transform: translateX(80%);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.sheen::after {
+			animation: none;
+			opacity: 0;
+		}
+	}
+</style>
