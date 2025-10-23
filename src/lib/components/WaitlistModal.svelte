@@ -109,7 +109,7 @@
 			class="relative w-full max-w-xl px-8 py-12 text-stone-800 sm:px-10"
 		>
 			<div class="flex flex-col items-center gap-12 pt-6 sm:pt-4">
-				<div class="flex w-full max-w-sm flex-col gap-2">
+				<div class="flex w-full max-w-lg flex-col gap-2">
 					<div>
 						<div class="flex flex-row items-center gap-3">
 							<img src={vectorUrl} alt="vector" class="h-8 w-8" />
@@ -117,14 +117,14 @@
 						</div>
 
 						<div class="w-full justify-center font-mono text-lg text-[#666]">
-							<div class="headline flex items-baseline" aria-live="polite">
-								<span class="prefix mr-1">be so good it feels like nepotism</span>
+							<div class="headline flex flex-col items-baseline" aria-live="polite">
+								<span class="prefix mr-1">build in-demand projects with AI guidance</span>
 							</div>
 						</div>
 					</div>
 				</div>
 
-				<div class="flex w-full max-w-sm flex-col gap-3">
+				<div class="flex w-full max-w-lg flex-col gap-3">
 					<div class="flex w-full flex-row items-end gap-6">
 						<div class="relative w-full" class:underline-shrink={status === 'success'}>
 							{#if status !== 'success'}
