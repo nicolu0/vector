@@ -131,13 +131,13 @@
 
 							{#if p.notes.length > 0}
 								<div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-									<div class="flex w-full flex-row justify-between">
+									<div class="mb-3 flex w-full flex-row justify-between">
 										<div
-											class="mb-1 inline-flex items-center gap-2 text-[11px] font-semibold tracking-tight text-amber-800"
+											class="inline-flex items-center gap-1 text-[11px] font-semibold tracking-tight text-amber-800"
 										>
 											<svg
 												viewBox="0 0 24 24"
-												class="h-3.5 w-3.5"
+												class="h-3 w-3"
 												fill="currentColor"
 												aria-hidden="true"
 											>
@@ -147,7 +147,7 @@
 										</div>
 										<button
 											onclick={waitlist}
-											class="group mb-1 inline-flex items-center gap-2 text-[11px] font-semibold tracking-tight text-amber-800"
+											class="group inline-flex items-center gap-2 text-[11px] font-semibold tracking-tight text-amber-800"
 										>
 											<span>Get Started</span>
 											<svg
@@ -155,7 +155,7 @@
 												class="h-3 w-3 transition-transform duration-150 group-hover:translate-x-0.5"
 												fill="none"
 												stroke="currentColor"
-												stroke-width="2"
+												stroke-width="3"
 												stroke-linecap="round"
 												stroke-linejoin="round"
 												aria-hidden="true"
