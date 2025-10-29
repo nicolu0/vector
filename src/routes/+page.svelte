@@ -16,12 +16,12 @@
 
 	let { data } = $props<{ data: PageData }>();
 
-	const initialEndGoal = data.endGoal?.trim() ?? '';
-	const initialCurrentSkillLevel = data.currentSkillLevel?.trim() ?? '';
+	const initialRole = data.role?.trim() ?? '';
+	const initialCompany = data.company?.trim() ?? '';
 
-	let endGoal = $state(initialEndGoal);
-	let currentSkillLevel = $state(initialCurrentSkillLevel);
-	let showGoalModal = $state(!initialEndGoal);
+	let role = $state(initialRole);
+	let company = $state(initialCompany);
+	let showGoalModal = $state(!initialRole);
 
 	let tasks = $state<Task[]>([]);
 	let activeTaskId = $state<string | null>(null);
@@ -272,56 +272,14 @@
 		<Onboarding initialEndGoal={endGoal} onSubmit={handleGoalSubmit} />
 	</div>
 {:else}
-	<div
-		class="grid h-full w-full gap-8 bg-stone-50 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]"
-	>
-		<div class="flex w-full flex-col gap-6">
-			<div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-				<div class="flex items-start justify-between gap-3">
-					<div>
-						<h1 class="text-xl font-semibold text-stone-900">Profile Snapshot</h1>
-						<p class="mt-2 text-sm text-stone-600">
-							Keep the dream role current so we can target daily tasks effectively.
-						</p>
-					</div>
-					<button
-						class="rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-100"
-						type="button"
-						onclick={() => (showGoalModal = true)}
-					>
-						Edit goal
-					</button>
-				</div>
-
-				<div class="mt-6 space-y-4">
-					<div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
-						<h2 class="text-xs font-semibold tracking-[0.15em] text-stone-500 uppercase">
-							Dream job
-						</h2>
-						<p class="mt-2 text-sm text-stone-800">
-							{endGoal || "Not set yet. Describe the role and company you're aiming for."}
-						</p>
-					</div>
-
-					<div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
-						<h2 class="text-xs font-semibold tracking-[0.15em] text-stone-500 uppercase">
-							Current skill level
-						</h2>
-						<p class="mt-2 text-sm text-stone-800">
-							{currentSkillLevel || 'Not set yet. Outline experience, strengths, or gaps.'}
-						</p>
-					</div>
-				</div>
-			</div>
-
-			<TaskList
-				{tasks}
-				{activeTaskId}
-				onSelect={openTaskView}
-				onCreateTask={generateNewTask}
-				creating={loading}
-			/>
-		</div>
+	<div class="flex h-full w-full gap-8 bg-stone-50 p-6">
+		<TaskList
+			{tasks}
+			{activeTaskId}
+			onSelect={openTaskView}
+			onCreateTask={generateNewTask}
+			creating={loading}
+		/>
 
 		<TaskView
 			task={selectedTask ?? undefined}
