@@ -202,7 +202,6 @@
 
 		<div class="flex items-center gap-4">
 			{#if userExists}
-				<span class="text-xs text-stone-600">{credits ?? 0} credits</span>
 				<button
 					onclick={() => goto('/dashboard')}
 					class="rounded-md py-1 text-xs text-stone-700 hover:text-stone-500">Dashboard</button
@@ -213,10 +212,6 @@
 					>Profile</button
 				>
 			{:else}
-				<button class="rounded-md py-1 text-xs text-stone-700 hover:text-stone-500">Pricing</button>
-				<button class="rounded-md py-1 text-xs text-stone-700 hover:text-stone-500"
-					>How it works</button
-				>
 				<button
 					onclick={() => openAuthModal()}
 					class="rounded-md bg-stone-800 px-3 py-1 text-xs font-medium text-stone-50 hover:bg-stone-600"

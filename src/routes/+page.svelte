@@ -1,18 +1,18 @@
 <script lang="ts">
-import TaskView from '$lib/components/TaskView.svelte';
-import TaskList from '$lib/components/TaskList.svelte';
-import OnboardingModal from '$lib/components/OnboardingModal.svelte';
+	import TaskView from '$lib/components/TaskView.svelte';
+	import TaskList from '$lib/components/TaskList.svelte';
+	import Onboarding from '$lib/components/Onboarding.svelte';
 	import { onDestroy } from 'svelte';
-import type { PageData } from './$types';
+	import type { PageData } from './$types';
 
-type Task = {
-	id: string;
-	title: string;
-	description: string;
-	outcome: string;
-};
+	type Task = {
+		id: string;
+		title: string;
+		description: string;
+		outcome: string;
+	};
 
-type TaskDetails = Omit<Task, 'id'>;
+	type TaskDetails = Omit<Task, 'id'>;
 
 	let { data } = $props<{ data: PageData }>();
 
@@ -21,15 +21,15 @@ type TaskDetails = Omit<Task, 'id'>;
 
 	let endGoal = $state(initialEndGoal);
 	let currentSkillLevel = $state(initialCurrentSkillLevel);
-	let showGoalModal = $state(!(initialEndGoal && initialCurrentSkillLevel));
+	let showGoalModal = $state(!initialEndGoal);
 
-let tasks = $state<Task[]>([]);
-let activeTaskId = $state<string | null>(null);
-let loading = $state(false);
-let errorMessage = $state('');
-let draftTask = $state<TaskDetails | null>(null);
-let abortController: AbortController | null = null;
-let pendingTaskId = $state<string | null>(null);
+	let tasks = $state<Task[]>([]);
+	let activeTaskId = $state<string | null>(null);
+	let loading = $state(false);
+	let errorMessage = $state('');
+	let draftTask = $state<TaskDetails | null>(null);
+	let abortController: AbortController | null = null;
+	let pendingTaskId = $state<string | null>(null);
 
 	onDestroy(() => {
 		abortController?.abort();
@@ -39,23 +39,16 @@ let pendingTaskId = $state<string | null>(null);
 		activeTaskId = taskId;
 	}
 
-function handleGoalSubmit(payload: { endGoal: string; currentSkillLevel: string }) {
-	endGoal = payload.endGoal;
-	currentSkillLevel = payload.currentSkillLevel;
-	showGoalModal = false;
+	function handleGoalSubmit(payload: { endGoal: string }) {
+		endGoal = payload.endGoal;
+		showGoalModal = false;
 
-	if (!loading && tasks.length === 0) {
-		Promise.resolve().then(() => {
-			if (tasks.length === 0 && !loading) {
-				generateNewTask().catch((err) => console.error('Failed to generate task:', err));
-			}
-		});
-	}
-}
-
-	function handleModalClose() {
-		if (endGoal.trim() && currentSkillLevel.trim()) {
-			showGoalModal = false;
+		if (!loading && tasks.length === 0) {
+			Promise.resolve().then(() => {
+				if (tasks.length === 0 && !loading) {
+					generateNewTask().catch((err) => console.error('Failed to generate task:', err));
+				}
+			});
 		}
 	}
 
@@ -65,25 +58,25 @@ function handleGoalSubmit(payload: { endGoal: string; currentSkillLevel: string 
 
 	const previousTask = $derived(tasks.length > 0 ? tasks[tasks.length - 1] : null);
 
-async function generateNewTask() {
-	if (!endGoal.trim()) {
-		errorMessage = 'Please describe the end goal before generating a task.';
-		return;
-	}
+	async function generateNewTask() {
+		if (!endGoal.trim()) {
+			errorMessage = 'Please describe the end goal before generating a task.';
+			return;
+		}
 
 		if (abortController) {
 			abortController.abort();
 			abortController = null;
 		}
 
-	loading = true;
-	errorMessage = '';
-	draftTask = null;
+		loading = true;
+		errorMessage = '';
+		draftTask = null;
 
-	const payload: Record<string, unknown> = {
-		endGoal,
-		currentSkillLevel
-	};
+		const payload: Record<string, unknown> = {
+			endGoal,
+			currentSkillLevel
+		};
 
 		if (previousTask) {
 			payload.previousTask = {
@@ -93,18 +86,18 @@ async function generateNewTask() {
 			};
 		}
 
-	let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-	let streamBuffer = '';
-	let liveDraft: TaskDetails = {
-		title: 'Creating new task...',
-		description: '',
-		outcome: ''
-	};
+		let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+		let streamBuffer = '';
+		let liveDraft: TaskDetails = {
+			title: 'Creating new task...',
+			description: '',
+			outcome: ''
+		};
 
 		const pendingId =
-		typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-			? crypto.randomUUID()
-			: `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+			typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+				? crypto.randomUUID()
+				: `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 		const placeholder: Task = {
 			id: pendingId,
@@ -113,19 +106,17 @@ async function generateNewTask() {
 			outcome: ''
 		};
 
-	tasks = [...tasks, placeholder];
-	activeTaskId = pendingId;
-	pendingTaskId = pendingId;
+		tasks = [...tasks, placeholder];
+		activeTaskId = pendingId;
+		pendingTaskId = pendingId;
 
 		const updatePendingTask = (update: Partial<TaskDetails>) => {
-		if (!pendingTaskId) return;
-		tasks = tasks.map((task) =>
-			task.id === pendingTaskId ? { ...task, ...update } : task
-		);
-	};
+			if (!pendingTaskId) return;
+			tasks = tasks.map((task) => (task.id === pendingTaskId ? { ...task, ...update } : task));
+		};
 
-	try {
-		abortController = new AbortController();
+		try {
+			abortController = new AbortController();
 
 			const response = await fetch('/api/generate-task', {
 				method: 'POST',
@@ -171,11 +162,11 @@ async function generateNewTask() {
 							switch (message.t) {
 								case 'kv': {
 									if (message.k === 'title') {
-							const nextTitle = String(message.v ?? '').trim();
-							liveDraft = {
-								...liveDraft,
-								title: nextTitle || 'Creating new task...'
-							};
+										const nextTitle = String(message.v ?? '').trim();
+										liveDraft = {
+											...liveDraft,
+											title: nextTitle || 'Creating new task...'
+										};
 										updatePendingTask({ title: liveDraft.title });
 									} else if (message.k === 'description') {
 										liveDraft = {
@@ -238,65 +229,105 @@ async function generateNewTask() {
 					newlineIndex = streamBuffer.indexOf('\n');
 				}
 			}
-	} catch (err) {
-		if ((err as Error).name === 'AbortError') {
-			errorMessage = 'Task generation was cancelled.';
-		} else {
-			console.error(err);
+		} catch (err) {
+			if ((err as Error).name === 'AbortError') {
+				errorMessage = 'Task generation was cancelled.';
+			} else {
+				console.error(err);
 				errorMessage =
 					err instanceof Error ? err.message : 'Unexpected error while generating the task.';
 			}
-	} finally {
-		if (reader) {
-			try {
-				await reader.cancel();
-			} catch {
-				// ignore
+		} finally {
+			if (reader) {
+				try {
+					await reader.cancel();
+				} catch {
+					// ignore
+				}
+				try {
+					reader.releaseLock();
+				} catch {
+					// ignore
+				}
 			}
-			try {
-				reader.releaseLock();
-			} catch {
-				// ignore
-			}
-		}
 
-		if (pendingTaskId) {
-			// Generation didn't finish — clean up placeholder
-			tasks = tasks.filter((task) => task.id !== pendingTaskId);
-			if (activeTaskId === pendingTaskId) {
-				activeTaskId = tasks.length ? tasks[tasks.length - 1].id : null;
+			if (pendingTaskId) {
+				// Generation didn't finish — clean up placeholder
+				tasks = tasks.filter((task) => task.id !== pendingTaskId);
+				if (activeTaskId === pendingTaskId) {
+					activeTaskId = tasks.length ? tasks[tasks.length - 1].id : null;
+				}
+				pendingTaskId = null;
 			}
-			pendingTaskId = null;
-		}
 
-		draftTask = null;
-		loading = false;
-		abortController = null;
+			draftTask = null;
+			loading = false;
+			abortController = null;
+		}
 	}
-}
 </script>
 
-<div class="grid h-full w-full gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-		<TaskList
-			{tasks}
-			{activeTaskId}
-			onSelect={openTaskView}
-			onCreateTask={generateNewTask}
-			creating={loading}
+{#if showGoalModal}
+	<div class="flex h-full w-full items-center justify-center bg-stone-50 p-6">
+		<Onboarding initialEndGoal={endGoal} onSubmit={handleGoalSubmit} />
+	</div>
+{:else}
+	<div
+		class="grid h-full w-full gap-8 bg-stone-50 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]"
+	>
+		<div class="flex w-full flex-col gap-6">
+			<div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+				<div class="flex items-start justify-between gap-3">
+					<div>
+						<h1 class="text-xl font-semibold text-stone-900">Profile Snapshot</h1>
+						<p class="mt-2 text-sm text-stone-600">
+							Keep the dream role current so we can target daily tasks effectively.
+						</p>
+					</div>
+					<button
+						class="rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-100"
+						type="button"
+						onclick={() => (showGoalModal = true)}
+					>
+						Edit goal
+					</button>
+				</div>
+
+				<div class="mt-6 space-y-4">
+					<div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
+						<h2 class="text-xs font-semibold tracking-[0.15em] text-stone-500 uppercase">
+							Dream job
+						</h2>
+						<p class="mt-2 text-sm text-stone-800">
+							{endGoal || "Not set yet. Describe the role and company you're aiming for."}
+						</p>
+					</div>
+
+					<div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
+						<h2 class="text-xs font-semibold tracking-[0.15em] text-stone-500 uppercase">
+							Current skill level
+						</h2>
+						<p class="mt-2 text-sm text-stone-800">
+							{currentSkillLevel || 'Not set yet. Outline experience, strengths, or gaps.'}
+						</p>
+					</div>
+				</div>
+			</div>
+
+			<TaskList
+				{tasks}
+				{activeTaskId}
+				onSelect={openTaskView}
+				onCreateTask={generateNewTask}
+				creating={loading}
+			/>
+		</div>
+
+		<TaskView
+			task={selectedTask ?? undefined}
+			draftTask={draftTask ?? undefined}
+			{loading}
+			{errorMessage}
 		/>
-
-	<TaskView
-		task={selectedTask ?? undefined}
-		draftTask={draftTask ?? undefined}
-		{loading}
-		{errorMessage}
-	/>
-</div>
-
-<OnboardingModal
-	open={showGoalModal}
-	initialEndGoal={endGoal}
-	initialCurrentSkillLevel={currentSkillLevel}
-	onClose={handleModalClose}
-	onSubmit={handleGoalSubmit}
-/>
+	</div>
+{/if}
