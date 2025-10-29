@@ -16,12 +16,10 @@
 
 	let { data } = $props<{ data: PageData }>();
 
-	const initialRole = data.role?.trim() ?? '';
-	const initialCompany = data.company?.trim() ?? '';
+	const initialEndGoal = data.endGoal?.trim() ?? '';
 
-	let role = $state(initialRole);
-	let company = $state(initialCompany);
-	let showGoalModal = $state(!initialRole);
+	let endGoal = $state(initialEndGoal);
+	let showGoalModal = $state(!initialEndGoal);
 
 	let tasks = $state<Task[]>([]);
 	let activeTaskId = $state<string | null>(null);
@@ -74,8 +72,7 @@
 		draftTask = null;
 
 		const payload: Record<string, unknown> = {
-			endGoal,
-			currentSkillLevel
+			endGoal
 		};
 
 		if (previousTask) {

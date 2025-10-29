@@ -11,7 +11,6 @@ type PreviousTask = { title?: string; description?: string; outcome?: string; };
 
 type TaskPayload = {
 	endGoal: string;
-	currentSkillLevel: string;
 	previousTask?: PreviousTask;
 };
 
@@ -55,21 +54,16 @@ const SYSTEM_INSTRUCTIONS =
 	'You are an expert mentor who designs concise 30-minute skill-building tasks that help the user reach their goal.';
 
 
-function buildPrompt({ endGoal, currentSkillLevel, previousTask }: TaskPayload) {
+function buildPrompt({ endGoal, previousTask }: TaskPayload) {
 	const trimmedGoal = endGoal.trim();
-	const trimmedLevel = currentSkillLevel.trim();
 
 	const sections: string[] = [
 		`Candidate end goal:\n${trimmedGoal || 'Not provided. Infer a reasonable professional goal.'}`
 	];
 
-	if (trimmedLevel) {
-		sections.push(`Current skill level summary:\n${trimmedLevel}`);
-	} else {
-		sections.push(
-			'Current skill level summary:\nNot provided. Assume the candidate has intermediate competency with notable gaps.'
-		);
-	}
+	sections.push(
+		'Current skill level summary:\nNot provided. Assume the candidate has intermediate competency with notable gaps.'
+	);
 
 	if (previousTask) {
 		const { title, description, outcome } = previousTask;
@@ -117,8 +111,8 @@ function createOpenAI() {
 /* -------------------------------
    Incremental JSON extractor
    Emits:
-     {t:'section', k:'title'|'description'|'outcome', phase:'start'|'end'}
-     {t:'kv', k:'title'|'description'|'outcome', v:'…'}
+	 {t:'section', k:'title'|'description'|'outcome', phase:'start'|'end'}
+	 {t:'kv', k:'title'|'description'|'outcome', v:'…'}
 -------------------------------- */
 type Key = 'title' | 'description' | 'outcome';
 
@@ -194,8 +188,6 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const endGoal = typeof payload.endGoal === 'string' ? payload.endGoal.trim() : '';
-	const currentSkillLevel =
-		typeof payload.currentSkillLevel === 'string' ? payload.currentSkillLevel.trim() : '';
 	const previousTaskRaw = payload.previousTask;
 
 	let previousTask: PreviousTask | undefined;
@@ -238,7 +230,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	const prompt = buildPrompt({ endGoal, currentSkillLevel, previousTask });
+	const prompt = buildPrompt({ endGoal, previousTask });
 
 	const upstream = await client.responses.create({
 		model: 'gpt-5-nano-2025-08-07',
