@@ -7,12 +7,12 @@ import type { RequestHandler } from './$types';
 /* -------------------------------
    Types / Guards / Constants
 -------------------------------- */
-type PreviousDeliverable = { title?: string; description?: string; outcome?: string; };
+type PreviousTask = { title?: string; description?: string; outcome?: string; };
 
 type TaskPayload = {
 	endGoal: string;
 	currentSkillLevel: string;
-	previousDeliverable?: PreviousDeliverable;
+	previousTask?: PreviousTask;
 };
 
 type DailyTask = { title: string; description: string; outcome: string; };
@@ -55,7 +55,7 @@ const SYSTEM_INSTRUCTIONS =
 	'You are an expert mentor who designs concise 30-minute skill-building tasks that help the user reach their goal.';
 
 
-function buildPrompt({ endGoal, currentSkillLevel, previousDeliverable }: TaskPayload) {
+function buildPrompt({ endGoal, currentSkillLevel, previousTask }: TaskPayload) {
 	const trimmedGoal = endGoal.trim();
 	const trimmedLevel = currentSkillLevel.trim();
 
@@ -71,14 +71,14 @@ function buildPrompt({ endGoal, currentSkillLevel, previousDeliverable }: TaskPa
 		);
 	}
 
-	if (previousDeliverable) {
-		const { title, description, outcome } = previousDeliverable;
+	if (previousTask) {
+		const { title, description, outcome } = previousTask;
 		const parts = [
 			title ? `Title: ${title}` : null,
 			description ? `Description: ${description}` : null,
 			outcome ? `Outcome: ${outcome}` : null
 		].filter(Boolean);
-		if (parts.length > 0) sections.push(`Previous deliverable details:\n${parts.join('\n')}`);
+		if (parts.length > 0) sections.push(`Previous task details:\n${parts.join('\n')}`);
 	}
 
 	const baseRequirements = [
@@ -88,9 +88,9 @@ function buildPrompt({ endGoal, currentSkillLevel, previousDeliverable }: TaskPa
 		'- Focus on actionable steps that generate an artifact or practice outcome by the end of the session.',
 		'- Assume the user works individually with common online tools available.'
 	];
-	if (previousDeliverable) {
+	if (previousTask) {
 		baseRequirements.push(
-			'- Today’s task must be distinct from the previous deliverable, slightly more challenging, and introduce at least one new micro-skill that advances the user toward the end goal.'
+			'- Today’s task must be distinct from the previous task, slightly more challenging, and introduce at least one new micro-skill that advances the user toward the end goal.'
 		);
 	}
 	sections.push(baseRequirements.join('\n'));
@@ -196,11 +196,11 @@ export const POST: RequestHandler = async ({ request }) => {
 	const endGoal = typeof payload.endGoal === 'string' ? payload.endGoal.trim() : '';
 	const currentSkillLevel =
 		typeof payload.currentSkillLevel === 'string' ? payload.currentSkillLevel.trim() : '';
-	const previousDeliverableRaw = payload.previousDeliverable;
+	const previousTaskRaw = payload.previousTask;
 
-	let previousDeliverable: PreviousDeliverable | undefined;
-	if (previousDeliverableRaw && typeof previousDeliverableRaw === 'object') {
-		const candidate = previousDeliverableRaw as Record<string, unknown>;
+	let previousTask: PreviousTask | undefined;
+	if (previousTaskRaw && typeof previousTaskRaw === 'object') {
+		const candidate = previousTaskRaw as Record<string, unknown>;
 		const title =
 			typeof candidate.title === 'string' && candidate.title.trim() ? candidate.title.trim() : undefined;
 		const description =
@@ -211,7 +211,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			typeof candidate.outcome === 'string' && candidate.outcome.trim()
 				? candidate.outcome.trim()
 				: undefined;
-		if (title || description || outcome) previousDeliverable = { title, description, outcome };
+		if (title || description || outcome) previousTask = { title, description, outcome };
 	}
 
 	if (!endGoal) throw error(400, 'Provide an end goal to generate a task');
@@ -238,7 +238,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	const prompt = buildPrompt({ endGoal, currentSkillLevel, previousDeliverable });
+	const prompt = buildPrompt({ endGoal, currentSkillLevel, previousTask });
 
 	const upstream = await client.responses.create({
 		model: 'gpt-5-nano-2025-08-07',
