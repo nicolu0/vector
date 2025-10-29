@@ -1,16 +1,18 @@
 <script lang="ts">
-	import TaskView from '$lib/components/TaskView.svelte';
-	import TaskList from '$lib/components/TaskList.svelte';
-	import GoalSetupModal from '$lib/components/GoalSetupModal.svelte';
+import TaskView from '$lib/components/TaskView.svelte';
+import TaskList from '$lib/components/TaskList.svelte';
+import OnboardingModal from '$lib/components/OnboardingModal.svelte';
 	import { onDestroy } from 'svelte';
-	import type { PageData } from './$types';
+import type { PageData } from './$types';
 
-	type Task = {
-		id: string;
-		title: string;
-		description: string;
-		outcome: string;
-	};
+type Task = {
+	id: string;
+	title: string;
+	description: string;
+	outcome: string;
+};
+
+type TaskDetails = Omit<Task, 'id'>;
 
 	let { data } = $props<{ data: PageData }>();
 
@@ -21,12 +23,13 @@
 	let currentSkillLevel = $state(initialCurrentSkillLevel);
 	let showGoalModal = $state(!(initialEndGoal && initialCurrentSkillLevel));
 
-	let tasks = $state<Task[]>([]);
-	let activeTaskId = $state<string | null>(null);
-	let loading = $state(false);
-	let errorMessage = $state('');
-	let draftTask = $state<{ title: string; description: string; outcome: string } | null>(null);
-	let abortController: AbortController | null = null;
+let tasks = $state<Task[]>([]);
+let activeTaskId = $state<string | null>(null);
+let loading = $state(false);
+let errorMessage = $state('');
+let draftTask = $state<TaskDetails | null>(null);
+let abortController: AbortController | null = null;
+let pendingTaskId = $state<string | null>(null);
 
 	onDestroy(() => {
 		abortController?.abort();
@@ -36,11 +39,19 @@
 		activeTaskId = taskId;
 	}
 
-	function handleGoalSubmit(payload: { endGoal: string; currentSkillLevel: string }) {
-		endGoal = payload.endGoal;
-		currentSkillLevel = payload.currentSkillLevel;
-		showGoalModal = false;
+function handleGoalSubmit(payload: { endGoal: string; currentSkillLevel: string }) {
+	endGoal = payload.endGoal;
+	currentSkillLevel = payload.currentSkillLevel;
+	showGoalModal = false;
+
+	if (!loading && tasks.length === 0) {
+		Promise.resolve().then(() => {
+			if (tasks.length === 0 && !loading) {
+				generateNewTask().catch((err) => console.error('Failed to generate task:', err));
+			}
+		});
 	}
+}
 
 	function handleModalClose() {
 		if (endGoal.trim() && currentSkillLevel.trim()) {
@@ -54,25 +65,25 @@
 
 	const previousTask = $derived(tasks.length > 0 ? tasks[tasks.length - 1] : null);
 
-	async function generateNewTask() {
-		if (!endGoal.trim()) {
-			errorMessage = 'Please describe the end goal before generating a task.';
-			return;
-		}
+async function generateNewTask() {
+	if (!endGoal.trim()) {
+		errorMessage = 'Please describe the end goal before generating a task.';
+		return;
+	}
 
 		if (abortController) {
 			abortController.abort();
 			abortController = null;
 		}
 
-		loading = true;
-		errorMessage = '';
-		draftTask = { title: '', description: '', outcome: '' };
+	loading = true;
+	errorMessage = '';
+	draftTask = null;
 
-		const payload: Record<string, unknown> = {
-			endGoal,
-			currentSkillLevel
-		};
+	const payload: Record<string, unknown> = {
+		endGoal,
+		currentSkillLevel
+	};
 
 		if (previousTask) {
 			payload.previousTask = {
@@ -82,11 +93,39 @@
 			};
 		}
 
-		let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-		let streamBuffer = '';
+	let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+	let streamBuffer = '';
+	let liveDraft: TaskDetails = {
+		title: 'Creating new task...',
+		description: '',
+		outcome: ''
+	};
 
-		try {
-			abortController = new AbortController();
+		const pendingId =
+		typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+			? crypto.randomUUID()
+			: `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+		const placeholder: Task = {
+			id: pendingId,
+			title: liveDraft.title,
+			description: '',
+			outcome: ''
+		};
+
+	tasks = [...tasks, placeholder];
+	activeTaskId = pendingId;
+	pendingTaskId = pendingId;
+
+		const updatePendingTask = (update: Partial<TaskDetails>) => {
+		if (!pendingTaskId) return;
+		tasks = tasks.map((task) =>
+			task.id === pendingTaskId ? { ...task, ...update } : task
+		);
+	};
+
+	try {
+		abortController = new AbortController();
 
 			const response = await fetch('/api/generate-task', {
 				method: 'POST',
@@ -131,18 +170,33 @@
 
 							switch (message.t) {
 								case 'kv': {
-									const base = draftTask ?? { title: '', description: '', outcome: '' };
-									let next = base;
-
 									if (message.k === 'title') {
-										next = { ...base, title: String(message.v ?? '') };
+							const nextTitle = String(message.v ?? '').trim();
+							liveDraft = {
+								...liveDraft,
+								title: nextTitle || 'Creating new task...'
+							};
+										updatePendingTask({ title: liveDraft.title });
 									} else if (message.k === 'description') {
-										next = { ...base, description: String(message.v ?? '') };
+										liveDraft = {
+											...liveDraft,
+											description: String(message.v ?? '')
+										};
+										updatePendingTask({ description: liveDraft.description });
+										if (liveDraft.description.trim().length > 0) {
+											draftTask = { ...liveDraft };
+										}
 									} else if (message.k === 'outcome') {
-										next = { ...base, outcome: String(message.v ?? '') };
+										liveDraft = {
+											...liveDraft,
+											outcome: String(message.v ?? '')
+										};
+										updatePendingTask({ outcome: liveDraft.outcome });
+										if (liveDraft.description.trim().length > 0) {
+											draftTask = { ...liveDraft };
+										}
 									}
 
-									draftTask = next;
 									break;
 								}
 								case 'warn':
@@ -156,21 +210,18 @@
 										| { title?: string; description?: string; outcome?: string }
 										| undefined;
 									if (value && value.title && value.description && value.outcome) {
-										const id =
-											typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-												? crypto.randomUUID()
-												: `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-										const nextTask: Task = {
-											id,
+										const finalized: TaskDetails = {
 											title: value.title,
 											description: value.description,
 											outcome: value.outcome
 										};
 
-										tasks = [...tasks, nextTask];
-										activeTaskId = nextTask.id;
-										draftTask = null;
+										tasks = tasks.map((task) =>
+											task.id === pendingId ? { ...task, ...finalized } : task
+										);
+										draftTask = { ...finalized };
+										liveDraft = { ...finalized };
+										pendingTaskId = null;
 									}
 									break;
 								}
@@ -187,36 +238,45 @@
 					newlineIndex = streamBuffer.indexOf('\n');
 				}
 			}
-		} catch (err) {
-			if ((err as Error).name === 'AbortError') {
-				errorMessage = 'Task generation was cancelled.';
-			} else {
-				console.error(err);
+	} catch (err) {
+		if ((err as Error).name === 'AbortError') {
+			errorMessage = 'Task generation was cancelled.';
+		} else {
+			console.error(err);
 				errorMessage =
 					err instanceof Error ? err.message : 'Unexpected error while generating the task.';
 			}
-		} finally {
-			if (reader) {
-				try {
-					await reader.cancel();
-				} catch {
-					// ignore
-				}
-				try {
-					reader.releaseLock();
-				} catch {
-					// ignore
-				}
+	} finally {
+		if (reader) {
+			try {
+				await reader.cancel();
+			} catch {
+				// ignore
 			}
-
-			loading = false;
-			abortController = null;
+			try {
+				reader.releaseLock();
+			} catch {
+				// ignore
+			}
 		}
+
+		if (pendingTaskId) {
+			// Generation didn't finish — clean up placeholder
+			tasks = tasks.filter((task) => task.id !== pendingTaskId);
+			if (activeTaskId === pendingTaskId) {
+				activeTaskId = tasks.length ? tasks[tasks.length - 1].id : null;
+			}
+			pendingTaskId = null;
+		}
+
+		draftTask = null;
+		loading = false;
+		abortController = null;
 	}
+}
 </script>
 
 <div class="grid h-full w-full gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-	<div class="flex w-full flex-col gap-6">
 		<TaskList
 			{tasks}
 			{activeTaskId}
@@ -224,7 +284,6 @@
 			onCreateTask={generateNewTask}
 			creating={loading}
 		/>
-	</div>
 
 	<TaskView
 		task={selectedTask ?? undefined}
@@ -234,7 +293,7 @@
 	/>
 </div>
 
-<GoalSetupModal
+<OnboardingModal
 	open={showGoalModal}
 	initialEndGoal={endGoal}
 	initialCurrentSkillLevel={currentSkillLevel}

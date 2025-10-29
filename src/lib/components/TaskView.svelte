@@ -5,21 +5,23 @@
 		outcome: string;
 	};
 
-	interface Props {
-		task?: TaskSnapshot | null;
-		draftTask?: TaskSnapshot | null;
-		loading?: boolean;
-		errorMessage?: string;
-	}
+interface Props {
+	task?: TaskSnapshot | null;
+	draftTask?: TaskSnapshot | null;
+	loading?: boolean;
+	errorMessage?: string;
+}
 
-	let {
-		task = null,
-		draftTask = null,
-		loading = false,
-		errorMessage = ''
-	}: Props = $props();
+let {
+	task = null,
+	draftTask = null,
+	loading = false,
+	errorMessage = ''
+}: Props = $props();
 
-	const display = $derived(draftTask ?? task);
+const display = $derived(
+	draftTask ?? (task && task.description?.trim().length > 0 ? task : null)
+);
 </script>
 
 <div class="flex w-full flex-col gap-6 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
@@ -38,12 +40,12 @@
 
 	{#if loading}
 		<div class="space-y-3 rounded-lg border border-stone-200 bg-stone-50 p-4">
-			<h2 class="text-lg font-semibold text-stone-700">{display?.title || 'Drafting a new task…'}</h2>
+			<h2 class="text-lg font-semibold text-stone-700">{display?.title || 'Drafting a new task...'}</h2>
 			<p class="whitespace-pre-wrap text-sm text-stone-600">
 				{display?.description || 'Outlining the key steps for this 30-minute session.'}
 			</p>
 			<p class="text-sm font-medium text-stone-700">
-				{display?.outcome || 'Defining the outcome for today’s work…'}
+				{display?.outcome || "Defining the outcome for today's work..."}
 			</p>
 		</div>
 	{:else if display}

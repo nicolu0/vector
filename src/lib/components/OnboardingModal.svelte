@@ -37,28 +37,28 @@
 		onClose();
 	}
 
-function handleNext() {
-	if (step === 0) {
-		if (!endGoal.trim()) {
+	function handleNext() {
+		if (step === 0) {
+			if (!endGoal.trim()) {
+				touched = true;
+				return;
+			}
+			step = 1;
+			touched = false;
+			return;
+		}
+
+		if (!currentSkillLevel.trim()) {
 			touched = true;
 			return;
 		}
-		step = 1;
-		touched = false;
-		return;
-	}
 
-	if (!currentSkillLevel.trim()) {
-		touched = true;
-		return;
+		onSubmit({
+			endGoal: endGoal.trim(),
+			currentSkillLevel: currentSkillLevel.trim()
+		});
+		onClose();
 	}
-
-	onSubmit({
-		endGoal: endGoal.trim(),
-		currentSkillLevel: currentSkillLevel.trim()
-	});
-	onClose();
-}
 
 	const questions = [
 		{
@@ -115,7 +115,7 @@ function handleNext() {
 						type="button"
 						class="rounded-full p-2 text-stone-400 transition hover:bg-stone-800 hover:text-stone-100"
 						onclick={handleClose}
-						aria-label="Close goal setup"
+						aria-label="Close onboarding"
 					>
 						<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
 							<path d="M6 6l12 12M6 18L18 6" stroke-linecap="round" />

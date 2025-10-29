@@ -39,7 +39,7 @@
 			onclick={onCreateTask}
 			disabled={creating}
 		>
-			{creating ? 'Generating…' : 'Generate New Task'}
+		{creating ? 'Generating...' : 'Generate New Task'}
 		</button>
 	</div>
 
