@@ -68,7 +68,7 @@
 	<header class="space-y-4">
 		<h1 class="text-4xl font-semibold tracking-tight text-stone-900">What is your dream job?</h1>
 		<p class="text-base text-stone-600">
-			Vector generates daily tasks using job listings to make you a top candidate.
+			Vector generates daily tasks to help you build in-demand projects.
 		</p>
 	</header>
 
@@ -76,7 +76,7 @@
 		<div class="flex flex-col gap-4 bg-stone-50 md:flex-row md:items-center md:gap-3">
 			<input
 				type="text"
-				class={`w-full border-0 border-b border-stone-300 bg-transparent px-0 py-3 text-4xl text-stone-900 transition-all placeholder:text-stone-400 focus:border-stone-700 focus:ring-0 focus:outline-none ${rolePlaceholderClass}`}
+				class={`w-full border-0 bg-transparent px-0 py-3 font-mono text-4xl text-stone-900 transition-all placeholder:text-stone-400 focus:border-stone-700 focus:ring-0 focus:outline-none ${rolePlaceholderClass}`}
 				placeholder={rolePlaceholder}
 				bind:value={role}
 				onblur={() => (touchedRole = true)}
@@ -85,7 +85,7 @@
 			<span class="self-center px-2 text-4xl font-semibold text-stone-400">@</span>
 			<input
 				type="text"
-				class={`w-full border-0 border-b border-stone-300 bg-transparent px-0 py-3 text-4xl text-stone-900 transition-all placeholder:text-stone-400 focus:border-stone-700 focus:ring-0 focus:outline-none ${companyPlaceholderClass}`}
+				class={`w-full border-0 bg-transparent px-0 py-3 font-mono text-4xl text-stone-900 transition-all placeholder:text-stone-400 focus:border-stone-700 focus:ring-0 focus:outline-none ${companyPlaceholderClass}`}
 				placeholder={companyPlaceholder}
 				bind:value={company}
 				onblur={() => (touchedCompany = true)}
@@ -93,14 +93,25 @@
 		</div>
 	</div>
 
-	<footer class="mt-8 flex items-center justify-end gap-3">
+	<footer class="flex items-center justify-end">
 		<button
 			type="button"
-			class="rounded-xl bg-stone-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
 			onclick={handleSubmit}
 			disabled={!role.trim() || !company.trim()}
+			class="inline-flex h-10 w-10 items-center justify-center text-stone-700 transition hover:border-stone-500 hover:text-stone-900"
+			aria-label="Continue"
 		>
-			Save & Continue
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				class="h-4 w-4"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+			>
+				<path d="M5 12h14" stroke-linecap="round" stroke-linejoin="round" />
+				<path d="M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+			</svg>
 		</button>
 	</footer>
 </section>

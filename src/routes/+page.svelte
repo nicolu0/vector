@@ -2,7 +2,8 @@
 	import TaskView from '$lib/components/TaskView.svelte';
 	import TaskList from '$lib/components/TaskList.svelte';
 	import Onboarding from '$lib/components/Onboarding.svelte';
-	import { onDestroy } from 'svelte';
+	import { getContext } from 'svelte';
+	import { supabase } from '$lib/supabaseClient';
 	import type { PageData } from './$types';
 
 	type Task = {
@@ -10,253 +11,193 @@
 		title: string;
 		description: string;
 		outcome: string;
+		isTutorial?: boolean;
 	};
+	type TaskDetails = Omit<Task, 'id' | 'isTutorial'>;
+	type ServerUser = { id: string } | null;
 
-	type TaskDetails = Omit<Task, 'id'>;
+	let { data } = $props<{ data: PageData & { user: ServerUser; tasks: Task[] } }>();
 
-	let { data } = $props<{ data: PageData }>();
+	const serverUserId = data.user?.id ?? null;
+	const isAuthed = Boolean(serverUserId);
 
-	const initialEndGoal = data.endGoal?.trim() ?? '';
+	let endGoal = $state((data.endGoal ?? '').trim());
+	let showGoalModal = $state(!endGoal);
 
-	let endGoal = $state(initialEndGoal);
-	let showGoalModal = $state(!initialEndGoal);
+	let tasks = $state<Task[]>([...data.tasks]); // ← seeded from server (includes tutorial if needed)
+	let activeTaskId = $state(tasks.length ? tasks[0].id : null);
 
-	let tasks = $state<Task[]>([]);
-	let activeTaskId = $state<string | null>(null);
 	let loading = $state(false);
 	let errorMessage = $state('');
 	let draftTask = $state<TaskDetails | null>(null);
 	let abortController: AbortController | null = null;
-	let pendingTaskId = $state<string | null>(null);
+	let pendingTaskId: string | null = null;
+	let hasPromptedAuthAfterFirstTask = false;
 
-	onDestroy(() => {
-		abortController?.abort();
-	});
+	type AuthUI = { openAuthModal: () => void };
+	const { openAuthModal } = getContext<AuthUI>('auth-ui');
 
-	function openTaskView(taskId: string) {
-		activeTaskId = taskId;
+	function openTaskView(id: string) {
+		activeTaskId = id;
 	}
 
 	function handleGoalSubmit(payload: { endGoal: string }) {
-		endGoal = payload.endGoal;
+		endGoal = payload.endGoal.trim();
 		showGoalModal = false;
-
-		if (!loading && tasks.length === 0) {
-			Promise.resolve().then(() => {
-				if (tasks.length === 0 && !loading) {
-					generateNewTask().catch((err) => console.error('Failed to generate task:', err));
-				}
-			});
+		document.cookie = `vector_endGoal=${encodeURIComponent(endGoal)}; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`;
+		if (!loading && tasks.filter((t) => !t.isTutorial).length === 0) {
+			queueMicrotask(() => generateNewTask());
 		}
 	}
 
 	const selectedTask = $derived(
-		activeTaskId ? (tasks.find((task) => task.id === activeTaskId) ?? null) : null
+		activeTaskId ? (tasks.find((t) => t.id === activeTaskId) ?? null) : null
 	);
+	const previousTask = $derived(tasks.filter((t) => !t.isTutorial).slice(-1)[0] ?? null);
 
-	const previousTask = $derived(tasks.length > 0 ? tasks[tasks.length - 1] : null);
+	async function markTutorialDone() {
+		document.cookie = `vector_tutorial_done=1; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 365}`;
+		if (isAuthed && serverUserId) {
+			await supabase.from('users').update({ tutorial_done: true }).eq('user_id', serverUserId);
+		}
+		tasks = tasks.filter((t) => t.id !== 'tutorial');
+		if (activeTaskId === 'tutorial') activeTaskId = tasks[0]?.id ?? null;
+	}
+
+	async function promptAuthAfterFirstTaskIfNeeded() {
+		hasPromptedAuthAfterFirstTask = true;
+		if (!isAuthed) openAuthModal();
+	}
 
 	async function generateNewTask() {
+		// Anonymous users: limit to one non-tutorial task
+		const nonTutorialCount = tasks.filter((t) => !t.isTutorial).length;
+		if (!isAuthed && nonTutorialCount >= 1) {
+			errorMessage = 'Sign in to create more tasks.';
+			openAuthModal();
+			return;
+		}
+
 		if (!endGoal.trim()) {
 			errorMessage = 'Please describe the end goal before generating a task.';
 			return;
 		}
 
-		if (abortController) {
-			abortController.abort();
-			abortController = null;
-		}
-
+		abortController?.abort();
+		abortController = null;
 		loading = true;
 		errorMessage = '';
 		draftTask = null;
 
-		const payload: Record<string, unknown> = {
-			endGoal
-		};
-
-		if (previousTask) {
+		const payload: Record<string, unknown> = { endGoal };
+		if (previousTask)
 			payload.previousTask = {
 				title: previousTask.title,
 				description: previousTask.description,
 				outcome: previousTask.outcome
 			};
-		}
 
-		let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-		let streamBuffer = '';
-		let liveDraft: TaskDetails = {
+		const pendingId =
+			crypto.randomUUID?.() ?? `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+		const placeholder: Task = {
+			id: pendingId,
 			title: 'Creating new task...',
 			description: '',
 			outcome: ''
 		};
 
-		const pendingId =
-			typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-				? crypto.randomUUID()
-				: `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-		const placeholder: Task = {
-			id: pendingId,
-			title: liveDraft.title,
-			description: '',
-			outcome: ''
-		};
+		const prevActiveId = activeTaskId;
 
 		tasks = [...tasks, placeholder];
-		activeTaskId = pendingId;
 		pendingTaskId = pendingId;
 
-		const updatePendingTask = (update: Partial<TaskDetails>) => {
+		if (!prevActiveId) {
+			activeTaskId = pendingId;
+		}
+
+		const updatePending = (u: Partial<TaskDetails>) => {
 			if (!pendingTaskId) return;
-			tasks = tasks.map((task) => (task.id === pendingTaskId ? { ...task, ...update } : task));
+			tasks = tasks.map((t) => (t.id === pendingTaskId ? ({ ...t, ...u } as Task) : t));
 		};
 
+		let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+		let buf = '';
 		try {
 			abortController = new AbortController();
-
-			const response = await fetch('/api/generate-task', {
+			const res = await fetch('/api/generate-task', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload),
 				signal: abortController.signal
 			});
+			if (!res.ok) throw new Error((await res.text()) || 'Task generation failed.');
+			if (!res.body) throw new Error('Task generation failed to start.');
 
-			if (!response.ok) {
-				const fallbackText = await response.text();
-				throw new Error(fallbackText || 'Task generation request failed.');
-			}
-
-			if (!response.body) {
-				const fallbackText = await response.text();
-				throw new Error(fallbackText || 'Task generation failed to start.');
-			}
-
-			reader = response.body.getReader();
-			const decoder = new TextDecoder();
+			reader = res.body.getReader();
+			const dec = new TextDecoder();
 			let done = false;
 
 			while (!done) {
-				const { value, done: readerDone } = await reader.read();
-				if (readerDone) break;
-
-				streamBuffer += decoder.decode(value, { stream: true });
-
-				let newlineIndex = streamBuffer.indexOf('\n');
-				while (newlineIndex !== -1) {
-					const line = streamBuffer.slice(0, newlineIndex).trim();
-					streamBuffer = streamBuffer.slice(newlineIndex + 1);
-
+				const { value, done: rd } = await reader.read();
+				if (rd) break;
+				buf += dec.decode(value, { stream: true });
+				let i = buf.indexOf('\n');
+				while (i !== -1) {
+					const line = buf.slice(0, i).trim();
+					buf = buf.slice(i + 1);
 					if (line) {
-						try {
-							const message = JSON.parse(line) as {
-								t: string;
-								k?: 'title' | 'description' | 'outcome';
-								v?: unknown;
-								source?: string;
-							};
+						const msg = JSON.parse(line) as {
+							t: string;
+							k?: 'title' | 'description' | 'outcome';
+							v?: unknown;
+						};
+						if (msg.t === 'kv') {
+							if (msg.k === 'title')
+								updatePending({ title: String(msg.v ?? '').trim() || 'Creating new task...' });
+							if (msg.k === 'description') updatePending({ description: String(msg.v ?? '') });
+							if (msg.k === 'outcome') updatePending({ outcome: String(msg.v ?? '') });
+						} else if (msg.t === 'final') {
+							const v = msg.v as TaskDetails | undefined;
+							if (v?.title && v?.description && v?.outcome) {
+								// cookie for server upsert
+								document.cookie = `vector_task=${encodeURIComponent(JSON.stringify(v))}; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`;
+								tasks = tasks.map((t) => (t.id === pendingId ? { ...t, ...v } : t));
+								draftTask = { ...v };
+								pendingTaskId = null;
 
-							switch (message.t) {
-								case 'kv': {
-									if (message.k === 'title') {
-										const nextTitle = String(message.v ?? '').trim();
-										liveDraft = {
-											...liveDraft,
-											title: nextTitle || 'Creating new task...'
-										};
-										updatePendingTask({ title: liveDraft.title });
-									} else if (message.k === 'description') {
-										liveDraft = {
-											...liveDraft,
-											description: String(message.v ?? '')
-										};
-										updatePendingTask({ description: liveDraft.description });
-										if (liveDraft.description.trim().length > 0) {
-											draftTask = { ...liveDraft };
-										}
-									} else if (message.k === 'outcome') {
-										liveDraft = {
-											...liveDraft,
-											outcome: String(message.v ?? '')
-										};
-										updatePendingTask({ outcome: liveDraft.outcome });
-										if (liveDraft.description.trim().length > 0) {
-											draftTask = { ...liveDraft };
-										}
-									}
-
-									break;
+								if (
+									!hasPromptedAuthAfterFirstTask &&
+									tasks.filter((t) => !t.isTutorial).length === 1
+								) {
+									await Promise.resolve();
+									await promptAuthAfterFirstTaskIfNeeded();
 								}
-								case 'warn':
-									errorMessage = String(message.v ?? 'A warning occurred during task generation.');
-									break;
-								case 'error':
-									errorMessage = String(message.v ?? 'Task generation failed.');
-									break;
-								case 'final': {
-									const value = message.v as
-										| { title?: string; description?: string; outcome?: string }
-										| undefined;
-									if (value && value.title && value.description && value.outcome) {
-										const finalized: TaskDetails = {
-											title: value.title,
-											description: value.description,
-											outcome: value.outcome
-										};
-
-										tasks = tasks.map((task) =>
-											task.id === pendingId ? { ...task, ...finalized } : task
-										);
-										draftTask = { ...finalized };
-										liveDraft = { ...finalized };
-										pendingTaskId = null;
-									}
-									break;
-								}
-								case 'done':
-									done = true;
-									break;
 							}
-						} catch (err) {
-							console.error('Failed to parse NDJSON line', err);
+						} else if (msg.t === 'done') {
+							done = true;
 						}
 					}
-
-					if (done) break;
-					newlineIndex = streamBuffer.indexOf('\n');
+					i = buf.indexOf('\n');
 				}
 			}
-		} catch (err) {
-			if ((err as Error).name === 'AbortError') {
-				errorMessage = 'Task generation was cancelled.';
-			} else {
-				console.error(err);
-				errorMessage =
-					err instanceof Error ? err.message : 'Unexpected error while generating the task.';
-			}
+		} catch (e) {
+			errorMessage = e instanceof Error ? e.message : 'Unexpected error while generating the task.';
 		} finally {
 			if (reader) {
 				try {
 					await reader.cancel();
-				} catch {
-					// ignore
-				}
+				} catch {}
 				try {
 					reader.releaseLock();
-				} catch {
-					// ignore
-				}
+				} catch {}
 			}
-
 			if (pendingTaskId) {
-				// Generation didn't finish — clean up placeholder
-				tasks = tasks.filter((task) => task.id !== pendingTaskId);
-				if (activeTaskId === pendingTaskId) {
-					activeTaskId = tasks.length ? tasks[tasks.length - 1].id : null;
-				}
+				tasks = tasks.filter((t) => t.id !== pendingTaskId);
+				if (activeTaskId === pendingTaskId)
+					activeTaskId = tasks.find((t) => !t.isTutorial)?.id ?? tasks[0]?.id ?? null;
 				pendingTaskId = null;
 			}
-
 			draftTask = null;
 			loading = false;
 			abortController = null;
@@ -269,7 +210,7 @@
 		<Onboarding initialEndGoal={endGoal} onSubmit={handleGoalSubmit} />
 	</div>
 {:else}
-	<div class="flex h-full w-full gap-8 bg-stone-50 p-6">
+	<div class="flex h-full w-full gap-8 bg-stone-50">
 		<TaskList
 			{tasks}
 			{activeTaskId}
@@ -277,7 +218,6 @@
 			onCreateTask={generateNewTask}
 			creating={loading}
 		/>
-
 		<TaskView
 			task={selectedTask ?? undefined}
 			draftTask={draftTask ?? undefined}
