@@ -4,7 +4,7 @@ import { OPENAI_API_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
 // If your exported types are still the old schema, avoid importing them here.
 // import { isProject, type Project } from '$lib/types/project';
-import sampleProject from '$lib/mock/project.sample.json';
+// import sampleProject from '$lib/mock/project.sample.json';
 
 /* ---------- Local types for the NEW schema (decoupled from old app types) ---------- */
 
@@ -41,13 +41,13 @@ function isNewProject(x: unknown): x is NewProject {
   try {
     const p = x as NewProject;
     if (!p ||
-        typeof p.title !== 'string' ||
-        typeof p.difficulty !== 'string' ||
-        typeof p.timeline !== 'string' ||
-        typeof p.description !== 'string' ||
-        !Array.isArray(p.jobs) ||
-        !Array.isArray(p.skills) ||
-        !Array.isArray(p.metadata)) {
+      typeof p.title !== 'string' ||
+      typeof p.difficulty !== 'string' ||
+      typeof p.timeline !== 'string' ||
+      typeof p.description !== 'string' ||
+      !Array.isArray(p.jobs) ||
+      !Array.isArray(p.skills) ||
+      !Array.isArray(p.metadata)) {
       return false;
     }
 
@@ -104,7 +104,7 @@ function isNewProject(x: unknown): x is NewProject {
 }
 
 /* ---------- Fallback (ensure your sample matches NEW schema) ---------- */
-const FALLBACK_PROJECT = sampleProject as unknown as NewProject;
+// const FALLBACK_PROJECT = sampleProject as unknown as NewProject;
 
 /* ---------- JSON Schema for the NEW shape ---------- */
 const PROJECT_SCHEMA = {
@@ -212,43 +212,43 @@ const PROJECT_SCHEMA = {
 /* ---------- Prompt builder updated for NEW schema ---------- */
 
 function buildPrompt({ interests, tags }: { interests: string; tags: string[] }) {
-    const focus = (interests ?? "").trim();
-    const tagList = (tags ?? []).filter(Boolean);
-  
-    const interestSection = focus ? `Primary interests or goals:\n${focus}\n` : "";
-    const tagSection = tagList.length
-      ? `Key focus tags:\n${tagList.map((t) => `- ${t}`).join("\n")}\n`
-      : "";
-  
-    const guidance = [
-      "Generate ONE standout technical project tailored to the candidate.",
-      "Quality bars: concrete deliverables, measurable outcomes, and realistic tools/datasets."
-    ].join(" ");
-  
-    // Updated rules aligned to PROJECT_SCHEMA (project_brief_v2)
-    const rules = [
-      "Title: ≤7 words, descriptive technical terms only. Allowed chars: letters, numbers, +, -, spaces.",
-      'Difficulty: exactly one of: "Easy", "Medium", "Hard", "Expert".',
-      'Timeline: short estimate like "1-2 weeks" (weeks or months only). Pattern: `[0-9]+(-[0-9]+)? (week|weeks|month|months)`.',
-      "Description: concise high-level overview (3-5 sentences) that does NOT mention timeframes or duration.",
-      "Jobs: array of 1-6 realistic job titles with best-guess URLs (objects with { title, url }).",
-      "Skills: array of 3-12 specific technical concepts (1-5 words each). Include tech stack items (e.g., \"C++\", \"Regex\", \"BPE\").",
-      "Metadata: an ARRAY of sections (1-20). Each section MUST include:",
-      "  - name (string) and overview (paragraph).",
-      "  - deliverables: array of 0-40 items; EACH item is an object with:",
-      "      { task, spec, implementation, code }",
-      "      • task: string",
-      "      • spec: string",
-      "      • implementation: string[] of concrete steps",
-      "      • code: STRING containing code (no markdown fences).",
-      "  - learning_materials: array of 0-40 items; EACH item is an object { title, body }.",
-      "No extra keys beyond the schema (no prerequisites, no milestones, no notes).",
-      "Output strictly valid JSON per the schema. No markdown, no comments, no explanations."
+  const focus = (interests ?? "").trim();
+  const tagList = (tags ?? []).filter(Boolean);
+
+  const interestSection = focus ? `Primary interests or goals:\n${focus}\n` : "";
+  const tagSection = tagList.length
+    ? `Key focus tags:\n${tagList.map((t) => `- ${t}`).join("\n")}\n`
+    : "";
+
+  const guidance = [
+    "Generate ONE standout technical project tailored to the candidate.",
+    "Quality bars: concrete deliverables, measurable outcomes, and realistic tools/datasets."
+  ].join(" ");
+
+  // Updated rules aligned to PROJECT_SCHEMA (project_brief_v2)
+  const rules = [
+    "Title: ≤7 words, descriptive technical terms only. Allowed chars: letters, numbers, +, -, spaces.",
+    'Difficulty: exactly one of: "Easy", "Medium", "Hard", "Expert".',
+    'Timeline: short estimate like "1-2 weeks" (weeks or months only). Pattern: `[0-9]+(-[0-9]+)? (week|weeks|month|months)`.',
+    "Description: concise high-level overview (3-5 sentences) that does NOT mention timeframes or duration.",
+    "Jobs: array of 1-6 realistic job titles with best-guess URLs (objects with { title, url }).",
+    "Skills: array of 3-12 specific technical concepts (1-5 words each). Include tech stack items (e.g., \"C++\", \"Regex\", \"BPE\").",
+    "Metadata: an ARRAY of sections (1-20). Each section MUST include:",
+    "  - name (string) and overview (paragraph).",
+    "  - deliverables: array of 0-40 items; EACH item is an object with:",
+    "      { task, spec, implementation, code }",
+    "      • task: string",
+    "      • spec: string",
+    "      • implementation: string[] of concrete steps",
+    "      • code: STRING containing code (no markdown fences).",
+    "  - learning_materials: array of 0-40 items; EACH item is an object { title, body }.",
+    "No extra keys beyond the schema (no prerequisites, no milestones, no notes).",
+    "Output strictly valid JSON per the schema. No markdown, no comments, no explanations."
 
 
-    ].join("\n- ");
+  ].join("\n- ");
 
-    const example = `
+  const example = `
 Example (schema-compliant JSON; your output must be JSON only, no markdown). The example only shows one project section, but you should generate a full project with multiple sections:
 
 {
@@ -316,10 +316,10 @@ Example (schema-compliant JSON; your output must be JSON only, no markdown). The
   ]
 }
 `.trim();
-  
-    return [guidance, interestSection, tagSection, "Follow these additional rules:", `- ${rules}`, "Follow this example:", `- ${example}`]
-      .filter(Boolean)
-      .join("\n\n");
+
+  return [guidance, interestSection, tagSection, "Follow these additional rules:", `- ${rules}`, "Follow this example:", `- ${example}`]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 
@@ -335,7 +335,7 @@ function createOpenAI() {
 
 async function generateProjectWithOpenAI(input: { interests: string; tags: string[] }) {
   // TEMP: short-circuit for local dev. Ensure FALLBACK_PROJECT matches the NEW schema.
-//   return { project: FALLBACK_PROJECT, source: 'generated' as const, errorMessage: null };
+  //   return { project: FALLBACK_PROJECT, source: 'generated' as const, errorMessage: null };
 
   const client = createOpenAI();
   if (!client) {
@@ -372,7 +372,7 @@ async function generateProjectWithOpenAI(input: { interests: string; tags: strin
   } catch (err) {
     console.error(err);
     const message = err instanceof Error ? err.message : 'Unknown error';
-    return { project: FALLBACK_PROJECT, source: 'fallback' as const, errorMessage: message };
+    // return { project: FALLBACK_PROJECT, source: 'fallback' as const, errorMessage: message };
   }
 }
 
@@ -397,7 +397,7 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 
   const { project, source, errorMessage } = await generateProjectWithOpenAI({ interests, tags });
-//   console.log(`Project generation result: ${JSON.stringify({ project, source, errorMessage })}`);
+  //   console.log(`Project generation result: ${JSON.stringify({ project, source, errorMessage })}`);
 
   const headers: Record<string, string> = { 'x-vector-project-source': source };
   if (source === 'fallback' && errorMessage) {
