@@ -1,7 +1,7 @@
 <script lang="ts">
-	import TaskView from '$lib/components/TaskView.svelte';
-	import TaskList from '$lib/components/TaskList.svelte';
-	import Onboarding from '$lib/components/Onboarding.svelte';
+	import TaskView from '$lib/components/lg/TaskView.svelte';
+	import TaskList from '$lib/components/lg/TaskList.svelte';
+	import Onboarding from '$lib/components/lg/Onboarding.svelte';
 	import { getContext } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import type { PageData } from './$types';
