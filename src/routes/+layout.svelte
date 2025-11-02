@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import { fade, blur, slide, scale } from 'svelte/transition';
+	import { fade, scale } from 'svelte/transition';
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import '../app.css';
@@ -9,25 +9,22 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { setContext } from 'svelte';
 
-	type AuthUI = {
-		openAuthModal: () => void;
-	};
-	type OnboardingUI = {
-		openOnboarding: () => void;
-	};
-	type AuthStateUI = {
-		resetUserState: () => void;
-	};
+	/* ---------- Props (Svelte 5) ---------- */
+	type ServerUser = { id: string } | null;
+	let { children, data } = $props<{ children: any; data: { user: ServerUser } }>();
 
-	let { children } = $props();
+	/* ---------- Context types ---------- */
+	type AuthUI = { openAuthModal: () => void };
+	type OnboardingUI = { openOnboarding: () => void };
+	type AuthStateUI = { resetUserState: () => void };
 
-	let userExists = $state(false);
-	let credits: number | null = $state(null);
-
+	/* ---------- Auth / UI state ---------- */
+	let userExists = $state(Boolean(data?.user));
 	let showAuthModal = $state(false);
 	let authLoading = $state(false);
 	let authError: string | null = $state(null);
 
+	/* ---------- Onboarding state ---------- */
 	type OnboardingAnswers = {
 		education: 'high_school' | 'college' | null;
 		goal: 'full_time' | 'internship' | 'explore' | null;
@@ -42,36 +39,21 @@
 		goal: null,
 		project: null
 	});
+
 	function resetUserState() {
 		userExists = false;
-		credits = null;
 		showOnboarding = false;
-		onboardingAnswers = {
-			education: null,
-			goal: null,
-			project: null
-		};
+		onboardingAnswers = { education: null, goal: null, project: null };
 	}
 
-	async function fetchCredits(userId: string) {
-		const { data, error } = await supabase
-			.from('users')
-			.select('credits')
-			.eq('user_id', userId)
-			.maybeSingle();
-		if (!error && data && typeof data.credits === 'number') {
-			credits = data.credits;
-		} else {
-			credits = null;
-		}
-	}
-
+	/* ---------- DB helpers (client) ---------- */
 	async function fetchOnboardingFromDB(userId: string) {
 		const { data, error } = await supabase
 			.from('users')
 			.select('edu_level, goal, project_type')
 			.eq('user_id', userId)
 			.maybeSingle();
+
 		if (error) throw error;
 
 		const education =
@@ -86,9 +68,10 @@
 				: null;
 
 		onboardingAnswers = { education, goal, project };
-		showOnboarding = !education || !goal || !project; // mounts -> transitions run
+		showOnboarding = !education || !goal || !project;
 	}
 
+	/* ---------- Auth modal controls ---------- */
 	function openOnboarding() {
 		showOnboarding = true;
 	}
@@ -102,19 +85,18 @@
 		authError = null;
 	}
 
+	/* ---------- Initial hydrate: use server user only ---------- */
 	onMount(() => {
-		(async () => {
-			const {
-				data: { user }
-			} = await supabase.auth.getUser();
-			userExists = Boolean(user);
-			if (user) {
-				await fetchCredits(user.id);
-				await fetchOnboardingFromDB(user.id);
-			}
-		})();
+		userExists = Boolean(data?.user);
+		if (data?.user?.id) {
+			// Optionally load onboarding fields for UX gating
+			fetchOnboardingFromDB(data.user.id).catch((e) => {
+				console.error('fetchOnboardingFromDB failed:', e);
+			});
+		}
 	});
 
+	/* ---------- Persist onboarding answers ---------- */
 	async function handleOnboardingSubmit(answers: {
 		education: 'high_school' | 'college';
 		goal: 'full_time' | 'internship' | 'explore';
@@ -125,18 +107,15 @@
 		onboardingSubmitting = true;
 
 		try {
-			const {
-				data: { user },
-				error: uerr
-			} = await supabase.auth.getUser();
-			if (uerr) throw uerr;
-			if (!user) throw new Error('Not signed in');
+			// We already trust server-auth; but we still need the userid for writes.
+			const uid = data?.user?.id;
+			if (!uid) throw new Error('Not signed in');
 
 			const { error } = await supabase
 				.from('users')
 				.upsert(
 					{
-						user_id: user.id,
+						user_id: uid,
 						edu_level: answers.education,
 						goal: answers.goal,
 						project_type: answers.project
@@ -147,10 +126,8 @@
 
 			if (error) throw error;
 
-			await fetchOnboardingFromDB(user.id);
-			if (!showOnboarding) {
-				onboardingError = null;
-			}
+			await fetchOnboardingFromDB(uid);
+			if (!showOnboarding) onboardingError = null;
 		} catch (err) {
 			onboardingError =
 				err instanceof Error ? err.message : 'Unable to save your onboarding answers.';
@@ -159,17 +136,18 @@
 		}
 	}
 
+	/* ---------- Google sign-in ---------- */
 	async function signInWithGoogle() {
 		if (authLoading) return;
 		authLoading = true;
 		authError = null;
 
 		try {
-			const redirectTo = browser ? `${window.location.origin}/profile` : undefined;
+			const redirectTo = browser ? `${window.location.origin}/` : undefined;
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider: 'google',
 				options: {
-					redirectTo: redirectTo,
+					redirectTo,
 					queryParams: { prompt: 'select_account' }
 				}
 			});
@@ -179,6 +157,8 @@
 			authLoading = false;
 		}
 	}
+
+	/* ---------- Provide contexts ---------- */
 	const authApi: AuthUI = { openAuthModal };
 	setContext('auth-ui', authApi);
 	const onboardingApi: OnboardingUI = { openOnboarding };
@@ -202,26 +182,19 @@
 
 		<div class="flex items-center gap-4">
 			{#if userExists}
-				<span class="text-xs text-stone-600">{credits ?? 0} credits</span>
-				<button
-					onclick={() => goto('/dashboard')}
-					class="rounded-md py-1 text-xs text-stone-700 hover:text-stone-500">Dashboard</button
-				>
 				<button
 					onclick={() => goto('/profile')}
 					class="rounded-md py-1 text-xs font-medium text-stone-700 hover:text-stone-500"
-					>Profile</button
 				>
+					Profile
+				</button>
 			{:else}
-				<button class="rounded-md py-1 text-xs text-stone-700 hover:text-stone-500">Pricing</button>
-				<button class="rounded-md py-1 text-xs text-stone-700 hover:text-stone-500"
-					>How it works</button
-				>
 				<button
 					onclick={() => openAuthModal()}
 					class="rounded-md bg-stone-800 px-3 py-1 text-xs font-medium text-stone-50 hover:bg-stone-600"
-					>Sign in</button
 				>
+					Sign in
+				</button>
 			{/if}
 		</div>
 	</header>
@@ -270,7 +243,7 @@
 				</div>
 
 				<p class="mt-2 text-xs text-stone-500">
-					Create an account to save projects and receive detailed guidance.
+					Save your profile and current task. Track your progress and generate new tasks daily.
 				</p>
 
 				<button
@@ -296,7 +269,8 @@
 							fill="#EA4335"
 							d="M12.24 4.754c2.154 0 3.605.93 4.434 1.707l3.237-3.16C17.92 1.24 15.336 0 12.24 0 7.245 0 2.97 2.17 1.27 7.173l3.426 2.707c.918-2.796 3.495-5.126 7.544-5.126"
 						/>
-					</svg> <span>{authLoading ? 'Redirecting…' : 'Continue with Google'}</span>
+					</svg>
+					<span>{authLoading ? 'Redirecting…' : 'Continue with Google'}</span>
 				</button>
 
 				{#if authError}
