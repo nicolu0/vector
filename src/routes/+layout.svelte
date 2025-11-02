@@ -46,6 +46,15 @@
 		onboardingAnswers = { education: null, goal: null, project: null };
 	}
 
+	/* ---------- Sidebar ---------- */
+	let sidebarCollapsed = $state(false);
+	const EXPANDED_WIDTH = 250;
+	const COLLAPSED_WIDTH = 60;
+
+	function toggleSidebar() {
+		sidebarCollapsed = !sidebarCollapsed;
+	}
+
 	/* ---------- DB helpers (client) ---------- */
 	async function fetchOnboardingFromDB(userId: string) {
 		const { data, error } = await supabase
@@ -85,18 +94,17 @@
 		authError = null;
 	}
 
-	/* ---------- Initial hydrate: use server user only ---------- */
+	/* ---------- Initial hydrate ---------- */
 	onMount(() => {
 		userExists = Boolean(data?.user);
 		if (data?.user?.id) {
-			// Optionally load onboarding fields for UX gating
 			fetchOnboardingFromDB(data.user.id).catch((e) => {
 				console.error('fetchOnboardingFromDB failed:', e);
 			});
 		}
 	});
 
-	/* ---------- Persist onboarding answers ---------- */
+	/* ---------- Persist onboarding ---------- */
 	async function handleOnboardingSubmit(answers: {
 		education: 'high_school' | 'college';
 		goal: 'full_time' | 'internship' | 'explore';
@@ -107,7 +115,6 @@
 		onboardingSubmitting = true;
 
 		try {
-			// We already trust server-auth; but we still need the userid for writes.
 			const uid = data?.user?.id;
 			if (!uid) throw new Error('Not signed in');
 
@@ -158,7 +165,6 @@
 		}
 	}
 
-	/* ---------- Provide contexts ---------- */
 	const authApi: AuthUI = { openAuthModal };
 	setContext('auth-ui', authApi);
 	const onboardingApi: OnboardingUI = { openOnboarding };
@@ -171,37 +177,54 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="flex h-dvh flex-col overflow-hidden">
-	<header
-		class="sticky top-0 z-[70] flex w-full items-center justify-between border border-b-1 border-stone-200 bg-stone-50 px-6 py-4"
+<div class="flex h-dvh bg-white text-stone-900">
+	<aside
+		class="relative flex h-full flex-col justify-between border-r border-stone-200 bg-stone-50/90 backdrop-blur-sm transition-[width] duration-200 ease-out"
+		style={`width: ${sidebarCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px;`}
 	>
-		<button class="flex items-center gap-2" onclick={() => goto('/')}>
-			<img src={vectorUrl} alt="vector" class="h-4 w-4" />
-			<span class="font-mono tracking-tight">vector</span>
-		</button>
+		<div class="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
+			<button class="flex items-center gap-2" onclick={() => goto('/')} aria-label="Go to home">
+				<img src={vectorUrl} alt="vector" class="h-5 w-5" />
+			</button>
 
-		<div class="flex items-center gap-4">
-			{#if userExists}
-				<button
-					onclick={() => goto('/profile')}
-					class="rounded-md py-1 text-xs font-medium text-stone-700 hover:text-stone-500"
+			<button
+				type="button"
+				onclick={toggleSidebar}
+				class="inline-flex h-6 w-6 items-center justify-center rounded-md text-stone-500 hover:bg-stone-200 hover:text-stone-900"
+				aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+			>
+				<svg
+					viewBox="0 0 24 24"
+					class="h-5 w-5"
+					stroke="currentColor"
+					fill="none"
+					stroke-width="1.8"
 				>
-					Profile
-				</button>
-			{:else}
-				<button
-					onclick={() => openAuthModal()}
-					class="rounded-md bg-stone-800 px-3 py-1 text-xs font-medium text-stone-50 hover:bg-stone-600"
-				>
-					Sign in
-				</button>
-			{/if}
+					<path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+				</svg>
+			</button>
 		</div>
-	</header>
 
-	<main id="app-main" class="overflow-clipped min-h-0 flex-1">
-		{@render children()}
-	</main>
+		<div class="border-t border-stone-200 px-2 py-3">
+			<button
+				type="button"
+				class="flex w-full items-center gap-2 rounded-lg px-2 py-2 hover:bg-stone-200/70"
+			>
+				<div class="h-7 w-7 rounded-full bg-stone-300"></div>
+				{#if !sidebarCollapsed}
+					<div class="flex flex-col">
+						<span class="text-sm font-medium">Andrew Chang</span>
+					</div>
+				{/if}
+			</button>
+		</div>
+	</aside>
+
+	<div class="flex min-w-0 flex-1 flex-col">
+		<main id="app-main" class="min-h-0 flex-1 overflow-hidden bg-white">
+			{@render children()}
+		</main>
+	</div>
 
 	{#if showAuthModal}
 		<div
@@ -280,3 +303,10 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	aside nav::-webkit-scrollbar {
+		width: 0;
+		height: 0;
+	}
+</style>
