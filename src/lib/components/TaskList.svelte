@@ -21,7 +21,6 @@
 	}
 
 	const isPendingTask = (taskId: string) => {
-		// assume the pending (streaming) task is the last one
 		const last = tasks[tasks.length - 1];
 		return creating && last && last.id === taskId;
 	};
@@ -59,13 +58,10 @@
 					<button
 						type="button"
 						onclick={() => handleSelect(task.id)}
-						class={`group flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition ${
-							task.id === activeTaskId ? 'bg-stone-50' : ''
-						}`}
+						class={`group flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition`}
 					>
 						<div class="flex min-w-0 items-center gap-2">
 							{#if isPendingTask(task.id)}
-								<!-- spinner -->
 								<span class="relative grid h-3 w-3 place-items-center">
 									<svg
 										class="h-3 w-3 animate-spin text-stone-500"
@@ -83,7 +79,6 @@
 									</svg>
 								</span>
 							{:else}
-								<!-- normal dot -->
 								<span
 									class={`relative grid h-3 w-3 place-items-center rounded-full border border-dashed border-stone-200 ${
 										task.id === activeTaskId ? 'border-stone-500' : ''
@@ -91,8 +86,9 @@
 								/>
 							{/if}
 
+							<!-- text -->
 							<span
-								class={`min-w-0 truncate font-mono text-xs tracking-tight ${
+								class={`max-w-[25rem] truncate font-mono text-xs tracking-tight ${
 									task.id === activeTaskId ? 'text-stone-900' : 'text-stone-700'
 								}`}
 								title={task.title}
