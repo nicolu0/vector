@@ -1,10 +1,8 @@
 <script lang="ts">
-	import TaskView from '$lib/components/lg/TaskView.svelte';
-	import TaskList from '$lib/components/lg/TaskList.svelte';
+	import { browser } from '$app/environment';
 	import Onboarding from '$lib/components/lg/Onboarding.svelte';
 	import { getContext } from 'svelte';
-	import { supabase } from '$lib/supabaseClient';
-	import type { PageData } from './$types';
+	import type { PageProps } from './$types';
 
 	type Task = {
 		id: string;
@@ -14,18 +12,46 @@
 		isTutorial?: boolean;
 	};
 	type TaskDetails = Omit<Task, 'id' | 'isTutorial'>;
-	type ServerUser = { id: string } | null;
+	const tutorialTasks: Task[] = [
+		{
+			id: 'tutorial-01',
+			title: 'What this page does',
+			description: 'Overview of TaskView + Chat + Sidebar.',
+			outcome: 'You can navigate tasks and resize panels.',
+			isTutorial: true
+		},
+		{
+			id: 'tutorial-02',
+			title: 'Create your first task',
+			description: 'Click “Generate task” to scaffold a milestone.',
+			outcome: 'You have one concrete next action.',
+			isTutorial: true
+		},
+		{
+			id: 'tutorial-03',
+			title: 'Use the Chat assistant',
+			description: 'Ask clarifying questions and request code/help.',
+			outcome: 'You know how to iterate with AI in context.',
+			isTutorial: true
+		},
+		{
+			id: 'tutorial-04',
+			title: 'Mark tutorial done',
+			description: 'Mark the tutorial complete to hide it.',
+			outcome: 'Tutorial section disappears.',
+			isTutorial: true
+		}
+	];
 
-	let { data } = $props<{ data: PageData & { user: ServerUser; tasks: Task[] } }>();
+	let { data }: PageProps = $props();
 
 	const serverUserId = data.user?.id ?? null;
 	const isAuthed = Boolean(serverUserId);
 
 	let endGoal = $state((data.endGoal ?? '').trim());
-	let showGoalModal = $state(!endGoal);
+	let showGoalModal = $derived(!endGoal);
 
-	let tasks = $state<Task[]>([...data.tasks]); // ← seeded from server (includes tutorial if needed)
-	let activeTaskId = $state(tasks.length ? tasks[0].id : null);
+	let tasks = $state<Task[]>([...data.tasks]);
 
 	let loading = $state(false);
 	let errorMessage = $state('');
@@ -37,10 +63,6 @@
 	type AuthUI = { openAuthModal: () => void };
 	const { openAuthModal } = getContext<AuthUI>('auth-ui');
 
-	function openTaskView(id: string) {
-		activeTaskId = id;
-	}
-
 	function handleGoalSubmit(payload: { endGoal: string }) {
 		endGoal = payload.endGoal.trim();
 		showGoalModal = false;
@@ -50,19 +72,17 @@
 		}
 	}
 
-	const selectedTask = $derived(
-		activeTaskId ? (tasks.find((t) => t.id === activeTaskId) ?? null) : null
-	);
-	const previousTask = $derived(tasks.filter((t) => !t.isTutorial).slice(-1)[0] ?? null);
+	const initialActiveId = tutorialTasks[0]?.id ?? tasks[0]?.id ?? null;
+	let activeTaskId = $state<string | null>(initialActiveId);
 
-	async function markTutorialDone() {
-		document.cookie = `vector_tutorial_done=1; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 365}`;
-		if (isAuthed && serverUserId) {
-			await supabase.from('users').update({ tutorial_done: true }).eq('user_id', serverUserId);
-		}
-		tasks = tasks.filter((t) => t.id !== 'tutorial');
-		if (activeTaskId === 'tutorial') activeTaskId = tasks[0]?.id ?? null;
-	}
+	const all = $derived([...tutorialTasks, ...tasks]);
+
+	// 4) selectedTask = derived from activeTaskId + all
+	const selectedTask = $derived(
+		activeTaskId ? (all.find((t) => t.id === activeTaskId) ?? null) : null
+	);
+	$inspect(selectedTask);
+	const previousTask = $derived(tasks.filter((t) => !t.isTutorial).slice(-1)[0] ?? null);
 
 	async function promptAuthAfterFirstTaskIfNeeded() {
 		hasPromptedAuthAfterFirstTask = true;
@@ -205,24 +225,12 @@
 	}
 </script>
 
-{#if showGoalModal}
-	<div class="flex h-full w-full items-center justify-center bg-stone-50 p-6">
+<div class="flex h-full w-full items-center justify-center bg-stone-50 p-6">
+	{#if serverUserId}
+		<section class="flex h-full w-full max-w-3xl flex-col justify-center space-y-10">
+			<div class="flex text-black">projects dashboard</div>
+		</section>
+	{:else}
 		<Onboarding initialEndGoal={endGoal} onSubmit={handleGoalSubmit} />
-	</div>
-{:else}
-	<div class="flex h-full w-full gap-8 bg-stone-50">
-		<TaskList
-			{tasks}
-			{activeTaskId}
-			onSelect={openTaskView}
-			onCreateTask={generateNewTask}
-			creating={loading}
-		/>
-		<TaskView
-			task={selectedTask ?? undefined}
-			draftTask={draftTask ?? undefined}
-			{loading}
-			{errorMessage}
-		/>
-	</div>
-{/if}
+	{/if}
+</div>
