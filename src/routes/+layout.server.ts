@@ -1,17 +1,12 @@
-import type { PageServerLoad } from './$types';
+import type { LayoutServerLoad } from './$types';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { redirect } from '@sveltejs/kit';
 
 type TaskDetails = { title: string; description: string; outcome: string };
-type ServerTask = TaskDetails & { id: string; isTutorial?: boolean };
+type ServerTask = TaskDetails & { id: string; };
 
-const TUTORIAL: TaskDetails = {
-	title: 'Complete Tutorial',
-	description: 'Learn the loop: set a goal → generate a task → save it. Mark this tutorial done to hide it.',
-	outcome: 'Understands goal → task → save loop.'
-};
 
-export const load: PageServerLoad = async (event) => {
+export const load: LayoutServerLoad = async (event) => {
 	const { cookies, url } = event;
 	const supabase = createSupabaseServerClient(cookies);
 
@@ -41,7 +36,6 @@ export const load: PageServerLoad = async (event) => {
 		}
 	}
 
-	const tutorialDoneCookie = cookies.get('vector_tutorial_done') === '1';
 	let tutorialDoneDB = false;
 
 	// 2) Current user (server session now present if you just returned from OAuth)
@@ -107,10 +101,6 @@ export const load: PageServerLoad = async (event) => {
 		// Anonymous: use cookie values for SSR to avoid flicker
 		if (cookieTask) tasks.push({ id: 'cookie-task', ...cookieTask });
 	}
-
-	// 4) Tutorial injection (hide only if marked done)
-	const shouldShowTutorial = !(tutorialDoneDB || tutorialDoneCookie);
-	if (shouldShowTutorial) tasks.unshift({ id: 'tutorial', isTutorial: true, ...TUTORIAL });
 
 	return {
 		user: user ? { id: user.id } : null,

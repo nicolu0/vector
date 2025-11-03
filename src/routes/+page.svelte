@@ -1,11 +1,10 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import TaskView from '$lib/components/lg/TaskView.svelte';
-	import Sidebar from '$lib/components/md/Sidebar.svelte';
-	import TaskList from '$lib/components/lg/TaskList.svelte';
+	import Chat from '$lib/components/lg/Chat.svelte';
 	import Onboarding from '$lib/components/lg/Onboarding.svelte';
 	import { getContext } from 'svelte';
-	import { supabase } from '$lib/supabaseClient';
-	import type { PageData } from './$types';
+	import type { PageProps } from './$types';
 
 	type Task = {
 		id: string;
@@ -15,18 +14,46 @@
 		isTutorial?: boolean;
 	};
 	type TaskDetails = Omit<Task, 'id' | 'isTutorial'>;
-	type ServerUser = { id: string } | null;
+	const tutorialTasks: Task[] = [
+		{
+			id: 'tutorial-01',
+			title: 'What this page does',
+			description: 'Overview of TaskView + Chat + Sidebar.',
+			outcome: 'You can navigate tasks and resize panels.',
+			isTutorial: true
+		},
+		{
+			id: 'tutorial-02',
+			title: 'Create your first task',
+			description: 'Click “Generate task” to scaffold a milestone.',
+			outcome: 'You have one concrete next action.',
+			isTutorial: true
+		},
+		{
+			id: 'tutorial-03',
+			title: 'Use the Chat assistant',
+			description: 'Ask clarifying questions and request code/help.',
+			outcome: 'You know how to iterate with AI in context.',
+			isTutorial: true
+		},
+		{
+			id: 'tutorial-04',
+			title: 'Mark tutorial done',
+			description: 'Mark the tutorial complete to hide it.',
+			outcome: 'Tutorial section disappears.',
+			isTutorial: true
+		}
+	];
 
-	let { data } = $props<{ data: PageData & { user: ServerUser; tasks: Task[] } }>();
+	let { data }: PageProps = $props();
 
 	const serverUserId = data.user?.id ?? null;
 	const isAuthed = Boolean(serverUserId);
 
 	let endGoal = $state((data.endGoal ?? '').trim());
-	let showGoalModal = $state(!endGoal);
+	let showGoalModal = $derived(!endGoal);
 
-	let tasks = $state<Task[]>([...data.tasks]); // ← seeded from server (includes tutorial if needed)
-	let activeTaskId = $state(tasks.length ? tasks[0].id : null);
+	let tasks = $state<Task[]>([...data.tasks]);
 
 	let loading = $state(false);
 	let errorMessage = $state('');
@@ -38,10 +65,6 @@
 	type AuthUI = { openAuthModal: () => void };
 	const { openAuthModal } = getContext<AuthUI>('auth-ui');
 
-	function openTaskView(id: string) {
-		activeTaskId = id;
-	}
-
 	function handleGoalSubmit(payload: { endGoal: string }) {
 		endGoal = payload.endGoal.trim();
 		showGoalModal = false;
@@ -51,19 +74,18 @@
 		}
 	}
 
-	const selectedTask = $derived(
-		activeTaskId ? (tasks.find((t) => t.id === activeTaskId) ?? null) : null
-	);
-	const previousTask = $derived(tasks.filter((t) => !t.isTutorial).slice(-1)[0] ?? null);
+	const initialActiveId = tutorialTasks[0]?.id ?? tasks[0]?.id ?? null;
+	let activeTaskId = $state<string | null>(initialActiveId);
 
-	async function markTutorialDone() {
-		document.cookie = `vector_tutorial_done=1; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 365}`;
-		if (isAuthed && serverUserId) {
-			await supabase.from('users').update({ tutorial_done: true }).eq('user_id', serverUserId);
-		}
-		tasks = tasks.filter((t) => t.id !== 'tutorial');
-		if (activeTaskId === 'tutorial') activeTaskId = tasks[0]?.id ?? null;
-	}
+	// 3) all = derived list; fine to use $derived here
+	const all = $derived([...tutorialTasks, ...tasks]);
+
+	// 4) selectedTask = derived from activeTaskId + all
+	const selectedTask = $derived(
+		activeTaskId ? (all.find((t) => t.id === activeTaskId) ?? null) : null
+	);
+	$inspect(selectedTask);
+	const previousTask = $derived(tasks.filter((t) => !t.isTutorial).slice(-1)[0] ?? null);
 
 	async function promptAuthAfterFirstTaskIfNeeded() {
 		hasPromptedAuthAfterFirstTask = true;
@@ -204,20 +226,81 @@
 			abortController = null;
 		}
 	}
+
+	let rightMin = $state(300);
+	let leftMin = $state(300);
+	let startRight = $state(200);
+
+	let splitEl: HTMLDivElement | null = null;
+	let sized = $state(false);
+	let rightWidth = $derived(startRight);
+
+	const total = () => splitEl?.getBoundingClientRect().width ?? 0;
+	const clampRight = (w: number) => {
+		const t = total();
+		if (!t) return w;
+		const maxRight = Math.max(rightMin, t - leftMin - 1);
+		return Math.min(maxRight, Math.max(rightMin, w));
+	};
+
+	// pointer-driven resize
+	let dragging = $state(false);
+	let startX = 0,
+		startW = 0;
+	function apply(dx: number) {
+		rightWidth = clampRight(startW - dx);
+	}
+
+	function onDown(e: PointerEvent) {
+		if (!sized || e.button !== 0) return;
+		e.preventDefault();
+		dragging = true;
+		startX = e.clientX;
+		startW = rightWidth;
+		document.body.classList.add('select-none', 'cursor-col-resize');
+		window.addEventListener('pointermove', onMove);
+		window.addEventListener('pointerup', onUp, { once: true });
+		window.addEventListener('pointercancel', onUp, { once: true });
+	}
+	function onMove(e: PointerEvent) {
+		if (dragging) apply(e.clientX - startX);
+	}
+	function onUp() {
+		dragging = false;
+		document.body.classList.remove('select-none', 'cursor-col-resize');
+		window.removeEventListener('pointermove', onMove);
+		rightWidth = clampRight(rightWidth);
+	}
+
+	if (browser) {
+		let ro: ResizeObserver | null = null;
+		$effect(() => {
+			if (!splitEl) return;
+
+			if (!sized) {
+				const w = total();
+				if (w > 0) {
+					rightWidth = clampRight(w / 2);
+					sized = true;
+				}
+			}
+
+			ro?.disconnect();
+			ro = new ResizeObserver(() => {
+				if (!sized) return;
+				rightWidth = clampRight(rightWidth);
+			});
+			ro.observe(splitEl);
+			return () => ro?.disconnect();
+		});
+	}
+
+	function reset() {
+		const w = total();
+		if (w) rightWidth = clampRight(w / 2);
+	}
 </script>
 
-{#if showGoalModal}
-	<div class="flex h-full w-full items-center justify-center bg-stone-50 p-6">
-		<Onboarding initialEndGoal={endGoal} onSubmit={handleGoalSubmit} />
-	</div>
-{:else}
-	<div class="flex h-full w-full gap-8 bg-stone-50">
-		<Sidebar {tasks} {activeTaskId} onSelect={openTaskView} creating={loading} />
-		<TaskView
-			task={selectedTask ?? undefined}
-			draftTask={draftTask ?? undefined}
-			{loading}
-			{errorMessage}
-		/>
-	</div>
-{/if}
+<div class="flex h-full w-full items-center justify-center bg-stone-50 p-6">
+	<Onboarding initialEndGoal={endGoal} onSubmit={handleGoalSubmit} />
+</div>

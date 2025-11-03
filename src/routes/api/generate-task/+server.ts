@@ -1,12 +1,8 @@
-// +server.ts
 import { error } from '@sveltejs/kit';
 import OpenAI from 'openai';
 import { OPENAI_API_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
 
-/* -------------------------------
-   Types / Guards / Constants
--------------------------------- */
 type PreviousTask = { title?: string; description?: string; outcome?: string; };
 
 type TaskPayload = {

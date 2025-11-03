@@ -1,154 +1,69 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
+	import Sidebar from '$lib/components/md/Sidebar.svelte';
 	import { fade, scale } from 'svelte/transition';
-	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import '../app.css';
-	import vectorUrl from '$lib/assets/vector.svg?url';
 	import favicon from '$lib/assets/favicon.svg';
 	import { setContext } from 'svelte';
+	import type { LayoutProps } from './$types';
 
-	/* ---------- Props (Svelte 5) ---------- */
-	type ServerUser = { id: string } | null;
-	let { children, data } = $props<{ children: any; data: { user: ServerUser } }>();
+	const tutorialTasks = [
+		{
+			id: 'tutorial-01',
+			title: 'What this page does',
+			description: 'Overview of TaskView + Chat + Sidebar.',
+			outcome: 'You can navigate tasks and resize panels.',
+			isTutorial: true
+		},
+		{
+			id: 'tutorial-02',
+			title: 'Create your first task',
+			description: 'Click “Generate task” to scaffold a milestone.',
+			outcome: 'You have one concrete next action.',
+			isTutorial: true
+		},
+		{
+			id: 'tutorial-03',
+			title: 'Use the Chat assistant',
+			description: 'Ask clarifying questions and request code/help.',
+			outcome: 'You know how to iterate with AI in context.',
+			isTutorial: true
+		},
+		{
+			id: 'tutorial-04',
+			title: 'Mark tutorial done',
+			description: 'Mark the tutorial complete to hide it.',
+			outcome: 'Tutorial section disappears.',
+			isTutorial: true
+		}
+	];
 
-	/* ---------- Context types ---------- */
-	type AuthUI = { openAuthModal: () => void };
-	type OnboardingUI = { openOnboarding: () => void };
-	type AuthStateUI = { resetUserState: () => void };
+	let { data, children }: LayoutProps = $props();
+	let tasks = $state([...data.tasks]);
+	const initialActiveId = tutorialTasks[0]?.id ?? tasks[0]?.id ?? null;
+	let activeTaskId = $state(initialActiveId);
+	let loading = $state(false);
+	function openTaskView(id: string) {
+		activeTaskId = id;
+	}
 
-	/* ---------- Auth / UI state ---------- */
-	let userExists = $state(Boolean(data?.user));
-	let showAuthModal = $state(false);
-	let authLoading = $state(false);
-	let authError: string | null = $state(null);
-
-	/* ---------- Onboarding state ---------- */
-	type OnboardingAnswers = {
-		education: 'high_school' | 'college' | null;
-		goal: 'full_time' | 'internship' | 'explore' | null;
-		project: 'research' | 'industry' | null;
+	type AuthUI = {
+		openAuthModal: () => void;
+		signInWithGoogle: (redirectPath?: string) => Promise<void>;
+		signOut: () => Promise<void>;
 	};
 
-	let showOnboarding = $state(false);
-	let onboardingSubmitting = $state(false);
-	let onboardingError: string | null = $state(null);
-	let onboardingAnswers: OnboardingAnswers = $state({
-		education: null,
-		goal: null,
-		project: null
-	});
+	let showAuthModal = $state(false);
 
-	function resetUserState() {
-		userExists = false;
-		showOnboarding = false;
-		onboardingAnswers = { education: null, goal: null, project: null };
-	}
-
-	/* ---------- Sidebar ---------- */
-	let sidebarCollapsed = $state(false);
-	const EXPANDED_WIDTH = 250;
-	const COLLAPSED_WIDTH = 60;
-
-	function toggleSidebar() {
-		sidebarCollapsed = !sidebarCollapsed;
-	}
-
-	/* ---------- DB helpers (client) ---------- */
-	async function fetchOnboardingFromDB(userId: string) {
-		const { data, error } = await supabase
-			.from('users')
-			.select('edu_level, goal, project_type')
-			.eq('user_id', userId)
-			.maybeSingle();
-
-		if (error) throw error;
-
-		const education =
-			data?.edu_level === 'high_school' || data?.edu_level === 'college' ? data.edu_level : null;
-		const goal =
-			data?.goal === 'full_time' || data?.goal === 'internship' || data?.goal === 'explore'
-				? data.goal
-				: null;
-		const project =
-			data?.project_type === 'research' || data?.project_type === 'industry'
-				? data.project_type
-				: null;
-
-		onboardingAnswers = { education, goal, project };
-		showOnboarding = !education || !goal || !project;
-	}
-
-	/* ---------- Auth modal controls ---------- */
-	function openOnboarding() {
-		showOnboarding = true;
-	}
 	function openAuthModal() {
 		showAuthModal = true;
-		authLoading = false;
 	}
 	function closeAuthModal() {
-		if (authLoading) return;
 		showAuthModal = false;
-		authError = null;
 	}
 
-	/* ---------- Initial hydrate ---------- */
-	onMount(() => {
-		userExists = Boolean(data?.user);
-		if (data?.user?.id) {
-			fetchOnboardingFromDB(data.user.id).catch((e) => {
-				console.error('fetchOnboardingFromDB failed:', e);
-			});
-		}
-	});
-
-	/* ---------- Persist onboarding ---------- */
-	async function handleOnboardingSubmit(answers: {
-		education: 'high_school' | 'college';
-		goal: 'full_time' | 'internship' | 'explore';
-		project: 'research' | 'industry';
-	}) {
-		if (onboardingSubmitting) return;
-		onboardingError = null;
-		onboardingSubmitting = true;
-
-		try {
-			const uid = data?.user?.id;
-			if (!uid) throw new Error('Not signed in');
-
-			const { error } = await supabase
-				.from('users')
-				.upsert(
-					{
-						user_id: uid,
-						edu_level: answers.education,
-						goal: answers.goal,
-						project_type: answers.project
-					},
-					{ onConflict: 'user_id' }
-				)
-				.select('user_id');
-
-			if (error) throw error;
-
-			await fetchOnboardingFromDB(uid);
-			if (!showOnboarding) onboardingError = null;
-		} catch (err) {
-			onboardingError =
-				err instanceof Error ? err.message : 'Unable to save your onboarding answers.';
-		} finally {
-			onboardingSubmitting = false;
-		}
-	}
-
-	/* ---------- Google sign-in ---------- */
 	async function signInWithGoogle() {
-		if (authLoading) return;
-		authLoading = true;
-		authError = null;
-
 		try {
 			const redirectTo = browser ? `${window.location.origin}/` : undefined;
 			const { error } = await supabase.auth.signInWithOAuth({
@@ -159,18 +74,15 @@
 				}
 			});
 			if (error) throw error;
-		} catch (err) {
-			authError = err instanceof Error ? err.message : 'Unexpected error signing in.';
-			authLoading = false;
-		}
+		} catch (err) {}
 	}
 
-	const authApi: AuthUI = { openAuthModal };
-	setContext('auth-ui', authApi);
-	const onboardingApi: OnboardingUI = { openOnboarding };
-	setContext('onboarding-ui', onboardingApi);
-	const authStateApi: AuthStateUI = { resetUserState };
-	setContext('auth-state', authStateApi);
+	async function signOut() {
+		await supabase.auth.signOut();
+	}
+
+	const authApi: AuthUI = { openAuthModal, signInWithGoogle, signOut };
+	setContext<AuthUI>('auth-ui', authApi);
 </script>
 
 <svelte:head>
@@ -180,6 +92,7 @@
 <div class="flex h-dvh bg-white text-stone-900">
 	<div class="flex min-w-0 flex-1 flex-col">
 		<main id="app-main" class="min-h-0 flex-1 overflow-hidden bg-white">
+			<Sidebar {tasks} {activeTaskId} onSelect={openTaskView} creating={loading} {tutorialTasks} />
 			{@render children()}
 		</main>
 	</div>
@@ -193,10 +106,10 @@
 			aria-label="Sign in"
 			tabindex="-1"
 			onclick={(e) => {
-				if (!authLoading && e.target === e.currentTarget) closeAuthModal();
+				if (e.target === e.currentTarget) closeAuthModal();
 			}}
 			onkeydown={(e) => {
-				if (!authLoading && e.key === 'Escape') closeAuthModal();
+				if (e.key === 'Escape') closeAuthModal();
 			}}
 		>
 			<div
@@ -230,7 +143,6 @@
 				<button
 					type="button"
 					onclick={signInWithGoogle}
-					disabled={authLoading}
 					class="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm font-medium text-stone-800 transition hover:border-stone-300 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
 				>
 					<svg class="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -251,20 +163,9 @@
 							d="M12.24 4.754c2.154 0 3.605.93 4.434 1.707l3.237-3.16C17.92 1.24 15.336 0 12.24 0 7.245 0 2.97 2.17 1.27 7.173l3.426 2.707c.918-2.796 3.495-5.126 7.544-5.126"
 						/>
 					</svg>
-					<span>{authLoading ? 'Redirecting…' : 'Continue with Google'}</span>
+					<span>{'Continue with Google'}</span>
 				</button>
-
-				{#if authError}
-					<p class="mt-3 text-xs text-rose-600">{authError}</p>
-				{/if}
 			</div>
 		</div>
 	{/if}
 </div>
-
-<style>
-	aside nav::-webkit-scrollbar {
-		width: 0;
-		height: 0;
-	}
-</style>
