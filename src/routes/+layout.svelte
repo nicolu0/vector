@@ -6,6 +6,7 @@
 	import { supabase } from '$lib/supabaseClient';
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import { goto } from '$app/navigation';
 	import { setContext } from 'svelte';
 	import type { LayoutProps } from './$types';
 
@@ -42,7 +43,7 @@
 
 	let { data, children }: LayoutProps = $props();
 
-	const userId = data.user?.id ?? null;
+	let userId = $state(data.user?.id ?? null);
 	let tasks = $state([...data.tasks]);
 	const initialActiveId = tutorialTasks[0]?.id ?? tasks[0]?.id ?? null;
 	let activeTaskId = $state(initialActiveId);
@@ -80,8 +81,14 @@
 		} catch (err) {}
 	}
 
+	$effect(() => {
+		userId = data.user?.id ?? null;
+	});
+
 	async function signOut() {
 		await supabase.auth.signOut();
+		userId = null;
+		await goto('/');
 	}
 
 	const authApi: AuthUI = { openAuthModal, signInWithGoogle, signOut };
