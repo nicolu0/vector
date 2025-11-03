@@ -178,48 +178,6 @@
 </svelte:head>
 
 <div class="flex h-dvh bg-white text-stone-900">
-	<aside
-		class="relative flex h-full flex-col justify-between border-r border-stone-200 bg-stone-50/90 backdrop-blur-sm transition-[width] duration-200 ease-out"
-		style={`width: ${sidebarCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px;`}
-	>
-		<div class="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
-			<button class="flex items-center gap-2" onclick={() => goto('/')} aria-label="Go to home">
-				<img src={vectorUrl} alt="vector" class="h-5 w-5" />
-			</button>
-
-			<button
-				type="button"
-				onclick={toggleSidebar}
-				class="inline-flex h-6 w-6 items-center justify-center rounded-md text-stone-500 hover:bg-stone-200 hover:text-stone-900"
-				aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-			>
-				<svg
-					viewBox="0 0 24 24"
-					class="h-5 w-5"
-					stroke="currentColor"
-					fill="none"
-					stroke-width="1.8"
-				>
-					<path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-				</svg>
-			</button>
-		</div>
-
-		<div class="border-t border-stone-200 px-2 py-3">
-			<button
-				type="button"
-				class="flex w-full items-center gap-2 rounded-lg px-2 py-2 hover:bg-stone-200/70"
-			>
-				<div class="h-7 w-7 rounded-full bg-stone-300"></div>
-				{#if !sidebarCollapsed}
-					<div class="flex flex-col">
-						<span class="text-sm font-medium">Andrew Chang</span>
-					</div>
-				{/if}
-			</button>
-		</div>
-	</aside>
-
 	<div class="flex min-w-0 flex-1 flex-col">
 		<main id="app-main" class="min-h-0 flex-1 overflow-hidden bg-white">
 			{@render children()}

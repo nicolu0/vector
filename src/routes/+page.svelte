@@ -1,5 +1,6 @@
 <script lang="ts">
 	import TaskView from '$lib/components/lg/TaskView.svelte';
+	import Sidebar from '$lib/components/md/Sidebar.svelte';
 	import TaskList from '$lib/components/lg/TaskList.svelte';
 	import Onboarding from '$lib/components/lg/Onboarding.svelte';
 	import { getContext } from 'svelte';
@@ -211,13 +212,7 @@
 	</div>
 {:else}
 	<div class="flex h-full w-full gap-8 bg-stone-50">
-		<TaskList
-			{tasks}
-			{activeTaskId}
-			onSelect={openTaskView}
-			onCreateTask={generateNewTask}
-			creating={loading}
-		/>
+		<Sidebar {tasks} {activeTaskId} onSelect={openTaskView} creating={loading} />
 		<TaskView
 			task={selectedTask ?? undefined}
 			draftTask={draftTask ?? undefined}
