@@ -10,50 +10,31 @@ export const load: LayoutServerLoad = async (event) => {
 	const { cookies, url } = event;
 	const supabase = createSupabaseServerClient(cookies);
 
-	// 0) OAuth error / code exchange → set server session, then clean URL
 	const errDesc = url.searchParams.get('error_description');
 	if (errDesc) throw redirect(303, `/${'?auth_error=' + encodeURIComponent(errDesc)}`);
 
 	const code = url.searchParams.get('code');
 	if (code) {
 		await supabase.auth.exchangeCodeForSession(code);
-		// strip query params so you don't re-exchange on refresh
 		throw redirect(303, url.pathname);
 	}
 
-	// 1) Client cookies (SSR fallback)
-	const endGoalCookie = (cookies.get('vector_endGoal') ?? '').trim();
 
-	const rawTaskCookie = cookies.get('vector_task') ?? '';
-	let cookieTask: TaskDetails | null = null;
-	if (rawTaskCookie) {
-		try {
-			// you set this with encodeURIComponent(JSON.stringify(...)) on the client,
-			// so decode before JSON.parse
-			cookieTask = JSON.parse(decodeURIComponent(rawTaskCookie)) as TaskDetails;
-		} catch {
-			cookieTask = null;
-		}
-	}
-
-	let tutorialDoneDB = false;
-
-	// 2) Current user (server session now present if you just returned from OAuth)
 	const { data: { user } } = await supabase.auth.getUser();
 
-	let endGoal = endGoalCookie;
+	const goalCookie = (cookies.get('vector:goal') ?? '').trim();
+	let goal = goalCookie;
+
 	const tasks: ServerTask[] = [];
 
 	if (user?.id) {
-		// 3) Prefer DB values
-		const { data: prof } = await supabase
+		const { data: profile } = await supabase
 			.from('users')
 			.select('goal, tutorial_done')
 			.eq('user_id', user.id)
 			.maybeSingle();
 
-		if (prof?.goal) endGoal = String(prof.goal).trim();
-		tutorialDoneDB = Boolean(prof?.tutorial_done);
+		if (profile?.goal) goal = String(profile.goal).trim();
 
 		const { data: dbTasks } = await supabase
 			.from('tasks')
@@ -67,43 +48,23 @@ export const load: LayoutServerLoad = async (event) => {
 			for (const t of dbTasks) {
 				tasks.push({ id: String(t.id), title: t.title, description: t.description, outcome: t.outcome });
 			}
-			// DB has tasks → cookie task is redundant; clear it
-			if (cookieTask) cookies.delete('vector_task', { path: '/' });
-		} else if (cookieTask?.title && cookieTask.description && cookieTask.outcome) {
-			// First-time: consume cookie task once, then clear cookie
-			const { error } = await supabase.from('tasks').insert({
-				user_id: user.id,
-				title: cookieTask.title,
-				description: cookieTask.description,
-				outcome: cookieTask.outcome
-			});
-			if (!error) {
-				cookies.delete('vector_task', { path: '/' });
-				// push so UI shows immediately on this first authed load
-				tasks.push({ id: `cookie-${Date.now()}`, ...cookieTask });
-			}
 		}
-
-		// Upsert goal from cookie only if DB didn’t have one
-		if (!prof?.goal && endGoalCookie) {
+		if (!profile?.goal && goal) {
 			const { error } = await supabase
 				.from('users')
-				.upsert({ user_id: user.id, goal: endGoalCookie }, { onConflict: 'user_id' });
+				.upsert({ user_id: user.id, goal: goalCookie }, { onConflict: 'user_id' });
 			if (!error) {
-				endGoal = endGoalCookie;
-				cookies.delete('vector_endGoal', { path: '/' });
+				goal = goalCookie;
+				cookies.delete('vector:goal', { path: '/' });
 			}
-		} else if (endGoalCookie) {
-			// DB already has a goal → clear redundant cookie
-			cookies.delete('vector_endGoal', { path: '/' });
+		} else if (goalCookie) {
+			cookies.delete('vector:goal', { path: '/' });
 		}
-	} else {
-		if (cookieTask) tasks.push({ id: 'cookie-task', ...cookieTask });
 	}
 
 	return {
 		user: user ? { id: user.id } : null,
-		endGoal,
+		goal,
 		tasks
 	};
 };
