@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import Sidebar from '$lib/components/md/Sidebar.svelte';
+	import vectorUrl from '$lib/assets/vector.svg?url';
+	import Sidebar from '$lib/components/lg/Sidebar.svelte';
 	import { fade, scale } from 'svelte/transition';
 	import { supabase } from '$lib/supabaseClient';
 	import '../app.css';
@@ -40,6 +41,8 @@
 	];
 
 	let { data, children }: LayoutProps = $props();
+
+	const userId = data.user?.id ?? null;
 	let tasks = $state([...data.tasks]);
 	const initialActiveId = tutorialTasks[0]?.id ?? tasks[0]?.id ?? null;
 	let activeTaskId = $state(initialActiveId);
@@ -89,10 +92,23 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="flex h-dvh bg-white text-stone-900">
+<div class="flex h-dvh w-full bg-white text-stone-900">
+	{#if userId}
+		<Sidebar {tasks} {activeTaskId} onSelect={openTaskView} creating={loading} {tutorialTasks} />
+	{:else}
+		<div class="flex items-start bg-stone-50 p-4">
+			<button
+				class="flex items-center gap-2 rounded-lg p-2 hover:bg-stone-100"
+				onclick={openAuthModal}
+				aria-label="Go to home"
+			>
+				<img src={vectorUrl} alt="vector" class="h-5 w-5" />
+			</button>
+		</div>
+	{/if}
+
 	<div class="flex min-w-0 flex-1 flex-col">
-		<main id="app-main" class="min-h-0 flex-1 overflow-hidden bg-white">
-			<Sidebar {tasks} {activeTaskId} onSelect={openTaskView} creating={loading} {tutorialTasks} />
+		<main class="min-h-0 flex-1 overflow-hidden bg-white">
 			{@render children()}
 		</main>
 	</div>

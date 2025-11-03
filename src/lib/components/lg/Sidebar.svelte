@@ -50,7 +50,14 @@
 >
 	<div class="flex flex-col">
 		<div class="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
-			<button class="flex items-center gap-2" onclick={() => goto('/')} aria-label="Go to home">
+			<button
+				class="flex items-center gap-2"
+				onclick={() => {
+					goto('/');
+					activeTaskId = null;
+				}}
+				aria-label="Go to home"
+			>
 				<img src={vectorUrl} alt="vector" class="h-5 w-5" />
 			</button>
 
@@ -75,44 +82,16 @@
 		</div>
 
 		<div class="space-y-1 overflow-y-auto px-2 py-2">
-			{#if tutorialTasks.length}
-				<div class="mb-1 text-[11px] font-semibold tracking-wide text-stone-500 uppercase">
-					Tutorial
-				</div>
-				{#each tutorialTasks as t}
-					<button
-						type="button"
-						onclick={() => onSelect(t.id)}
-						class={`flex w-full items-center rounded-lg px-2 py-2 transition hover:bg-stone-200/70 ${
-							activeTaskId === t.id ? 'bg-stone-200' : ''
-						}`}
-						title={t.title}
-					>
-						<div class="flex min-w-0 items-center gap-2">
-							<span
-								class="relative grid h-3 w-3 place-items-center rounded-full border border-dashed border-stone-500/60"
-							/>
-							{#if !sidebarCollapsed}
-								<span
-									class={`min-w-0 flex-1 overflow-hidden font-mono text-xs tracking-tight text-ellipsis whitespace-nowrap ${
-										activeTaskId === t.id ? 'text-stone-900' : 'text-stone-700'
-									}`}
-								>
-									{t.title}
-								</span>
-							{/if}
-						</div>
-					</button>
-				{/each}
-			{/if}
-
 			<div class="mt-4 mb-1 text-[11px] font-semibold tracking-wide text-stone-500 uppercase">
 				Milestones
 			</div>
 			{#each tasks as task}
 				<button
 					type="button"
-					onclick={() => onSelect(task.id)}
+					onclick={() => {
+						goto(`/project/${task.id}`);
+						activeTaskId = task.id;
+					}}
 					class={`flex w-full items-center rounded-lg px-2 py-2 transition hover:bg-stone-200/70 ${
 						activeTaskId === task.id ? 'bg-stone-200' : ''
 					}`}

@@ -226,5 +226,11 @@
 </script>
 
 <div class="flex h-full w-full items-center justify-center bg-stone-50 p-6">
-	<Onboarding initialEndGoal={endGoal} onSubmit={handleGoalSubmit} />
+	{#if serverUserId}
+		<section class="flex h-full w-full max-w-3xl flex-col justify-center space-y-10">
+			<div class="flex text-black">projects dashboard</div>
+		</section>
+	{:else}
+		<Onboarding initialEndGoal={endGoal} onSubmit={handleGoalSubmit} />
+	{/if}
 </div>

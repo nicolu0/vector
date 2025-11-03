@@ -98,13 +98,12 @@ export const load: LayoutServerLoad = async (event) => {
 			cookies.delete('vector_endGoal', { path: '/' });
 		}
 	} else {
-		// Anonymous: use cookie values for SSR to avoid flicker
 		if (cookieTask) tasks.push({ id: 'cookie-task', ...cookieTask });
 	}
 
 	return {
 		user: user ? { id: user.id } : null,
-		endGoal,  // '' if none
-		tasks     // tutorial (if shown) + DB tasks (ASC) or cookie task for anon
+		endGoal,
+		tasks
 	};
 };
