@@ -30,18 +30,18 @@
 	}
 </script>
 
-<div class="group rounded-lg">
-	<div class="flex items-center">
+<div class="group rounded-md hover:bg-stone-200">
+	<div class="flex items-center bg-transparent">
 		<button
 			type="button"
-			class="ml-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+			class="ml-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-stone-500 hover:bg-stone-300 hover:text-stone-800"
 			aria-label={open ? 'Collapse' : 'Expand'}
 			aria-expanded={open}
 			onclick={toggle}
 		>
 			<svg
 				viewBox="0 0 24 24"
-				class={`h-5 w-5 transition-transform ${open ? 'rotate-90' : ''}`}
+				class={`h-3 w-3 transition-transform ${open ? 'rotate-90' : ''}`}
 				fill="none"
 				stroke="currentColor"
 				stroke-width="2"
@@ -53,11 +53,11 @@
 		<button
 			type="button"
 			onclick={navigate}
-			class="flex min-w-0 flex-1 items-center justify-between rounded-lg px-2 py-1.5 text-left hover:bg-stone-100"
+			class="flex min-w-0 flex-1 items-center justify-between rounded-lg bg-transparent px-2 py-1 text-left"
 			aria-label={`Open milestone ${name}`}
 		>
 			<div class="min-w-0">
-				<div class="truncate text-sm font-medium text-stone-900">{name}</div>
+				<div class="truncate text-xs font-medium text-stone-900">{name}</div>
 			</div>
 			<span
 				class="ml-2 rounded-md border border-stone-200 px-1.5 py-0.5 text-[10px] text-stone-500"

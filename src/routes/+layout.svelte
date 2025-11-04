@@ -19,6 +19,7 @@
 	};
 
 	let { data, children }: LayoutProps = $props();
+	$inspect(data.milestones);
 
 	let goal = $state(data.goal ?? '');
 	let userId = $state(data.user?.id ?? null);
@@ -27,7 +28,7 @@
 
 	let dbProject = $state(data.project);
 	let project = $state<InitProjectResponse['project'] | null>(null);
-	let milestones = $state<InitProjectResponse['milestones']>([]);
+	let milestones = $state(data.milestones);
 	let initLoading = $state(false);
 	let projectInitialized = $state(false);
 
@@ -115,7 +116,7 @@
 
 <div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 	{#if userId}
-		<Sidebar />
+		<Sidebar {milestones} />
 	{:else}
 		<button
 			class="fixed top-2 left-2 items-center gap-2 rounded-lg p-2 hover:bg-stone-100"
