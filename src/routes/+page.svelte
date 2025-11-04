@@ -9,6 +9,7 @@
 
 	const serverUserId = data.user?.id ?? null;
 	let userId = $state(serverUserId);
+	let project = $state(data?.project);
 
 	type AuthUI = { openAuthModal: () => void };
 	const { openAuthModal } = getContext<AuthUI>('auth-ui');
@@ -29,10 +30,16 @@
 	});
 </script>
 
-<div class="flex h-full w-full items-center justify-center bg-stone-50 p-6">
-	{#if userId}
-		<section class="flex h-full w-full max-w-3xl flex-col justify-center space-y-10">
-			<div class="flex text-black">project page</div>
+<div class="flex items-center justify-center bg-stone-50 p-6">
+	{#if userId && project}
+		<section class="border-b border-stone-200 bg-stone-50/60">
+			<div class="flex items-start justify-between gap-4">
+				<div class="min-w-0">
+					<div class="text-xs tracking-wide text-stone-500 uppercase">Project</div>
+					<h2 class="text-lg font-semibold text-stone-900">{project.title}</h2>
+					<p class="mt-1 text-sm text-stone-700">{project.description}</p>
+				</div>
+			</div>
 		</section>
 	{:else}
 		<Landing onSubmit={openAuthModal} />

@@ -2,9 +2,7 @@ import type { LayoutServerLoad } from './$types';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { redirect } from '@sveltejs/kit';
 
-type TaskDetails = { title: string; description: string; outcome: string };
-type ServerTask = TaskDetails & { id: string; };
-
+type Project = { id: string; title: string; description: string } | null;
 
 export const load: LayoutServerLoad = async (event) => {
 	const { cookies, url } = event;
@@ -19,40 +17,36 @@ export const load: LayoutServerLoad = async (event) => {
 		throw redirect(303, url.pathname);
 	}
 
-
 	const { data: { user } } = await supabase.auth.getUser();
 
 	const goalCookie = (cookies.get('vector:goal') ?? '').trim();
 	let goal = goalCookie;
-
-	const tasks: ServerTask[] = [];
+	let project: Project = null;
 
 	if (user?.id) {
 		const { data: profile } = await supabase
 			.from('users')
-			.select('goal, tutorial_done')
+			.select('goal')
 			.eq('user_id', user.id)
 			.maybeSingle();
 
 		if (profile?.goal) goal = String(profile.goal).trim();
 
-		const { data: dbTasks } = await supabase
-			.from('tasks')
-			.select('id, title, description, outcome, created_at')
+		const { data: projectRow } = await supabase
+			.from('projects')
+			.select('id, title, description')
 			.eq('user_id', user.id)
-			.order('created_at', { ascending: true });
+			.order('created_at', { ascending: false })
+			.limit(1)
+			.maybeSingle();
 
-		const hasDB = Array.isArray(dbTasks) && dbTasks.length > 0;
+		project = projectRow ?? null;
 
-		if (hasDB) {
-			for (const t of dbTasks) {
-				tasks.push({ id: String(t.id), title: t.title, description: t.description, outcome: t.outcome });
-			}
-		}
 		if (!profile?.goal && goal) {
 			const { error } = await supabase
 				.from('users')
 				.upsert({ user_id: user.id, goal: goalCookie }, { onConflict: 'user_id' });
+
 			if (!error) {
 				goal = goalCookie;
 				cookies.delete('vector:goal', { path: '/' });
@@ -62,12 +56,9 @@ export const load: LayoutServerLoad = async (event) => {
 		}
 	}
 
-	const shouldAutoGenerateTask = goal.trim().length > 0 && tasks.length === 0;
-
 	return {
 		user: user ? { id: user.id } : null,
 		goal,
-		tasks,
-		autoGenerateTask: shouldAutoGenerateTask
+		project,
 	};
 };
