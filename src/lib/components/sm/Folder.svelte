@@ -59,9 +59,7 @@
 			<div class="min-w-0">
 				<div class="truncate text-xs font-medium text-stone-900">{name}</div>
 			</div>
-			<span
-				class="ml-2 rounded-md border border-stone-200 px-1.5 py-0.5 text-[10px] text-stone-500"
-			>
+			<span class="ml-2 rounded-md border border-stone-300 px-1.5 py-0.5 text-[8px] text-stone-500">
 				{tasks.length} tasks
 			</span>
 		</button>
