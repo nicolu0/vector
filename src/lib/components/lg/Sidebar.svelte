@@ -83,72 +83,54 @@
 
 		<div class="space-y-1 overflow-y-auto px-2 py-2">
 			<div class="mt-4 mb-1 text-[11px] font-semibold tracking-wide text-stone-500 uppercase">
+				Tutorial
+			</div>
+			<div class="mt-4 mb-1 ml-4 text-[11px] font-semibold tracking-wide text-stone-800">
+				Example Milestone
+			</div>
+			<div class="mt-4 mb-1 ml-8 text-[11px] font-semibold tracking-wide text-stone-800">
+				Example Task
+			</div>
+			<div class="mt-4 mb-1 text-[11px] font-semibold tracking-wide text-stone-500 uppercase">
 				Milestones
 			</div>
 			{#each tasks as task}
-				{#key task.id}
-					<button
-						type="button"
-						onclick={() => {
-							if (!isPendingTask(task.id)) {
-								goto(`/project/${task.id}`);
-								activeTaskId = task.id;
-							}
-						}}
-						disabled={isPendingTask(task.id)}
-						aria-disabled={isPendingTask(task.id)}
-						aria-busy={isPendingTask(task.id)}
-						class={`flex w-full items-center rounded-lg px-2 py-2 transition ${
-							isPendingTask(task.id) ? 'cursor-not-allowed opacity-60' : 'hover:bg-stone-200/70'
-						} ${activeTaskId === task.id ? 'bg-stone-200' : ''}`}
-						title={task.title}
-					>
-						<div class="flex min-w-0 items-center gap-2">
-							{#if isPendingTask(task.id)}
-								<!-- left spinner -->
-								<svg
-									class="h-3 w-3 animate-spin text-stone-600"
-									viewBox="0 0 24 24"
-									fill="none"
-									aria-hidden="true"
-								>
-									<circle
-										cx="12"
-										cy="12"
-										r="10"
-										stroke="currentColor"
-										stroke-opacity="0.25"
-										stroke-width="3"
-									/>
-									<path
-										d="M22 12a10 10 0 0 0-10-10"
-										stroke="currentColor"
-										stroke-width="3"
-										stroke-linecap="round"
-									/>
-								</svg>
-							{:else}
-								<span
-									class="relative grid h-3 w-3 place-items-center rounded-full border border-dashed border-stone-500/60"
-								/>
-							{/if}
+				<button
+					type="button"
+					onclick={() => {
+						goto(`/milestone/${task.id}`);
+						activeTaskId = task.id;
+					}}
+					class={`flex w-full items-center rounded-lg px-2 py-2 transition hover:bg-stone-200/70 ${
+						activeTaskId === task.id ? 'bg-stone-200' : ''
+					}`}
+					disabled={isPendingTask(task.id)}
+					title={task.title}
+				>
+					<div class="flex min-w-0 items-center gap-2">
+						{#if isPendingTask(task.id)}
+							<span class="relative grid h-3 w-3 place-items-center">
+								<!-- spinner placeholder -->
+								<span class="h-2 w-2 animate-pulse rounded-full bg-stone-500/70"></span>
+							</span>
+						{:else}
+							<span
+								class="relative grid h-3 w-3 place-items-center rounded-full border border-dashed border-stone-500/60"
+							/>
+						{/if}
 
-							{#if !sidebarCollapsed}
-								<span
-									class={`min-w-0 flex-1 overflow-hidden font-mono text-xs tracking-tight text-ellipsis whitespace-nowrap ${
-										activeTaskId === task.id ? 'text-stone-900' : 'text-stone-700'
-									}`}
-								>
-									{task.title}
-								</span>
-							{/if}
-						</div>
-					</button>
-				{/key}
+						{#if !sidebarCollapsed}
+							<span
+								class={`min-w-0 flex-1 overflow-hidden font-mono text-xs tracking-tight text-ellipsis whitespace-nowrap ${
+									activeTaskId === task.id ? 'text-stone-900' : 'text-stone-700'
+								}`}
+							>
+								{task.title}
+							</span>
+						{/if}
+					</div>
+				</button>
 			{/each}
-			<div class="mt-4 mb-1 text-[11px] font-semibold tracking-wide text-stone-500 uppercase">
-				Resources
-			</div>
 		</div>
 	</div>
 

@@ -67,7 +67,6 @@
 	);
 
 	let pendingTaskId: string | null = null;
-	let abortController: AbortController | null = null;
 	let hasPromptedAuthAfterFirstTask = false;
 
 	const isAuthed = $derived(Boolean(userId));
