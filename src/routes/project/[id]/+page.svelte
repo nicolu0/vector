@@ -2,7 +2,9 @@
 	import { browser } from '$app/environment';
 	import TaskView from '$lib/components/lg/TaskView.svelte';
 	import Chat from '$lib/components/lg/Chat.svelte';
+	import type { PageProps } from './$types';
 
+	let { data }: PageProps = $props();
 	// const selectedTask = $derived(
 	// 	activeTaskId ? (all.find((t) => t.id === activeTaskId) ?? null) : null
 	// );
@@ -81,4 +83,8 @@
 	// }
 </script>
 
-<div class="flex h-full w-full bg-stone-50">Hello</div>
+<div class="flex h-full w-full flex-col gap-4 bg-stone-50">
+	<div class="flex">{data?.task?.title}</div>
+	<div class="flex">{data?.task?.description}</div>
+	<div class="flex">{data?.task?.outcome}</div>
+</div>
