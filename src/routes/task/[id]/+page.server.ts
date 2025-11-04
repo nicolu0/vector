@@ -2,9 +2,6 @@ import type { PageServerLoad } from './$types';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { error, redirect } from '@sveltejs/kit';
 
-const FALLBACK_MILESTONE = {
-	title: 'Fallback Milestone'
-}
 export const load: PageServerLoad = async ({ params, cookies, url }) => {
 	const supabase = createSupabaseServerClient(cookies);
 
@@ -18,15 +15,15 @@ export const load: PageServerLoad = async ({ params, cookies, url }) => {
 	const { data: { user } } = await supabase.auth.getUser();
 	if (!user) throw redirect(303, '/');
 
-	const { data: milestone, error: qerr } = await supabase
-		.from('milestones')
-		.select('id, title, summary')
-		.eq('user_id', user?.id)
+	const { data: task, error: qerr } = await supabase
+		.from('tasks')
+		.select('id, title, description, outcome')
+		.eq('user_id', user.id)
 		.eq('id', params.id)
 		.maybeSingle();
 
 	if (qerr) throw error(500, qerr.message);
-	if (!milestone) { return FALLBACK_MILESTONE };
+	if (!task) throw error(404, 'Task not found');
 
-	return { milestone };
+	return { task };
 };

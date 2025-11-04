@@ -34,7 +34,7 @@
 	<div class="flex items-center">
 		<button
 			type="button"
-			class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+			class="ml-1 inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-800"
 			aria-label={open ? 'Collapse' : 'Expand'}
 			aria-expanded={open}
 			onclick={toggle}
@@ -71,7 +71,7 @@
 		class={`overflow-hidden transition-[grid-template-rows] ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'} grid`}
 	>
 		<div class="min-h-0">
-			<ul class="mt-2 space-y-1">
+			<ul class="">
 				{#each tasks as t (t.id)}
 					<Task id={t.id} title={t.title} checked={!!done[t.id]} onToggle={toggleTask} />
 				{/each}
