@@ -1,8 +1,8 @@
 <script lang="ts">
 	import Profile from '$lib/components/md/Profile.svelte';
 	import Folder from '$lib/components/sm/Folder.svelte';
-	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { getContext } from 'svelte';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 
 	type Task = {
@@ -21,7 +21,8 @@
 
 	let sidebarCollapsed = $state(false);
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
-	const containerFlex = $derived(sidebarCollapsed ? '0px' : EXPANDED_WIDTH);
+	const COLLAPSED_WIDTH = '3rem';
+	const containerFlex = $derived(sidebarCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH);
 	const sidebarTransform = $derived(sidebarCollapsed ? 'translateX(-100%)' : 'translateX(0%)');
 
 	function toggleSidebar() {
@@ -35,7 +36,7 @@
 </script>
 
 <div
-	class="relative flex h-full transition-[flex-basis] duration-200 ease-out"
+	class="relative flex h-full min-w-0 overflow-hidden transition-[flex-basis] duration-200 ease-out"
 	style={`flex-basis: ${containerFlex}; flex-grow: 0; flex-shrink: 0;`}
 >
 	<aside
@@ -47,7 +48,7 @@
 		aria-hidden={sidebarCollapsed}
 	>
 		<div class="flex flex-col">
-			<div class="flex w-full justify-end gap-2 bg-red-400 px-4 pt-4 pb-3">
+			<div class="flex w-full items-center justify-end gap-2 px-4 pt-4 pb-3">
 				<button
 					type="button"
 					onclick={toggleSidebar}
@@ -83,7 +84,7 @@
 	</aside>
 
 	<button
-		class="fixed top-4 left-4 items-center gap-2"
+		type="button"
 		onclick={() => {
 			if (sidebarCollapsed) {
 				sidebarCollapsed = false;
@@ -91,6 +92,7 @@
 				goto('/');
 			}
 		}}
+		class="fixed top-3 left-3 flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 transition hover:bg-stone-200 hover:text-stone-900"
 		aria-label="Go to home"
 	>
 		<img src={vectorUrl} alt="vector" class="h-5 w-5" />

@@ -34,14 +34,14 @@
 	<div class="flex items-center">
 		<button
 			type="button"
-			class="ml-1 inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+			class="ml-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-800"
 			aria-label={open ? 'Collapse' : 'Expand'}
 			aria-expanded={open}
 			onclick={toggle}
 		>
 			<svg
 				viewBox="0 0 24 24"
-				class={`h-4 w-4 transition-transform ${open ? 'rotate-90' : ''}`}
+				class={`h-5 w-5 transition-transform ${open ? 'rotate-90' : ''}`}
 				fill="none"
 				stroke="currentColor"
 				stroke-width="2"

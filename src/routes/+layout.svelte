@@ -61,55 +61,12 @@
 	$effect(() => {
 		userId = data.user?.id ?? null;
 		goal = data.goal ?? '';
-		autoGenerateTask = (data as Record<string, unknown>).autoGenerateTask === true;
 	});
 
 	async function signOut() {
 		await supabase.auth.signOut();
 		userId = null;
 		await goto('/');
-	}
-
-	function pendingNonTutorialCount() {
-		return tasks.filter((t) => !t.isTutorial).length;
-	}
-
-	async function generateNewTask() {
-		if (!browser) return;
-
-		loading = true;
-		errorMessage = '';
-		draftTask = null;
-
-		const payload: Record<string, unknown> = { endGoal: goal };
-		const previousTask = tasks.filter((t) => !t.isTutorial).at(-1);
-		if (previousTask) {
-			payload.previousTask = {
-				title: previousTask.title,
-				description: previousTask.description,
-				outcome: previousTask.outcome
-			};
-		}
-
-		try {
-			const res = await fetch('/api/generate-task', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-			if (!res.ok) throw new Error(await res.text());
-
-			const { task } = (await res.json()) as { task: Task };
-			// Append and focus the new task
-			tasks = [...tasks, task];
-			activeTaskId = task.id;
-
-			// await goto(`/project/${task.id}`);
-		} catch (e) {
-			errorMessage = e instanceof Error ? e.message : 'Failed to generate task.';
-		} finally {
-			loading = false;
-		}
 	}
 
 	async function initializeProject() {
@@ -119,7 +76,6 @@
 		if (projectInitialized) return;
 
 		initLoading = true;
-		errorMessage = '';
 
 		try {
 			const headers: HeadersInit = { 'Content-Type': 'application/json' };
@@ -136,7 +92,6 @@
 			milestones = data.milestones ?? [];
 			projectInitialized = true;
 		} catch (e) {
-			errorMessage = e instanceof Error ? e.message : 'Failed to initialize project.';
 		} finally {
 			initLoading = false;
 		}
