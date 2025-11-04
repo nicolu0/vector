@@ -1,6 +1,6 @@
 <script lang="ts">
+	import Milestones from '$lib/components/md/Milestones.svelte';
 	import Profile from '$lib/components/md/Profile.svelte';
-	import Folder from '$lib/components/sm/Folder.svelte';
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
 	import vectorUrl from '$lib/assets/vector.svg?url';
@@ -14,7 +14,6 @@
 	let { milestones = [] } = $props<{
 		milestones?: Milestone[];
 	}>();
-	$inspect('fom sidebar: ', milestones);
 
 	let sidebarCollapsed = $state(false);
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
@@ -65,18 +64,7 @@
 					</button>
 				</div>
 
-				<div class="space-y-1 overflow-y-auto px-2 py-2">
-					<div class="mt-4 mb-1 text-[11px] font-semibold tracking-wide text-stone-500 uppercase">
-						Milestones
-					</div>
-					{#if milestones.length > 0}
-						{#each milestones as milestone (milestone.id)}
-							<Folder id={milestone.id} name={milestone.title} initiallyOpen={false} />
-						{/each}
-					{:else}
-						<div class="px-2 py-4 text-xs text-stone-500">No milestones yet.</div>
-					{/if}
-				</div>
+				<Milestones {milestones} initiallyOpen={true} />
 			</div>
 
 			<Profile
