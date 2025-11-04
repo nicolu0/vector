@@ -62,9 +62,12 @@ export const load: LayoutServerLoad = async (event) => {
 		}
 	}
 
+	const shouldAutoGenerateTask = goal.trim().length > 0 && tasks.length === 0;
+
 	return {
 		user: user ? { id: user.id } : null,
 		goal,
-		tasks
+		tasks,
+		autoGenerateTask: shouldAutoGenerateTask
 	};
 };

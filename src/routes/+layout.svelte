@@ -10,7 +10,17 @@
 	import { setContext } from 'svelte';
 	import type { LayoutProps } from './$types';
 
-	const tutorialTasks = [
+	type Task = {
+		id: string;
+		title: string;
+		description: string;
+		outcome: string;
+		isTutorial?: boolean;
+	};
+
+	type TaskDetails = Omit<Task, 'id' | 'isTutorial'>;
+
+	const tutorialTasks: Task[] = [
 		{
 			id: 'tutorial-01',
 			title: 'What this page does',
@@ -43,11 +53,25 @@
 
 	let { data, children }: LayoutProps = $props();
 
+	let goal = $state(data.goal ?? '');
 	let userId = $state(data.user?.id ?? null);
-	let tasks = $state([...data.tasks]);
+	let tasks = $state<Task[]>([...data.tasks]);
 	const initialActiveId = tutorialTasks[0]?.id ?? tasks[0]?.id ?? null;
 	let activeTaskId = $state(initialActiveId);
 	let loading = $state(false);
+	let draftTask = $state<TaskDetails | null>(null);
+	let errorMessage = $state('');
+	let showAuthModal = $state(false);
+	let autoGenerateTask = $state<boolean>(
+		(data as Record<string, unknown>).autoGenerateTask === true
+	);
+
+	let pendingTaskId: string | null = null;
+	let abortController: AbortController | null = null;
+	let hasPromptedAuthAfterFirstTask = false;
+
+	const isAuthed = $derived(Boolean(userId));
+
 	function openTaskView(id: string) {
 		activeTaskId = id;
 	}
@@ -57,8 +81,6 @@
 		signInWithGoogle: (redirectPath?: string) => Promise<void>;
 		signOut: () => Promise<void>;
 	};
-
-	let showAuthModal = $state(false);
 
 	function openAuthModal() {
 		showAuthModal = true;
@@ -83,12 +105,76 @@
 
 	$effect(() => {
 		userId = data.user?.id ?? null;
+		goal = data.goal ?? '';
+		autoGenerateTask = (data as Record<string, unknown>).autoGenerateTask === true;
 	});
 
 	async function signOut() {
 		await supabase.auth.signOut();
 		userId = null;
 		await goto('/');
+	}
+
+	function pendingNonTutorialCount() {
+		return tasks.filter((t) => !t.isTutorial).length;
+	}
+
+	async function promptAuthAfterFirstTaskIfNeeded() {
+		hasPromptedAuthAfterFirstTask = true;
+		if (!isAuthed) openAuthModal();
+	}
+
+	async function generateNewTask() {
+		if (!browser) return;
+
+		loading = true;
+		errorMessage = '';
+		draftTask = null;
+
+		const payload: Record<string, unknown> = { endGoal: goal };
+		const previousTask = tasks.filter((t) => !t.isTutorial).at(-1);
+		if (previousTask) {
+			payload.previousTask = {
+				title: previousTask.title,
+				description: previousTask.description,
+				outcome: previousTask.outcome
+			};
+		}
+
+		try {
+			const res = await fetch('/api/generate-task', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (!res.ok) throw new Error(await res.text());
+
+			const { task } = (await res.json()) as { task: Task };
+			// Append and focus the new task
+			tasks = [...tasks, task];
+			activeTaskId = task.id;
+
+			// await goto(`/project/${task.id}`);
+		} catch (e) {
+			errorMessage = e instanceof Error ? e.message : 'Failed to generate task.';
+		} finally {
+			loading = false;
+		}
+	}
+
+	if (browser) {
+		$effect(() => {
+			if (
+				autoGenerateTask &&
+				!loading &&
+				goal.trim().length > 0 &&
+				pendingNonTutorialCount() === 0 &&
+				!pendingTaskId
+			) {
+				autoGenerateTask = false;
+				void generateNewTask();
+			}
+		});
 	}
 
 	const authApi: AuthUI = { openAuthModal, signInWithGoogle, signOut };
