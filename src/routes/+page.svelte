@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import Onboarding from '$lib/components/lg/Onboarding.svelte';
+	import Landing from '$lib/components/lg/Landing.svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { getContext, onDestroy } from 'svelte';
 	import type { PageProps } from './$types';
@@ -32,9 +32,9 @@
 <div class="flex h-full w-full items-center justify-center bg-stone-50 p-6">
 	{#if userId}
 		<section class="flex h-full w-full max-w-3xl flex-col justify-center space-y-10">
-			<div class="flex text-black">projects dashboard</div>
+			<div class="flex text-black">project page</div>
 		</section>
 	{:else}
-		<Onboarding onSubmit={openAuthModal} />
+		<Landing onSubmit={openAuthModal} />
 	{/if}
 </div>
