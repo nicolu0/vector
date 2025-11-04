@@ -3,7 +3,6 @@
 	import { browser } from '$app/environment';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 	import Sidebar from '$lib/components/lg/Sidebar.svelte';
-	import { fade, scale } from 'svelte/transition';
 	import { supabase } from '$lib/supabaseClient';
 	import Chat from '$lib/components/lg/Chat.svelte';
 	import '../app.css';
@@ -159,7 +158,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="flex h-dvh w-full bg-stone-50 text-stone-900">
+<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 	{#if userId}
 		<Sidebar />
 	{:else}
@@ -172,7 +171,9 @@
 		</button>
 	{/if}
 
-	{@render children()}
+	<main class="min-h-0 min-w-0 flex-1 overflow-auto">
+		{@render children()}
+	</main>
 	{#if userId}
 		<Chat />
 	{/if}

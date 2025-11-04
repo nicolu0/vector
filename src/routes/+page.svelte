@@ -30,16 +30,12 @@
 	});
 </script>
 
-<div class="flex items-center justify-center bg-stone-50 p-6">
+<div class="flex h-full w-full min-w-0 justify-center overflow-auto bg-stone-50 p-6">
 	{#if userId && project}
-		<section class="border-b border-stone-200 bg-stone-50/60">
-			<div class="flex items-start justify-between gap-4">
-				<div class="min-w-0">
-					<div class="text-xs tracking-wide text-stone-500 uppercase">Project</div>
-					<h2 class="text-lg font-semibold text-stone-900">{project.title}</h2>
-					<p class="mt-1 text-sm text-stone-700">{project.description}</p>
-				</div>
-			</div>
+		<section class="bg-stone-50/60">
+			<div class="text-xs tracking-wide text-stone-500 uppercase">Project</div>
+			<h2 class="text-lg font-semibold text-stone-900">{project.title}</h2>
+			<p class="mt-1 text-sm text-stone-700">{project.description}</p>
 		</section>
 	{:else}
 		<Landing onSubmit={openAuthModal} />
