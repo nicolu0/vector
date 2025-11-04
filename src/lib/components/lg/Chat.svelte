@@ -18,7 +18,7 @@
 	let input = $state('');
 </script>
 
-<div class="flex h-full w-full flex-col bg-stone-50">
+<div class="flex h-full w-[250px] flex-col border-l border-stone-200 bg-stone-50">
 	<div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
 		{#each messages as m (m.id)}
 			<div class={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>

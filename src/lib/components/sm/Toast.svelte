@@ -86,7 +86,7 @@
 </script>
 
 {#if open}
-	<div class="pointer-events-none fixed right-6 bottom-6 z-50 flex flex-col items-end gap-3">
+	<div class="pointer-events-none fixed top-6 right-6 z-50 flex flex-col items-end gap-3">
 		<div
 			class={`pointer-events-auto relative w-full max-w-sm overflow-hidden rounded-2xl border px-4 py-3 pl-5 transition ${toneStyles[tone].container}`}
 			role="status"

@@ -2,7 +2,11 @@ import type { PageServerLoad } from './$types';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { error, redirect } from '@sveltejs/kit';
 
+const FALLBACK_TASK = {
+	title: 'Fallback Task'
+}
 export const load: PageServerLoad = async ({ params, cookies, url }) => {
+	return { task: FALLBACK_TASK };
 	const supabase = createSupabaseServerClient(cookies);
 
 	// optional: handle OAuth code here too if this page can be a landing target

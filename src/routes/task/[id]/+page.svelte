@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import TaskView from '$lib/components/lg/TaskView.svelte';
 	import Chat from '$lib/components/lg/Chat.svelte';
 	import type { PageProps } from './$types';
 
