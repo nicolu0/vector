@@ -1,99 +1,127 @@
+<!-- src/lib/components/lg/Sidebar.svelte -->
 <script lang="ts">
+	import Milestones from '$lib/components/md/Milestones.svelte';
 	import Profile from '$lib/components/md/Profile.svelte';
-	import Folder from '$lib/components/sm/Folder.svelte';
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 
-	type Task = {
-		id: string;
-		title: string;
-		description: string;
-		outcome: string;
-		isTutorial?: boolean;
-	};
+	type Milestone = { id: string; title: string; summary?: string };
+	type TasksMap = Record<string, Array<{ id: string; title: string }>>;
 
-	let {
-		tasks = [],
-		activeTaskId = null,
-		creating = false
-	} = $props<{
-		tasks?: Task[];
-		tutorialTasks?: Task[]; // NEW
-		activeTaskId?: string | null;
-		creating?: boolean;
+	let { milestones = [], tasksByMilestone = {} } = $props<{
+		milestones?: Milestone[];
+		tasksByMilestone?: TasksMap;
 	}>();
 
 	let sidebarCollapsed = $state(false);
-	const EXPANDED_WIDTH = 250;
-	const COLLAPSED_WIDTH = 60;
+	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
+	const COLLAPSED_WIDTH = '3rem';
+	const containerFlex = $derived(sidebarCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH);
+	const sidebarTransform = $derived(sidebarCollapsed ? 'translateX(-100%)' : 'translateX(0%)');
 
 	function toggleSidebar() {
 		sidebarCollapsed = !sidebarCollapsed;
 	}
 
-	let profileModal = $state(false);
+	type AuthUI = { signOut: () => Promise<void> };
+	const { signOut } = getContext<AuthUI>('auth-ui');
 
-	const isPendingTask = (taskId: string) => {
-		const last = tasks[tasks.length - 1];
-		return creating && last && last.id === taskId;
-	};
-	type AuthUI = {
-		openAuthModal: () => void;
-		signOut: () => Promise<void>;
-	};
-	const { openAuthModal, signOut } = getContext<AuthUI>('auth-ui');
+	function extractMilestoneId(pathname: string): string | null {
+		const m = /^\/milestone\/([^/]+)/.exec(pathname);
+		return m ? m[1] : null;
+	}
+
+	function extractTaskId(pathname: string): string | null {
+		const m = /^\/task\/([^/]+)/.exec(pathname);
+		return m ? m[1] : null;
+	}
+
+	// Derive current route selection and keep a local, instantly-updating selection
+	const routeMilestoneId = $derived<string | null>(extractMilestoneId($page.url.pathname));
+	const routeTaskId = $derived<string | null>(extractTaskId($page.url.pathname));
+	let selectedMilestoneId = $state<string | null>(routeMilestoneId);
+	let selectedTaskId = $state<string | null>(routeTaskId);
+
+	// When the route changes, sync the local selection
+	$effect(() => {
+		selectedMilestoneId = routeMilestoneId;
+		selectedTaskId = routeTaskId;
+	});
 </script>
 
-<aside
-	class="relative flex h-full flex-col justify-between border-r border-stone-200 bg-stone-100 backdrop-blur-sm transition-[width] duration-200 ease-out"
-	style={`width: ${sidebarCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px;`}
+<div
+	class="relative flex h-full min-w-0 overflow-hidden transition-[flex-basis] duration-200 ease-out"
+	style={`flex-basis:${containerFlex};flex-grow:0;flex-shrink:0;`}
 >
-	<div class="flex flex-col">
-		<div class="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
-			<button
-				class="flex items-center gap-2"
-				onclick={() => {
-					goto('/');
-					activeTaskId = null;
-				}}
-				aria-label="Go to home"
-			>
-				<img src={vectorUrl} alt="vector" class="h-5 w-5" />
-			</button>
-
-			{#if !sidebarCollapsed}
-				<button
-					type="button"
-					onclick={toggleSidebar}
-					class="inline-flex h-6 w-6 items-center justify-center rounded-md text-stone-500 hover:bg-stone-200 hover:text-stone-900"
-					aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-				>
-					<svg
-						viewBox="0 0 24 24"
-						class="h-5 w-5"
-						stroke="currentColor"
-						fill="none"
-						stroke-width="1.8"
+	<aside
+		id="sidebar-nav"
+		class="relative flex h-full w-full flex-col justify-between border-r border-stone-200 bg-stone-100 backdrop-blur-sm transition-transform duration-200 ease-out"
+		class:pointer-events-none={sidebarCollapsed}
+		style:width={EXPANDED_WIDTH}
+		style:transform={sidebarTransform}
+		aria-hidden={sidebarCollapsed}
+	>
+		{#if !sidebarCollapsed}
+			<div class="flex flex-col">
+				<div class="flex w-full items-center justify-end gap-2 px-4 pt-4 pb-3">
+					<button
+						type="button"
+						onclick={toggleSidebar}
+						class="inline-flex h-6 w-6 items-center justify-center rounded-md text-stone-500 hover:bg-stone-200 hover:text-stone-900"
+						aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 					>
-						<path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-					</svg>
-				</button>
-			{/if}
-		</div>
+						<svg
+							viewBox="0 0 24 24"
+							class="h-5 w-5"
+							stroke="currentColor"
+							fill="none"
+							stroke-width="1.8"
+						>
+							<path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+						</svg>
+					</button>
+				</div>
 
-		<div class="space-y-1 overflow-y-auto px-2 py-2">
-			<div class="mt-4 mb-1 text-[11px] font-semibold tracking-wide text-stone-500 uppercase">
-				Milestones
+				<Milestones
+					{milestones}
+					{tasksByMilestone}
+					initiallyOpen={true}
+					selectedId={selectedMilestoneId}
+					selectedTaskId={selectedTaskId}
+					onSelect={(id) => {
+						// Instant UI feedback
+						selectedMilestoneId = id;
+						selectedTaskId = null;
+					}}
+					onSelectTask={(taskId) => {
+						selectedTaskId = taskId;
+					}}
+				/>
 			</div>
-			<Folder id="ms-123" name="Env Setup" {tasks} initiallyOpen={false} />
-		</div>
-	</div>
 
-	<Profile
-		name="Andrew Chang"
-		email="21andrewch@alumni.harker.org"
-		sidebarCollapsed={false}
-		onSignOut={signOut}
-	/>
-</aside>
+			<Profile
+				name="Andrew Chang"
+				email="21andrewch@alumni.harker.org"
+				sidebarCollapsed={false}
+				onSignOut={signOut}
+			/>
+		{/if}
+	</aside>
+
+	<button
+		type="button"
+		onclick={() => {
+			if (sidebarCollapsed) {
+				sidebarCollapsed = false;
+			} else {
+				goto('/');
+			}
+		}}
+		class="fixed top-3 left-3 flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 transition hover:bg-stone-200 hover:text-stone-900"
+		aria-label="Go to home"
+	>
+		<img src={vectorUrl} alt="vector" class="h-5 w-5" />
+	</button>
+</div>

@@ -29,14 +29,12 @@
 		if (e.key === 'Escape') close();
 	}
 
-	// Small helper so clicking a menu item both closes and runs a callback
 	function run(cb?: () => void) {
 		close();
 		cb?.();
 	}
 </script>
 
-<!-- Trigger (fits your sidebar footer) -->
 <div class="p-2">
 	<button
 		type="button"
@@ -48,11 +46,27 @@
 		{#if avatarUrl}
 			<img src={avatarUrl} alt="" class="h-7 w-7 rounded-full object-cover" />
 		{:else}
-			<div class="h-7 w-7 rounded-full bg-stone-300" />
+			<span class="font-mono tracking-tighter text-stone-500">
+				<svg
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					shape-rendering="geometricPrecision"
+					class="h-4 w-4 transition-colors duration-200"
+				>
+					<path d="M20 21.5v-2.5a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2.5h16" />
+					<circle cx="12" cy="7" r="4" />
+				</svg>
+			</span>
 		{/if}
 		{#if !sidebarCollapsed}
 			<div class="flex flex-col">
-				<span class="text-sm font-medium">{name}</span>
+				<span class="text-xs font-medium">Profile</span>
 			</div>
 		{/if}
 	</button>

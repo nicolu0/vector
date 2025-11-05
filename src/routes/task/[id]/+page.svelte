@@ -82,8 +82,7 @@
 	// }
 </script>
 
-<div class="flex h-full w-full flex-col gap-4 bg-stone-50">
+<div class="flex h-full w-full flex-col gap-4 bg-stone-50 p-4">
 	<div class="flex">{data?.task?.title}</div>
-	<div class="flex">{data?.task?.description}</div>
-	<div class="flex">{data?.task?.outcome}</div>
+	<div class="flex">{data?.task?.goal}</div>
 </div>

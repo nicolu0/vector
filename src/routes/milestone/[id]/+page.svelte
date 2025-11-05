@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Chat from '$lib/components/lg/Chat.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -81,7 +80,7 @@
 	// }
 </script>
 
-<div class="flex h-full w-full flex-col gap-4 bg-stone-50">
-	<div class="flex">Milestone 1</div>
-	<div class="flex">{data?.task?.title}</div>
+<div class="flex h-full w-full flex-col gap-4 bg-stone-50 p-6">
+	<div class="flex">{data?.milestone?.title}</div>
+	<div class="flex">{data?.milestone?.summary}</div>
 </div>

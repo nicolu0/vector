@@ -18,7 +18,10 @@
 	let input = $state('');
 </script>
 
-<div class="flex h-full w-[250px] flex-col border-l border-stone-200 bg-stone-50">
+<div
+	class="flex h-full w-full flex-col border-l border-stone-200 bg-stone-50"
+	style="flex: 0 0 min(26vw, 22rem);"
+>
 	<div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
 		{#each messages as m (m.id)}
 			<div class={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -38,7 +41,7 @@
 	<div class="bg-stone-50 p-3">
 		<div class="flex items-end gap-2">
 			<textarea
-				class="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl border border-stone-300 p-2 text-sm text-stone-600 outline-none focus:border-stone-400 focus:ring-0"
+				class="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl border border-stone-300 bg-stone-50 p-2 text-sm text-stone-600 outline-none focus:border-stone-400 focus:ring-0"
 				placeholder="Type a message…"
 				bind:value={input}
 			/>

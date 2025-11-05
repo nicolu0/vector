@@ -7,14 +7,18 @@
 		checked = false,
 		loading = false,
 		completing = false,
-		onToggle
+		active = false,
+		onToggle,
+		onSelect = null
 	} = $props<{
 		id: string;
 		title: string;
 		checked?: boolean;
 		loading?: boolean;
 		completing?: boolean;
+		active?: boolean;
 		onToggle: (id: string) => void;
+		onSelect?: (() => void) | null;
 	}>();
 
 	function toggle(e: MouseEvent | KeyboardEvent) {
@@ -24,15 +28,20 @@
 	}
 
 	function openTask() {
+		onSelect?.();
 		goto(`/task/${id}`);
 	}
 </script>
 
 <li class="group">
-	<div class="flex w-full items-center gap-1 rounded-lg px-1 py-1">
+	<div
+		class={`flex w-full items-center gap-1 rounded-md pl-4 transition ${
+			active ? 'bg-stone-300' : 'hover:bg-stone-200'
+		}`}
+	>
 		<button
 			type="button"
-			class="relative grid h-3 w-3 place-items-center rounded-full focus:outline-none
+			class="relative ml-2 grid h-3 w-3 place-items-center rounded-full focus:outline-none
 			       {checked ? 'bg-stone-900' : ''}"
 			role="checkbox"
 			aria-checked={checked}
@@ -58,15 +67,15 @@
 			{/if}
 		</button>
 
-		<!-- Right: navigation button (fills remaining width) -->
 		<button
 			type="button"
 			onclick={openTask}
-			class="flex min-w-0 flex-1 items-center justify-between rounded-md px-1.5 py-1"
+			class="flex min-w-0 flex-1 items-center justify-between rounded-md py-1"
+			aria-current={active ? 'page' : undefined}
 			aria-label={`Open task ${title}`}
 		>
 			<span
-				class="min-w-0 truncate font-mono text-sm tracking-tight {checked
+				class="min-w-0 truncate text-xs tracking-tight {checked
 					? 'text-stone-400 line-through'
 					: 'text-stone-800'}"
 			>

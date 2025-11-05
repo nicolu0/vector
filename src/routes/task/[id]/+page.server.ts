@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ params, cookies, url }) => {
 
 	const { data: task, error: qerr } = await supabase
 		.from('tasks')
-		.select('id, title, description, outcome')
+		.select('id, title, goal')
 		.eq('user_id', user.id)
 		.eq('id', params.id)
 		.maybeSingle();
