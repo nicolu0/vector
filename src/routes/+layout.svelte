@@ -121,11 +121,12 @@
 		<Sidebar {milestones} {tasksByMilestone} />
 	{:else}
 		<button
-			class="fixed top-2 left-2 items-center gap-2 rounded-lg p-2 hover:bg-stone-100"
+			type="button"
 			onclick={openAuthModal}
+			class="fixed top-3 left-3 flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 transition hover:bg-stone-200 hover:text-stone-900"
 			aria-label="Go to home"
 		>
-			<img src={vectorUrl} alt="vector" class="h-6 w-6" />
+			<img src={vectorUrl} alt="vector" class="h-5 w-5" />
 		</button>
 	{/if}
 

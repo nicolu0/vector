@@ -50,16 +50,16 @@
 				<ul class="space-y-1">
 					{#each milestones as m (m.id)}
 						<li>
-								<Folder
-									id={m.id}
-									name={m.title}
-									tasks={tasksByMilestone[m.id] ?? []}
-									initiallyOpen={false}
-									active={selectedId === m.id}
-									selectedTaskId={selectedTaskId}
-									onSelectTask={onSelectTask}
-									onSelect={onSelect ? () => onSelect(m.id) : null}
-								/>
+							<Folder
+								id={m.id}
+								name={m.title}
+								tasks={tasksByMilestone[m.id] ?? []}
+								initiallyOpen={false}
+								active={selectedId === m.id}
+								{selectedTaskId}
+								{onSelectTask}
+								onSelect={onSelect ? () => onSelect(m.id) : null}
+							/>
 						</li>
 					{/each}
 				</ul>

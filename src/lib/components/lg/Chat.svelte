@@ -41,7 +41,7 @@
 	<div class="bg-stone-50 p-3">
 		<div class="flex items-end gap-2">
 			<textarea
-				class="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl border border-stone-300 p-2 text-sm text-stone-600 outline-none focus:border-stone-400 focus:ring-0"
+				class="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl border border-stone-300 bg-stone-50 p-2 text-sm text-stone-600 outline-none focus:border-stone-400 focus:ring-0"
 				placeholder="Type a message…"
 				bind:value={input}
 			/>

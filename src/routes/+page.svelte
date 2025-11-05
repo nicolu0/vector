@@ -35,7 +35,7 @@
 		<section class="bg-stone-50/60">
 			<div class="mb-10 text-xs tracking-wide text-stone-500 uppercase">Project</div>
 			<h2 class="text-lg font-semibold text-stone-900">{project.title}</h2>
-			<p class="mt-1 text-sm text-stone-700">{project.description}</p>
+			<div class="leading-relaxed whitespace-pre-wrap text-stone-800">{project.description}</div>
 		</section>
 	{:else}
 		<Landing onSubmit={openAuthModal} />
