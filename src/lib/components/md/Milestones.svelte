@@ -10,13 +10,17 @@
 		tasksByMilestone = {},
 		initiallyOpen = true,
 		selectedId = null,
-		onSelect = null
+		selectedTaskId = null,
+		onSelect = null,
+		onSelectTask = null
 	} = $props<{
 		milestones?: Milestone[];
 		tasksByMilestone?: TasksMap;
 		initiallyOpen?: boolean;
 		selectedId?: string | null;
+		selectedTaskId?: string | null;
 		onSelect?: ((id: string) => void) | null;
+		onSelectTask?: ((taskId: string) => void) | null;
 	}>();
 
 	let open = $state(initiallyOpen);
@@ -46,14 +50,16 @@
 				<ul class="space-y-1">
 					{#each milestones as m (m.id)}
 						<li>
-							<Folder
-								id={m.id}
-								name={m.title}
-								tasks={tasksByMilestone[m.id] ?? []}
-								initiallyOpen={false}
-								active={selectedId === m.id}
-								onSelect={onSelect ? () => onSelect(m.id) : null}
-							/>
+								<Folder
+									id={m.id}
+									name={m.title}
+									tasks={tasksByMilestone[m.id] ?? []}
+									initiallyOpen={false}
+									active={selectedId === m.id}
+									selectedTaskId={selectedTaskId}
+									onSelectTask={onSelectTask}
+									onSelect={onSelect ? () => onSelect(m.id) : null}
+								/>
 						</li>
 					{/each}
 				</ul>

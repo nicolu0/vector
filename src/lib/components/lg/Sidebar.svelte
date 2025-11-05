@@ -33,13 +33,21 @@
 		return m ? m[1] : null;
 	}
 
+	function extractTaskId(pathname: string): string | null {
+		const m = /^\/task\/([^/]+)/.exec(pathname);
+		return m ? m[1] : null;
+	}
+
 	// Derive current route selection and keep a local, instantly-updating selection
 	const routeMilestoneId = $derived<string | null>(extractMilestoneId($page.url.pathname));
+	const routeTaskId = $derived<string | null>(extractTaskId($page.url.pathname));
 	let selectedMilestoneId = $state<string | null>(routeMilestoneId);
+	let selectedTaskId = $state<string | null>(routeTaskId);
 
 	// When the route changes, sync the local selection
 	$effect(() => {
 		selectedMilestoneId = routeMilestoneId;
+		selectedTaskId = routeTaskId;
 	});
 </script>
 
@@ -81,9 +89,14 @@
 					{tasksByMilestone}
 					initiallyOpen={true}
 					selectedId={selectedMilestoneId}
+					selectedTaskId={selectedTaskId}
 					onSelect={(id) => {
 						// Instant UI feedback
 						selectedMilestoneId = id;
+						selectedTaskId = null;
+					}}
+					onSelectTask={(taskId) => {
+						selectedTaskId = taskId;
 					}}
 				/>
 			</div>

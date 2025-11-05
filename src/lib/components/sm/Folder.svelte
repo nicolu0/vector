@@ -10,14 +10,18 @@
 		tasks = [] as TaskData[],
 		initiallyOpen = false,
 		active = false,
-		onSelect = null
+		selectedTaskId = null,
+		onSelect = null,
+		onSelectTask = null
 	} = $props<{
 		id: string;
 		name: string;
 		tasks?: TaskData[];
 		initiallyOpen?: boolean;
 		active?: boolean;
+		selectedTaskId?: string | null;
 		onSelect?: ((id: string) => void) | null;
+		onSelectTask?: ((taskId: string) => void) | null;
 	}>();
 
 	let open = $state(initiallyOpen);
@@ -41,7 +45,7 @@
 <div class="group rounded-lg">
 	<!-- Row -->
 	<div
-		class={`flex items-center rounded-lg px-1 py-0.5 transition ${
+		class={`flex items-center rounded-md px-1  transition ${
 			active ? 'bg-stone-300' : 'hover:bg-stone-200'
 		}`}
 	>
@@ -86,9 +90,16 @@
 	>
 		<div class="min-h-0">
 			{#if tasks.length > 0}
-				<ul class="mt-1 space-y-1 pl-7">
+				<ul class="mt-1 space-y-1">
 					{#each tasks as t (t.id)}
-						<Task id={t.id} title={t.title} checked={!!done[t.id]} onToggle={toggleTask} />
+						<Task
+							id={t.id}
+							title={t.title}
+							checked={!!done[t.id]}
+							active={selectedTaskId === t.id}
+							onToggle={toggleTask}
+							onSelect={onSelectTask ? () => onSelectTask(t.id) : null}
+						/>
 					{/each}
 				</ul>
 			{:else}
