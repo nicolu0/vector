@@ -75,7 +75,7 @@
 			aria-label={`Open task ${title}`}
 		>
 			<span
-				class="min-w-0 truncate text-xs tracking-tight {checked
+				class="min-w-0 truncate text-sm tracking-tight {checked
 					? 'text-stone-400 line-through'
 					: 'text-stone-800'}"
 			>

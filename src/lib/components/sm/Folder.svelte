@@ -77,7 +77,7 @@
 			aria-current={active ? 'page' : undefined}
 		>
 			<div class="min-w-0">
-				<div class={`truncate text-xs font-medium text-stone-900`}>
+				<div class={`truncate text-sm font-medium text-stone-900`}>
 					{name}
 				</div>
 			</div>
@@ -103,7 +103,7 @@
 					{/each}
 				</ul>
 			{:else}
-				<div class="ml-5 px-2 py-1 text-xs text-stone-500">No tasks</div>
+				<div class="ml-5 px-2 py-1 text-sm text-stone-500">No tasks</div>
 			{/if}
 		</div>
 	</div>
