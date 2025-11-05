@@ -8,8 +8,12 @@
 	import vectorUrl from '$lib/assets/vector.svg?url';
 
 	type Milestone = { id: string; title: string; summary?: string };
+	type TasksMap = Record<string, Array<{ id: string; title: string }>>;
 
-	let { milestones = [] } = $props<{ milestones?: Milestone[] }>();
+	let { milestones = [], tasksByMilestone = {} } = $props<{
+		milestones?: Milestone[];
+		tasksByMilestone?: TasksMap;
+	}>();
 
 	let sidebarCollapsed = $state(false);
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
@@ -74,6 +78,7 @@
 
 				<Milestones
 					{milestones}
+					{tasksByMilestone}
 					initiallyOpen={true}
 					selectedId={selectedMilestoneId}
 					onSelect={(id) => {

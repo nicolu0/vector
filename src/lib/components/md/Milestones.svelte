@@ -3,14 +3,17 @@
 	import Folder from '$lib/components/sm/Folder.svelte';
 
 	type Milestone = { id: string; title: string; summary?: string };
+	type TasksMap = Record<string, Array<{ id: string; title: string }>>;
 
 	let {
 		milestones = [],
+		tasksByMilestone = {},
 		initiallyOpen = true,
 		selectedId = null,
 		onSelect = null
 	} = $props<{
 		milestones?: Milestone[];
+		tasksByMilestone?: TasksMap;
 		initiallyOpen?: boolean;
 		selectedId?: string | null;
 		onSelect?: ((id: string) => void) | null;
@@ -46,6 +49,7 @@
 							<Folder
 								id={m.id}
 								name={m.title}
+								tasks={tasksByMilestone[m.id] ?? []}
 								initiallyOpen={false}
 								active={selectedId === m.id}
 								onSelect={onSelect ? () => onSelect(m.id) : null}

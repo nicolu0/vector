@@ -29,6 +29,7 @@
 	let dbProject = $state(data.project);
 	let project = $state<InitProjectResponse['project'] | null>(null);
 	let milestones = $state(data.milestones);
+	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
 	let initLoading = $state(false);
 	let projectInitialized = $state(false);
 
@@ -62,6 +63,7 @@
 	$effect(() => {
 		userId = data.user?.id ?? null;
 		goal = data.goal ?? '';
+		tasksByMilestone = data.tasksByMilestone ?? {};
 	});
 
 	async function signOut() {
@@ -116,7 +118,7 @@
 
 <div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 	{#if userId}
-		<Sidebar {milestones} />
+		<Sidebar {milestones} {tasksByMilestone} />
 	{:else}
 		<button
 			class="fixed top-2 left-2 items-center gap-2 rounded-lg p-2 hover:bg-stone-100"
