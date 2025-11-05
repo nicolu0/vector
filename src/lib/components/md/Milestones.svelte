@@ -1,11 +1,19 @@
+<!-- src/lib/components/md/Milestones.svelte -->
 <script lang="ts">
 	import Folder from '$lib/components/sm/Folder.svelte';
 
 	type Milestone = { id: string; title: string; summary?: string };
 
-	let { milestones = [], initiallyOpen = true } = $props<{
+	let {
+		milestones = [],
+		initiallyOpen = true,
+		selectedId = null,
+		onSelect = null
+	} = $props<{
 		milestones?: Milestone[];
 		initiallyOpen?: boolean;
+		selectedId?: string | null;
+		onSelect?: ((id: string) => void) | null;
 	}>();
 
 	let open = $state(initiallyOpen);
@@ -15,13 +23,14 @@
 	}
 </script>
 
-<div class="px-2 py-2">
+<div class="space-y-1 px-2 py-2">
+	<!-- Clickable section header that collapses/expands the list -->
 	<button
 		type="button"
 		onclick={toggle}
 		aria-expanded={open}
-		class="group flex w-full items-center justify-between rounded-md px-2 py-1.5
-		       text-xs font-medium text-stone-500 uppercase hover:bg-stone-200"
+		class="group flex w-full items-center justify-between rounded-lg px-2 py-1.5
+		       text-xs font-medium text-stone-600 uppercase hover:bg-stone-200"
 	>
 		<span>Milestones</span>
 	</button>
@@ -34,7 +43,13 @@
 				<ul class="space-y-1">
 					{#each milestones as m (m.id)}
 						<li>
-							<Folder id={m.id} name={m.title} initiallyOpen={false} />
+							<Folder
+								id={m.id}
+								name={m.title}
+								initiallyOpen={false}
+								active={selectedId === m.id}
+								onSelect={onSelect ? () => onSelect(m.id) : null}
+							/>
 						</li>
 					{/each}
 				</ul>

@@ -1,17 +1,23 @@
 <script lang="ts">
-	import Task from '$lib/components/sm/Task.svelte';
 	import { goto } from '$app/navigation';
+	import Task from '$lib/components/sm/Task.svelte';
+
+	type TaskData = { id: string; title: string };
 
 	let {
 		id,
 		name,
-		tasks = [] as Task[],
-		initiallyOpen = false
+		tasks = [] as TaskData[],
+		initiallyOpen = false,
+		active = false,
+		onSelect = null
 	} = $props<{
 		id: string;
 		name: string;
-		tasks?: Task[];
+		tasks?: TaskData[];
 		initiallyOpen?: boolean;
+		active?: boolean;
+		onSelect?: ((id: string) => void) | null;
 	}>();
 
 	let open = $state(initiallyOpen);
@@ -20,21 +26,29 @@
 		e.stopPropagation();
 		open = !open;
 	}
+
 	function navigate() {
-		goto(`/milestone/${id}`);
+		onSelect?.(id); // instant highlight
+		goto(`/milestone/${id}`); // then navigate
 	}
+
 	let done: Record<string, boolean> = $state({});
-	function toggleTask(id: string) {
-		console.log(id);
-		done[id] = !done[id];
+	function toggleTask(taskId: string) {
+		done[taskId] = !done[taskId];
 	}
 </script>
 
-<div class="group rounded-md hover:bg-stone-200">
-	<div class="flex items-center bg-transparent">
+<div class="group rounded-lg">
+	<!-- Row -->
+	<div
+		class={`flex items-center rounded-lg px-1 py-0.5 transition ${
+			active ? 'bg-stone-300' : 'hover:bg-stone-200'
+		}`}
+	>
+		<!-- Chevron -->
 		<button
 			type="button"
-			class="ml-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-stone-500 hover:bg-stone-300 hover:text-stone-800"
+			class={`ml-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-stone-500 hover:bg-stone-400/50 hover:text-stone-800`}
 			aria-label={open ? 'Collapse' : 'Expand'}
 			aria-expanded={open}
 			onclick={toggle}
@@ -50,30 +64,36 @@
 			</svg>
 		</button>
 
+		<!-- Clickable name -->
 		<button
 			type="button"
 			onclick={navigate}
-			class="flex min-w-0 flex-1 items-center justify-between rounded-lg bg-transparent px-2 py-1 text-left"
+			class="flex min-w-0 flex-1 items-center justify-between rounded-md px-1 py-1 text-left"
 			aria-label={`Open milestone ${name}`}
+			aria-current={active ? 'page' : undefined}
 		>
 			<div class="min-w-0">
-				<div class="truncate text-xs font-medium text-stone-900">{name}</div>
+				<div class={`truncate text-xs font-medium text-stone-900`}>
+					{name}
+				</div>
 			</div>
-			<span class="ml-2 rounded-md border border-stone-300 px-1.5 py-0.5 text-[8px] text-stone-500">
-				{tasks.length} tasks
-			</span>
 		</button>
 	</div>
 
+	<!-- Collapsible task list -->
 	<div
-		class={`overflow-hidden transition-[grid-template-rows] ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'} grid`}
+		class={`grid overflow-hidden transition-[grid-template-rows] ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
 	>
 		<div class="min-h-0">
-			<ul class="">
-				{#each tasks as t (t.id)}
-					<Task id={t.id} title={t.title} checked={!!done[t.id]} onToggle={toggleTask} />
-				{/each}
-			</ul>
+			{#if tasks.length > 0}
+				<ul class="mt-1 space-y-1 pl-7">
+					{#each tasks as t (t.id)}
+						<Task id={t.id} title={t.title} checked={!!done[t.id]} onToggle={toggleTask} />
+					{/each}
+				</ul>
+			{:else}
+				<div class="ml-5 px-2 py-1 text-xs text-stone-500">No tasks</div>
+			{/if}
 		</div>
 	</div>
 </div>

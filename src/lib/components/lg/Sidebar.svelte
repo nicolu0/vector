@@ -1,19 +1,15 @@
+<!-- src/lib/components/lg/Sidebar.svelte -->
 <script lang="ts">
 	import Milestones from '$lib/components/md/Milestones.svelte';
 	import Profile from '$lib/components/md/Profile.svelte';
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 
-	type Milestone = {
-		id: string;
-		title: string;
-		summary?: string;
-	};
+	type Milestone = { id: string; title: string; summary?: string };
 
-	let { milestones = [] } = $props<{
-		milestones?: Milestone[];
-	}>();
+	let { milestones = [] } = $props<{ milestones?: Milestone[] }>();
 
 	let sidebarCollapsed = $state(false);
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
@@ -25,15 +21,27 @@
 		sidebarCollapsed = !sidebarCollapsed;
 	}
 
-	type AuthUI = {
-		signOut: () => Promise<void>;
-	};
+	type AuthUI = { signOut: () => Promise<void> };
 	const { signOut } = getContext<AuthUI>('auth-ui');
+
+	function extractMilestoneId(pathname: string): string | null {
+		const m = /^\/milestone\/([^/]+)/.exec(pathname);
+		return m ? m[1] : null;
+	}
+
+	// Derive current route selection and keep a local, instantly-updating selection
+	const routeMilestoneId = $derived<string | null>(extractMilestoneId($page.url.pathname));
+	let selectedMilestoneId = $state<string | null>(routeMilestoneId);
+
+	// When the route changes, sync the local selection
+	$effect(() => {
+		selectedMilestoneId = routeMilestoneId;
+	});
 </script>
 
 <div
 	class="relative flex h-full min-w-0 overflow-hidden transition-[flex-basis] duration-200 ease-out"
-	style={`flex-basis: ${containerFlex}; flex-grow: 0; flex-shrink: 0;`}
+	style={`flex-basis:${containerFlex};flex-grow:0;flex-shrink:0;`}
 >
 	<aside
 		id="sidebar-nav"
@@ -64,7 +72,15 @@
 					</button>
 				</div>
 
-				<Milestones {milestones} initiallyOpen={true} />
+				<Milestones
+					{milestones}
+					initiallyOpen={true}
+					selectedId={selectedMilestoneId}
+					onSelect={(id) => {
+						// Instant UI feedback
+						selectedMilestoneId = id;
+					}}
+				/>
 			</div>
 
 			<Profile
