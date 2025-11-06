@@ -72,42 +72,6 @@
 		await goto('/');
 	}
 
-	async function initializeProject() {
-		if (!browser) return;
-		if (!isAuthed) return;
-		if (!goal || goal.trim().length === 0) return;
-		if (projectInitialized) return;
-
-		initLoading = true;
-
-		try {
-			const headers: HeadersInit = { 'Content-Type': 'application/json' };
-
-			const res = await fetch('/api/initialize-project', {
-				method: 'POST',
-				headers,
-				body: JSON.stringify({ goal })
-			});
-			if (!res.ok) throw new Error(await res.text());
-
-			const data = (await res.json()) as InitProjectResponse;
-			project = data.project;
-			milestones = data.milestones ?? [];
-			projectInitialized = true;
-		} catch (e) {
-		} finally {
-			initLoading = false;
-		}
-	}
-
-	if (browser) {
-		$effect(() => {
-			if (isAuthed && !initLoading && !projectInitialized && goal.trim().length > 0) {
-				// void initializeProject();
-			}
-		});
-	}
-
 	const authApi: AuthUI = { openAuthModal, signInWithGoogle, signOut };
 	setContext<AuthUI>('auth-ui', authApi);
 </script>
