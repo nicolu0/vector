@@ -49,7 +49,8 @@ export const load: LayoutServerLoad = async (event) => {
 		.eq('user_id', user.id)
 		.maybeSingle();
 
-	payload.tutorial = profile?.tutorial;
+	const tutorialFlag = !!profile?.tutorial;
+	payload.tutorial = tutorialFlag;
 	let goal = (profile?.goal ? String(profile.goal) : '') || goalCookie;
 
 	if (goalCookie && !profile) {
@@ -67,6 +68,13 @@ export const load: LayoutServerLoad = async (event) => {
 		cookies.delete('vector:goal', { path: '/' });
 	}
 	payload.goal = goal;
+
+	const path = url.pathname;
+	if (tutorialFlag) {
+		if (path === '/' || path === '') throw redirect(303, '/tutorial');
+	} else if (path === '/tutorial' || path === '/tutorial/') {
+		throw redirect(303, '/');
+	}
 
 	// Include 'skills' in the select list
 	const { data: projRow, error: projErr } = await supabase
