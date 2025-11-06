@@ -70,9 +70,9 @@
 	}
 </script>
 
-<li class="group">
+<li class="group pl-4">
 	<div
-		class={`flex w-full items-center gap-1 rounded-md pl-4 transition ${
+		class={`flex w-full items-center gap-1 rounded-md transition ${
 			active ? 'bg-stone-300' : 'hover:bg-stone-200'
 		}`}
 	>
