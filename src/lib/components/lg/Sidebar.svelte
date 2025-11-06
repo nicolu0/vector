@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Today from '$lib/components/md/Today.svelte';
 	import Milestones from '$lib/components/md/Milestones.svelte';
 	import Tutorial from '$lib/components/md/Tutorial.svelte';
 	import Profile from '$lib/components/md/Profile.svelte';
@@ -70,11 +71,11 @@
 	>
 		{#if !sidebarCollapsed}
 			<div class="flex flex-col">
-				<div class="flex w-full items-center justify-end gap-2 px-4 pt-4 pb-3">
+				<div class="flex w-full items-center justify-end gap-2 px-4 pt-3 pb-3">
 					<button
 						type="button"
 						onclick={toggleSidebar}
-						class="inline-flex h-6 w-6 items-center justify-center rounded-md text-stone-500 hover:bg-stone-200 hover:text-stone-900"
+						class="inline-flex items-center justify-center rounded-md p-1 text-stone-500 hover:bg-stone-200 hover:text-stone-900"
 						aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 					>
 						<svg
@@ -92,6 +93,8 @@
 				{#if tutorial}
 					<Tutorial />
 				{/if}
+
+				<Today />
 
 				<Milestones
 					{milestones}

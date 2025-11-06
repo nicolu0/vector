@@ -30,7 +30,7 @@
 	});
 </script>
 
-<div class="flex h-full w-full min-w-0 justify-center overflow-auto bg-stone-50 p-4">
+<div class="flex h-full w-full min-w-0 justify-center overflow-auto bg-stone-50 p-3 px-6">
 	{#if userId && project}
 		<section class="space-y-6 bg-stone-50">
 			<div>
