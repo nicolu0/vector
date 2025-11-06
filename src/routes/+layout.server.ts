@@ -25,12 +25,14 @@ export const load: LayoutServerLoad = async (event) => {
 
 	const payload: {
 		user: { id: string } | null;
+		tutorial: boolean;
 		goal: string;
 		project: Project;
 		milestones: Array<{ id: string; title: string }>;
 		tasksByMilestone: Record<string, Array<{ id: string; title: string }>>;
 	} = {
 		user: user ? { id: user.id } : null,
+		tutorial: false,
 		goal: '',
 		project: null,
 		milestones: [],
@@ -43,10 +45,11 @@ export const load: LayoutServerLoad = async (event) => {
 
 	const { data: profile } = await supabase
 		.from('users')
-		.select('user_id, goal')
+		.select('goal, tutorial')
 		.eq('user_id', user.id)
 		.maybeSingle();
 
+	payload.tutorial = profile?.tutorial;
 	let goal = (profile?.goal ? String(profile.goal) : '') || goalCookie;
 
 	if (goalCookie && !profile) {

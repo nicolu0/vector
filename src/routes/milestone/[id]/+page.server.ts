@@ -3,17 +3,14 @@ import { createSupabaseServerClient } from '$lib/server/supabase';
 import { error, redirect } from '@sveltejs/kit';
 
 const FALLBACK_MILESTONE = {
-	title: 'Fallback Milestone'
+	title: 'Example Milestone',
+	summary: 'Milestones are the scope of your daily tasks. Click the arrow to expand the milestone and show the tasks. Click the Example task.'
 }
-export const load: PageServerLoad = async ({ params, cookies, url }) => {
-	const supabase = createSupabaseServerClient(cookies);
-
-	// optional: handle OAuth code here too if this page can be a landing target
-	const code = url.searchParams.get('code');
-	if (code) {
-		await supabase.auth.exchangeCodeForSession(code);
-		throw redirect(303, url.pathname);
+export const load: PageServerLoad = async ({ params, cookies }) => {
+	if (params.id === 'tutorial') {
+		return { milestone: FALLBACK_MILESTONE };
 	}
+	const supabase = createSupabaseServerClient(cookies);
 
 	const { data: { user } } = await supabase.auth.getUser();
 	if (!user) throw redirect(303, '/');

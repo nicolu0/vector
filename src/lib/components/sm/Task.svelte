@@ -9,7 +9,8 @@
 		completing = false,
 		active = false,
 		onToggle,
-		onSelect = null
+		onSelect = null,
+		disableNavigation = false
 	} = $props<{
 		id: string;
 		title: string;
@@ -19,6 +20,7 @@
 		active?: boolean;
 		onToggle: (id: string) => void;
 		onSelect?: (() => void) | null;
+		disableNavigation?: boolean;
 	}>();
 
 	function toggle(e: MouseEvent | KeyboardEvent) {
@@ -29,6 +31,7 @@
 
 	function openTask() {
 		onSelect?.();
+		if (disableNavigation) return;
 		goto(`/task/${id}`);
 	}
 </script>
@@ -84,6 +87,3 @@
 		</button>
 	</div>
 </li>
-
-<style>
-</style>

@@ -13,25 +13,14 @@
 
 	let authOpen = $state(false);
 
-	type InitProjectResponse = {
-		project: { id: string; title: string; description: string; domain: 'research' | 'internship' };
-		milestones: Array<{ id: string; ordinal: number; title: string; summary: string }>;
-	};
-
 	let { data, children }: LayoutProps = $props();
 	$inspect(data.milestones);
 
 	let goal = $state(data.goal ?? '');
 	let userId = $state(data.user?.id ?? null);
 
-	const isAuthed = $derived(Boolean(userId));
-
-	let dbProject = $state(data.project);
-	let project = $state<InitProjectResponse['project'] | null>(null);
 	let milestones = $state(data.milestones);
 	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
-	let initLoading = $state(false);
-	let projectInitialized = $state(false);
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -82,7 +71,7 @@
 
 <div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 	{#if userId}
-		<Sidebar {milestones} {tasksByMilestone} />
+		<Sidebar {milestones} {tasksByMilestone} tutorial={data.tutorial} />
 	{:else}
 		<button
 			type="button"

@@ -12,7 +12,8 @@
 		active = false,
 		selectedTaskId = null,
 		onSelect = null,
-		onSelectTask = null
+		onSelectTask = null,
+		disableNavigation = false
 	} = $props<{
 		id: string;
 		name: string;
@@ -22,6 +23,7 @@
 		selectedTaskId?: string | null;
 		onSelect?: ((id: string) => void) | null;
 		onSelectTask?: ((taskId: string) => void) | null;
+		disableNavigation?: boolean;
 	}>();
 
 	let open = $state(initiallyOpen);
@@ -33,6 +35,7 @@
 
 	function navigate() {
 		onSelect?.(id); // instant highlight
+		if (disableNavigation) return;
 		goto(`/milestone/${id}`); // then navigate
 	}
 
@@ -99,6 +102,7 @@
 							active={selectedTaskId === t.id}
 							onToggle={toggleTask}
 							onSelect={onSelectTask ? () => onSelectTask(t.id) : null}
+							disableNavigation={disableNavigation}
 						/>
 					{/each}
 				</ul>
