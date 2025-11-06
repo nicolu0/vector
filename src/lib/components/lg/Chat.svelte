@@ -9,11 +9,13 @@
 	let {
 		conversationId = null,
 		initialMessages = [],
-		userId = null
+		userId = null,
+		width = 'min(26vw, 22rem)'
 	} = $props<{
 		conversationId: string | null;
 		initialMessages?: ChatMessage[];
 		userId: string | null;
+		width?: string;
 	}>();
 
 	let messages = $state<ChatMessage[]>(initialMessages);
@@ -106,7 +108,7 @@
 
 <div
 	class="flex h-full w-full flex-col border-l border-stone-200 bg-stone-50"
-	style="flex: 0 0 min(26vw, 22rem);"
+	style={`flex: 0 0 ${width}; width: ${width};`}
 >
 	<div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4" bind:this={scrollRegion}>
 		{#each displayMessages as message (message.id)}

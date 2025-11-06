@@ -12,6 +12,9 @@
 	import type { LayoutProps } from './$types';
 
 	let authOpen = $state(false);
+	const DEFAULT_CHAT_WIDTH = 352;
+	const MIN_CHAT_WIDTH = 260;
+	const MAX_CHAT_WIDTH = 640;
 
 	let { data, children }: LayoutProps = $props();
 	$inspect(data.milestones);
@@ -22,6 +25,8 @@
 	let milestones = $state(data.milestones);
 	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
 	let chat = $state(data.chat);
+	let chatWidth = $state(DEFAULT_CHAT_WIDTH);
+	let resizingChat = $state(false);
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -57,6 +62,39 @@
 		chat = data.chat;
 	});
 
+	function clampChatWidth(value: number) {
+		return Math.min(MAX_CHAT_WIDTH, Math.max(MIN_CHAT_WIDTH, value));
+	}
+
+	if (browser) {
+		const viewportTarget = Math.round(window.innerWidth * 0.32);
+		chatWidth = clampChatWidth(Math.min(DEFAULT_CHAT_WIDTH, viewportTarget));
+	}
+
+	function startChatResize(event: PointerEvent) {
+		if (!browser) return;
+		event.preventDefault();
+		const startX = event.clientX;
+		const startWidth = chatWidth;
+		resizingChat = true;
+
+		const handleMove = (moveEvent: PointerEvent) => {
+			const delta = startX - moveEvent.clientX;
+			chatWidth = clampChatWidth(startWidth + delta);
+		};
+
+		const stop = () => {
+			resizingChat = false;
+			window.removeEventListener('pointermove', handleMove);
+			window.removeEventListener('pointerup', stop);
+			window.removeEventListener('pointercancel', stop);
+		};
+
+		window.addEventListener('pointermove', handleMove);
+		window.addEventListener('pointerup', stop);
+		window.addEventListener('pointercancel', stop);
+	}
+
 	async function signOut() {
 		await supabase.auth.signOut();
 		userId = null;
@@ -85,16 +123,29 @@
 		</button>
 	{/if}
 
-	<main class="min-h-0 min-w-0 flex-1 overflow-auto">
-		{@render children()}
-	</main>
-	{#if userId}
-		<Chat
-			conversationId={chat?.conversationId ?? null}
-			initialMessages={chat?.messages ?? []}
-			userId={userId}
-		/>
-	{/if}
+	<div class="flex min-h-0 min-w-0 flex-1">
+		<main class="min-h-0 min-w-0 flex-1 overflow-auto">
+			{@render children()}
+		</main>
+
+		{#if userId}
+			<div
+				role="separator"
+				aria-orientation="vertical"
+				aria-label="Resize chat panel"
+				class={`h-full w-2 flex-shrink-0 cursor-col-resize transition select-none ${
+					resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
+				}`}
+				onpointerdown={startChatResize}
+			/>
+			<Chat
+				conversationId={chat?.conversationId ?? null}
+				initialMessages={chat?.messages ?? []}
+				{userId}
+				width={`${chatWidth}px`}
+			/>
+		{/if}
+	</div>
 
 	<AuthModal open={authOpen} onClose={closeAuthModal} {signInWithGoogle} />
 </div>
