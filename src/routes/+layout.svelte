@@ -111,7 +111,7 @@
 
 <div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 	{#if userId}
-		<Sidebar {milestones} {tasksByMilestone} tutorial={data.tutorial} />
+		<Sidebar {milestones} {tasksByMilestone} tutorial={data.tutorial} email={data?.user?.email} />
 	{:else}
 		<button
 			type="button"

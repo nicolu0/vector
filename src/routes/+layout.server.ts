@@ -23,9 +23,10 @@ export const load: LayoutServerLoad = async (event) => {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
+	console.log(user)
 
 	const payload: {
-		user: { id: string } | null;
+		user: { id: string, email: string | undefined } | null;
 		tutorial: boolean;
 		goal: string;
 		project: Project;
@@ -33,7 +34,7 @@ export const load: LayoutServerLoad = async (event) => {
 		tasksByMilestone: Record<string, Array<{ id: string; title: string }>>;
 		chat: { conversationId: string | null; messages: ChatMessage[] };
 	} = {
-		user: user ? { id: user.id } : null,
+		user: user ? { id: user.id, email: user.email } : null,
 		tutorial: false,
 		goal: '',
 		project: null,

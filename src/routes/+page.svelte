@@ -31,20 +31,26 @@
 </script>
 
 <div class="flex h-full w-full min-w-0 justify-center overflow-auto bg-stone-50 p-3 px-6">
-	{#if userId && project}
+	{#if userId}
 		<section class="space-y-6 bg-stone-50">
-			<div>
-				<div class="text-lg font-semibold text-stone-900">Project Overview</div>
-				<div class="leading-relaxed whitespace-pre-wrap text-stone-800">{project.description}</div>
-			</div>
-			<div>
-				<div class="text-lg font-semibold text-stone-800">Topics Covered</div>
-				<ul class="list-disc space-y-1 pl-5 text-stone-800">
-					{#each project.skills as skill}
-						<li>{skill}</li>
-					{/each}
-				</ul>
-			</div>
+			{#if project}
+				<div>
+					<div class="text-lg font-semibold text-stone-900">Project Overview</div>
+					<div class="leading-relaxed whitespace-pre-wrap text-stone-800">
+						{project.description}
+					</div>
+				</div>
+				<div>
+					<div class="text-lg font-semibold text-stone-800">Topics Covered</div>
+					<ul class="list-disc space-y-1 pl-5 text-stone-800">
+						{#each project.skills as skill}
+							<li>{skill}</li>
+						{/each}
+					</ul>
+				</div>
+			{:else}
+				<div class="text-lg font-semibold text-stone-900">No Project Found</div>
+			{/if}
 		</section>
 	{:else}
 		<Landing onSubmit={openAuthModal} />

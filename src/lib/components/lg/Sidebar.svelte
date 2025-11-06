@@ -14,11 +14,13 @@
 	let {
 		milestones = [],
 		tasksByMilestone = {},
-		tutorial = false
+		tutorial = false,
+		email = ''
 	} = $props<{
 		milestones?: Milestone[];
 		tasksByMilestone?: TasksMap;
 		tutorial?: boolean;
+		email?: string;
 	}>();
 
 	let sidebarCollapsed = $state(false);
@@ -113,12 +115,7 @@
 				/>
 			</div>
 
-			<Profile
-				name="Andrew Chang"
-				email="21andrewch@alumni.harker.org"
-				sidebarCollapsed={false}
-				onSignOut={signOut}
-			/>
+			<Profile name="User" {email} sidebarCollapsed={false} onSignOut={signOut} />
 		{/if}
 	</aside>
 
