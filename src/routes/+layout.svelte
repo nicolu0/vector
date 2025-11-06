@@ -21,6 +21,7 @@
 
 	let milestones = $state(data.milestones);
 	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
+	let chat = $state(data.chat);
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -53,6 +54,7 @@
 		userId = data.user?.id ?? null;
 		goal = data.goal ?? '';
 		tasksByMilestone = data.tasksByMilestone ?? {};
+		chat = data.chat;
 	});
 
 	async function signOut() {
@@ -87,7 +89,11 @@
 		{@render children()}
 	</main>
 	{#if userId}
-		<Chat />
+		<Chat
+			conversationId={chat?.conversationId ?? null}
+			initialMessages={chat?.messages ?? []}
+			userId={userId}
+		/>
 	{/if}
 
 	<AuthModal open={authOpen} onClose={closeAuthModal} {signInWithGoogle} />
