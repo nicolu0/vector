@@ -2,15 +2,16 @@ import type { PageServerLoad } from './$types';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { error, redirect } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ params, cookies, url }) => {
-	const supabase = createSupabaseServerClient(cookies);
-
-	// optional: handle OAuth code here too if this page can be a landing target
-	const code = url.searchParams.get('code');
-	if (code) {
-		await supabase.auth.exchangeCodeForSession(code);
-		throw redirect(303, url.pathname);
+const FALLBACK_TASK = {
+	title: 'Example Task',
+	goal: 'You get 1 task per day. Tasks have varying scope and todos. To complete a task, click the circle next to it.'
+}
+export const load: PageServerLoad = async ({ params, cookies }) => {
+	if (params.id === 'tutorial') {
+		return { task: FALLBACK_TASK };
 	}
+
+	const supabase = createSupabaseServerClient(cookies);
 
 	const { data: { user } } = await supabase.auth.getUser();
 	if (!user) throw redirect(303, '/');

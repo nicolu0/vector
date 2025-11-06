@@ -13,25 +13,15 @@
 
 	let authOpen = $state(false);
 
-	type InitProjectResponse = {
-		project: { id: string; title: string; description: string; domain: 'research' | 'internship' };
-		milestones: Array<{ id: string; ordinal: number; title: string; summary: string }>;
-	};
-
 	let { data, children }: LayoutProps = $props();
 	$inspect(data.milestones);
 
 	let goal = $state(data.goal ?? '');
 	let userId = $state(data.user?.id ?? null);
 
-	const isAuthed = $derived(Boolean(userId));
-
-	let dbProject = $state(data.project);
-	let project = $state<InitProjectResponse['project'] | null>(null);
 	let milestones = $state(data.milestones);
 	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
-	let initLoading = $state(false);
-	let projectInitialized = $state(false);
+	let chat = $state(data.chat);
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -64,48 +54,13 @@
 		userId = data.user?.id ?? null;
 		goal = data.goal ?? '';
 		tasksByMilestone = data.tasksByMilestone ?? {};
+		chat = data.chat;
 	});
 
 	async function signOut() {
 		await supabase.auth.signOut();
 		userId = null;
 		await goto('/');
-	}
-
-	async function initializeProject() {
-		if (!browser) return;
-		if (!isAuthed) return;
-		if (!goal || goal.trim().length === 0) return;
-		if (projectInitialized) return;
-
-		initLoading = true;
-
-		try {
-			const headers: HeadersInit = { 'Content-Type': 'application/json' };
-
-			const res = await fetch('/api/initialize-project', {
-				method: 'POST',
-				headers,
-				body: JSON.stringify({ goal })
-			});
-			if (!res.ok) throw new Error(await res.text());
-
-			const data = (await res.json()) as InitProjectResponse;
-			project = data.project;
-			milestones = data.milestones ?? [];
-			projectInitialized = true;
-		} catch (e) {
-		} finally {
-			initLoading = false;
-		}
-	}
-
-	if (browser) {
-		$effect(() => {
-			if (isAuthed && !initLoading && !projectInitialized && goal.trim().length > 0) {
-				// void initializeProject();
-			}
-		});
 	}
 
 	const authApi: AuthUI = { openAuthModal, signInWithGoogle, signOut };
@@ -118,7 +73,7 @@
 
 <div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 	{#if userId}
-		<Sidebar {milestones} {tasksByMilestone} />
+		<Sidebar {milestones} {tasksByMilestone} tutorial={data.tutorial} />
 	{:else}
 		<button
 			type="button"
@@ -134,7 +89,11 @@
 		{@render children()}
 	</main>
 	{#if userId}
-		<Chat />
+		<Chat
+			conversationId={chat?.conversationId ?? null}
+			initialMessages={chat?.messages ?? []}
+			userId={userId}
+		/>
 	{/if}
 
 	<AuthModal open={authOpen} onClose={closeAuthModal} {signInWithGoogle} />

@@ -1,6 +1,6 @@
-<!-- src/lib/components/lg/Sidebar.svelte -->
 <script lang="ts">
 	import Milestones from '$lib/components/md/Milestones.svelte';
+	import Tutorial from '$lib/components/md/Tutorial.svelte';
 	import Profile from '$lib/components/md/Profile.svelte';
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -10,9 +10,14 @@
 	type Milestone = { id: string; title: string; summary?: string };
 	type TasksMap = Record<string, Array<{ id: string; title: string }>>;
 
-	let { milestones = [], tasksByMilestone = {} } = $props<{
+	let {
+		milestones = [],
+		tasksByMilestone = {},
+		tutorial = false
+	} = $props<{
 		milestones?: Milestone[];
 		tasksByMilestone?: TasksMap;
+		tutorial?: boolean;
 	}>();
 
 	let sidebarCollapsed = $state(false);
@@ -84,12 +89,16 @@
 					</button>
 				</div>
 
+				{#if tutorial}
+					<Tutorial />
+				{/if}
+
 				<Milestones
 					{milestones}
 					{tasksByMilestone}
 					initiallyOpen={true}
 					selectedId={selectedMilestoneId}
-					selectedTaskId={selectedTaskId}
+					{selectedTaskId}
 					onSelect={(id) => {
 						// Instant UI feedback
 						selectedMilestoneId = id;

@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import Task from '$lib/components/sm/Task.svelte';
 
-	type TaskData = { id: string; title: string };
+	type TaskData = { id: string; title: string; tutorial?: boolean };
 
 	let {
 		id,
@@ -99,6 +99,7 @@
 							active={selectedTaskId === t.id}
 							onToggle={toggleTask}
 							onSelect={onSelectTask ? () => onSelectTask(t.id) : null}
+							tutorial={t.tutorial ?? false}
 						/>
 					{/each}
 				</ul>
