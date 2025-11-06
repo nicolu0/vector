@@ -10,7 +10,8 @@
 	const exampleTasks = [
 		{
 			id: 'tutorial',
-			title: 'Example Task'
+			title: 'Example Task',
+			tutorial: true
 		}
 	];
 </script>

@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import { supabase } from '$lib/supabaseClient';
 
 	let {
 		id,
@@ -10,7 +12,7 @@
 		active = false,
 		onToggle,
 		onSelect = null,
-		disableNavigation = false
+		tutorial = false
 	} = $props<{
 		id: string;
 		title: string;
@@ -20,18 +22,50 @@
 		active?: boolean;
 		onToggle: (id: string) => void;
 		onSelect?: (() => void) | null;
-		disableNavigation?: boolean;
+		tutorial?: boolean;
 	}>();
 
-	function toggle(e: MouseEvent | KeyboardEvent) {
-		e.stopPropagation();
-		e.preventDefault();
-		if (!loading && !completing) onToggle(id);
+	async function toggle() {
+		if (loading || completing) return;
+
+		const willCheck = !checked;
+		onToggle(id);
+
+		if (tutorial && willCheck) {
+			if (!browser) return;
+			try {
+				const {
+					data: { user },
+					error
+				} = await supabase.auth.getUser();
+				if (error) console.error('Failed to fetch user for tutorial completion', error.message);
+				if (!user) {
+					await goto('/', { invalidateAll: true });
+					return;
+				}
+
+				const { error: updateErr } = await supabase
+					.from('users')
+					.update({ tutorial: false })
+					.eq('user_id', user.id);
+
+				if (updateErr) {
+					console.error('Failed to update tutorial flag', updateErr.message);
+				}
+
+				await goto('/', { invalidateAll: true });
+			} catch (err) {
+				console.error('Error completing tutorial task', err);
+			}
+		}
 	}
 
 	function openTask() {
 		onSelect?.();
-		if (disableNavigation) return;
+		if (tutorial) {
+			goto('/task/tutorial');
+			return;
+		}
 		goto(`/task/${id}`);
 	}
 </script>
@@ -50,8 +84,6 @@
 			aria-checked={checked}
 			aria-label={checked ? 'Mark incomplete' : 'Mark complete'}
 			onclick={toggle}
-			onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggle(e)}
-			disabled={loading || completing}
 		>
 			{#if checked}
 				<svg viewBox="0 0 24 24" class="h-3 w-3 text-stone-50" fill="none">

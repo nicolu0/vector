@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import Task from '$lib/components/sm/Task.svelte';
 
-	type TaskData = { id: string; title: string };
+	type TaskData = { id: string; title: string; tutorial?: boolean };
 
 	let {
 		id,
@@ -12,8 +12,7 @@
 		active = false,
 		selectedTaskId = null,
 		onSelect = null,
-		onSelectTask = null,
-		disableNavigation = false
+		onSelectTask = null
 	} = $props<{
 		id: string;
 		name: string;
@@ -23,7 +22,6 @@
 		selectedTaskId?: string | null;
 		onSelect?: ((id: string) => void) | null;
 		onSelectTask?: ((taskId: string) => void) | null;
-		disableNavigation?: boolean;
 	}>();
 
 	let open = $state(initiallyOpen);
@@ -35,7 +33,6 @@
 
 	function navigate() {
 		onSelect?.(id); // instant highlight
-		if (disableNavigation) return;
 		goto(`/milestone/${id}`); // then navigate
 	}
 
@@ -102,7 +99,7 @@
 							active={selectedTaskId === t.id}
 							onToggle={toggleTask}
 							onSelect={onSelectTask ? () => onSelectTask(t.id) : null}
-							disableNavigation={disableNavigation}
+							tutorial={t.tutorial ?? false}
 						/>
 					{/each}
 				</ul>
