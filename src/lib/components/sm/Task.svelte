@@ -70,7 +70,7 @@
 	}
 </script>
 
-<li class="group pl-4">
+<li class="group">
 	<div
 		class={`flex w-full items-center gap-1 rounded-md transition ${
 			active ? 'bg-stone-300' : 'hover:bg-stone-200'
@@ -78,7 +78,7 @@
 	>
 		<button
 			type="button"
-			class="relative ml-2 grid h-3 w-3 place-items-center rounded-full focus:outline-none
+			class="relative ml-4 grid h-3 w-3 place-items-center rounded-full focus:outline-none
 			       {checked ? 'bg-stone-900' : ''}"
 			role="checkbox"
 			aria-checked={checked}
