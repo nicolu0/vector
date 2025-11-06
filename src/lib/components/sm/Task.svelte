@@ -83,9 +83,27 @@
 			role="checkbox"
 			aria-checked={checked}
 			aria-label={checked ? 'Mark incomplete' : 'Mark complete'}
+			aria-busy={loading}
 			onclick={toggle}
 		>
-			{#if checked}
+			{#if loading}
+				<svg viewBox="0 0 24 24" class="h-3 w-3 animate-spin text-stone-500" fill="none" aria-hidden="true">
+					<circle
+						class="opacity-30"
+						cx="12"
+						cy="12"
+						r="8"
+						stroke="currentColor"
+						stroke-width="3"
+					/>
+					<path
+						d="M20 12a8 8 0 0 0-8-8"
+						stroke="currentColor"
+						stroke-width="3"
+						stroke-linecap="round"
+					/>
+				</svg>
+			{:else if checked}
 				<svg viewBox="0 0 24 24" class="h-3 w-3 text-stone-50" fill="none">
 					<path
 						d="M7 12.5 L10.25 15.75 L16.75 9.25"
