@@ -103,6 +103,23 @@
 
 	const authApi: AuthUI = { openAuthModal, signInWithGoogle, signOut };
 	setContext<AuthUI>('auth-ui', authApi);
+
+	async function generateTask() {
+		console.log('generating');
+		const res = await fetch('/api/generate-task', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({
+				projectId: 'fde711f8-20b6-49a8-80c9-7a51fbce54c2',
+				milestoneId: '8ebe3375-89dd-4fdb-97e8-1c69fba485a2'
+			})
+		});
+		if (!res.ok) throw new Error(await res.text());
+		const { task } = await res.json();
+		return task;
+	}
+	const generateApi = { generateTask };
+	setContext('generate-task', generateApi);
 </script>
 
 <svelte:head>
