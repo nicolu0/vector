@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { page } from '$app/stores';
+	const routeId = $derived($page.params.id ?? null);
 	type ChatMessage = {
 		id: string;
 		role: 'assistant' | 'user';
