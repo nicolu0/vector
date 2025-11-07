@@ -9,14 +9,11 @@
 		loading?: boolean;
 	};
 
-	const initialTasks: TodayTask[] = [
-		{ id: 'review-daily-plan', title: 'Review the daily plan', checked: false },
-		{ id: 'prepare-standup', title: 'Prepare notes for standup', checked: false },
-		{ id: 'ship-feature', title: 'Ship the top priority feature', checked: false }
-	];
+	let { tasksByMilestone = {} } = $props();
+	let initialTasks = $derived(Object.values(tasksByMilestone ?? {}).flat());
 
 	let open = $state(true);
-	let tasks = $state(initialTasks);
+	let tasks = $derived(initialTasks);
 
 	function handleToggle(id: string) {
 		tasks = tasks.map((task) => (task.id === id ? { ...task, checked: !task.checked } : task));
@@ -38,9 +35,7 @@
 		try {
 			const next = await generateTask();
 			tasks = tasks.map((task) =>
-				task.id === placeholderId
-					? { id: next.id, title: next.title, checked: false }
-					: task
+				task.id === placeholderId ? { id: next.id, title: next.title, checked: false } : task
 			);
 		} catch (err) {
 			console.error('Failed to generate task', err);

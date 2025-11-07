@@ -96,7 +96,7 @@
 					<Tutorial />
 				{/if}
 
-				<Today />
+				<Today {tasksByMilestone} />
 
 				<Milestones
 					{milestones}

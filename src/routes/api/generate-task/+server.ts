@@ -15,7 +15,7 @@ const TASK_SCHEMA = {
 		additionalProperties: false,
 		required: ['title', 'goal'],
 		properties: {
-			title: { type: 'string', minLength: 4, maxLength: 80 },
+			title: { type: 'string', minLength: 4, maxLength: 20 },
 			goal: { type: 'string', minLength: 40, maxLength: 800 }
 		}
 	},
