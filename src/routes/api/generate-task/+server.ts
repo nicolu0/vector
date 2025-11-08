@@ -1,12 +1,11 @@
-import { error, json, redirect } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import OpenAI from 'openai';
 import { OPENAI_API_KEY } from '$env/static/private';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 
-type PreviousTask = { title?: string; description?: string; outcome?: string; };
-type TaskPayload = { endGoal: string; previousTask?: PreviousTask };
-type DailyTask = { title: string; description: string; outcome: string };
+const SYSTEM_INSTRUCTIONS =
+	'You are a precise mentor. Return exactly one 30-minute task that moves the user one step closer to the milestone. Be concrete, tool-agnostic when possible, and beginner-friendly but not patronizing. No fluff.';
 
 const TASK_SCHEMA = {
 	type: 'json_schema',
@@ -14,121 +13,150 @@ const TASK_SCHEMA = {
 	schema: {
 		type: 'object',
 		additionalProperties: false,
-		required: ['title', 'description', 'outcome'],
+		required: ['title', 'goal'],
 		properties: {
-			title: { type: 'string', minLength: 4, maxLength: 80 },
-			description: { type: 'string', minLength: 40, maxLength: 800 },
-			outcome: { type: 'string', minLength: 20, maxLength: 400 }
+			title: { type: 'string', minLength: 4, maxLength: 20 },
+			goal: { type: 'string', minLength: 40, maxLength: 800 }
 		}
 	},
 	strict: true
 } as const;
 
-const FALLBACK_TASK: DailyTask = {
-	title: 'Rapid Skill Gap Review',
-	description:
-		'Spend 30 focused minutes identifying one concrete skill gap blocking progress toward the end goal. Review your recent work, jot down missing capabilities, and pick a single micro-skill to practice today. Draft a short action checklist and skim one reputable resource to guide the work.',
-	outcome:
-		'A prioritized micro-skill target, a checklist of immediate actions, and at least one vetted resource to reference during execution.'
-};
+function buildPrompt(args: {
+	project: { title: string; description?: string | null };
+	milestone: { title: string; summary?: string | null; ordinal?: number | null };
+	previousTask?: { title: string; goal?: string | null } | null;
+}) {
+	const { project, milestone, previousTask } = args;
 
-const SYSTEM_INSTRUCTIONS =
-	'You are an expert mentor who designs concise 30-minute skill-building tasks that help the user reach their goal.';
-
-function isDailyTask(v: unknown): v is DailyTask {
-	if (!v || typeof v !== 'object') return false;
-	const r = v as Record<string, unknown>;
-	return (
-		typeof r.title === 'string' && r.title.trim() &&
-		typeof r.description === 'string' && r.description.trim() &&
-		typeof r.outcome === 'string' && r.outcome.trim()
-	) as boolean;
-}
-
-function buildPrompt({ endGoal, previousTask }: TaskPayload) {
-	const sections: string[] = [
-		`Candidate end goal:\n${endGoal.trim() || 'Not provided. Infer a reasonable professional goal.'}`,
-		'Current skill level summary:\nNot provided. Assume intermediate with notable gaps.',
-		[
-			'Task requirements:',
-			'- Exactly one task that fits 30 focused minutes.',
-			'- Close a skill gap and produce a tangible outcome.',
-			'- Actionable steps; individual work; common online tools.'
-		].join('\n'),
-		[
-			'Output format:',
-			'- Return JSON only with keys: title, description, outcome.',
-			'No prose outside JSON.'
-		].join('\n')
+	const lines: string[] = [
+		`Project: ${project.title}`,
+		project.description ? `Project overview:\n${project.description.trim()}` : '',
+		`Current milestone: ${milestone.title}${milestone.ordinal ? ` (step ${milestone.ordinal})` : ''}`,
+		milestone.summary ? `Milestone summary:\n${milestone.summary.trim()}` : '',
+		'Constraints:',
+		'- Exactly ONE task.',
+		'- Fits ~30 focused minutes.',
+		'- Beginner-safe, but teaches a real skill.',
+		'- Must be actionable and produce a tangible outcome within 30 minutes.',
+		'- Avoid repo/license boilerplate unless the milestone is setup-specific.',
+		'',
 	];
+
 	if (previousTask) {
-		const parts = [
-			previousTask.title && `Title: ${previousTask.title}`,
-			previousTask.description && `Description: ${previousTask.description}`,
-			previousTask.outcome && `Outcome: ${previousTask.outcome}`
-		].filter(Boolean);
-		if (parts.length) sections.splice(2, 0, `Previous task details:\n${parts.join('\n')}`);
-		sections[2] += '\n- Make today distinct and slightly more challenging.';
+		lines.push(
+			'Previous task (most recent):',
+			`- Title: ${previousTask.title}`,
+			previousTask.goal ? `- Goal: ${previousTask.goal}` : '',
+			'',
+			'Today:',
+			'- Make it distinct from yesterday.',
+			'- Slightly harder, but still doable in 30 minutes.',
+			''
+		);
+	} else {
+		lines.push('This is the first task of this milestone, make it the first step the user should take.')
 	}
-	return sections.join('\n\n');
+
+	lines.push(
+		'Output JSON only with keys: title, goal. No extra prose.'
+	);
+
+	return lines.filter(Boolean).join('\n');
 }
 
-export const POST: RequestHandler = async ({ request, cookies, url }) => {
-	// Optional OAuth code exchange if this endpoint can be a redirect target
-	const code = url.searchParams.get('code');
-	if (code) {
-		const supabase = createSupabaseServerClient(cookies);
-		await supabase.auth.exchangeCodeForSession(code);
-		throw redirect(303, url.pathname);
-	}
+export const POST: RequestHandler = async ({ request, cookies }) => {
+	// Parse body
+	let body: { projectId?: unknown; milestoneId?: unknown };
+	try { body = await request.json(); } catch { throw error(400, 'Invalid JSON'); }
 
-	// Parse payload
-	let body: TaskPayload;
-	try {
-		body = await request.json();
-	} catch {
-		throw error(400, 'Invalid JSON body');
-	}
-	const endGoal = body.endGoal?.trim();
-	if (!endGoal) throw error(400, 'Provide an end goal to generate a task');
+	const projectId = typeof body.projectId === 'string' ? body.projectId : null;
+	const milestoneId = typeof body.milestoneId === 'string' ? body.milestoneId : null;
+	if (!projectId || !milestoneId) throw error(400, 'projectId and milestoneId are required');
 
 	// Auth
 	const supabase = createSupabaseServerClient(cookies);
 	const { data: { user } } = await supabase.auth.getUser();
 	if (!user) throw error(401, 'Not signed in');
 
-	// Model call (non-streaming)
-	let task: DailyTask | null = null;
+	// Context: project, milestone, latest task, next ordinal
+	const { data: project, error: projErr } = await supabase
+		.from('projects')
+		.select('id,title,description,user_id')
+		.eq('id', projectId)
+		.maybeSingle();
+	if (projErr) throw error(500, projErr.message);
+	if (!project || project.user_id !== user.id) throw error(403, 'Project not found');
+
+	const { data: milestone, error: msErr } = await supabase
+		.from('milestones')
+		.select('id,title,summary,ordinal,project_id,user_id')
+		.eq('id', milestoneId)
+		.maybeSingle();
+	if (msErr) throw error(500, msErr.message);
+	if (!milestone || milestone.user_id !== user.id || milestone.project_id !== project.id) {
+		throw error(403, 'Milestone not found');
+	}
+
+	const { data: lastTask } = await supabase
+		.from('tasks')
+		.select('title,goal,milestone_id')
+		.eq('milestone_id', milestone.id)
+		.order('created_at', { ascending: false })
+		.limit(1)
+		.maybeSingle();
+
+	const { count } = await supabase
+		.from('tasks')
+		.select('*', { count: 'exact', head: true })
+		.eq('milestone_id', milestone.id);
+	const nextOrdinal = (count ?? 0) + 1;
+
+	// Model call
+	let task: { title: string; goal: string } | null = null;
+
 	if (OPENAI_API_KEY) {
 		const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+		const prompt = buildPrompt({
+			project: { title: project.title, description: project.description },
+			milestone: { title: milestone.title, summary: milestone.summary, ordinal: milestone.ordinal },
+			previousTask: lastTask ?? null
+		});
+
 		const resp = await client.responses.create({
 			model: 'gpt-5-nano-2025-08-07',
 			instructions: SYSTEM_INSTRUCTIONS,
-			input: buildPrompt(body),
-			text: { format: TASK_SCHEMA }, // server validates to schema
+			input: prompt,
+			text: { format: TASK_SCHEMA },
 		});
 
-		// Pull the JSON text response
-		const txt = resp.output_text ?? '';
+		const txt = resp.output_text?.trim() ?? '';
 		try {
 			const parsed = JSON.parse(txt);
-			if (isDailyTask(parsed)) task = parsed;
-		} catch {
-			// fall through to fallback
-		}
+			if (parsed?.title && parsed?.goal) task = parsed;
+		} catch { /* fall through to fallback */ }
 	}
 
-	if (!task) task = FALLBACK_TASK;
+	// Fallback if model fails
+	if (!task) {
+		task = {
+			title: `30-min: Next step for ${milestone.title}`,
+			goal: `Make incremental progress on "${milestone.title}" for project "${project.title}". Produce a tangible artifact (notes, code diff, config, or measurement).`
+		};
+	}
 
+	// Insert task
 	const { data: inserted, error: dberr } = await supabase
 		.from('tasks')
 		.insert({
 			user_id: user.id,
+			project_id: project.id,
+			milestone_id: milestone.id,
+			ordinal: nextOrdinal,
 			title: task.title,
-			description: task.description,
-			outcome: task.outcome
+			goal: task.goal
 		})
-		.select('id, title, description, outcome')
+		.select('id, title, goal, milestone_id, ordinal')
 		.single();
 
 	if (dberr) throw error(500, dberr.message);

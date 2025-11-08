@@ -5,7 +5,7 @@ import { OPENAI_API_KEY } from '$env/static/private';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 
 const SYSTEM_PROMPT =
-	'You are Vector, a focused career and project mentor. Respond concisely, stay practical, and help the user make progress on their milestones and tasks.';
+	'You are a knowledgable teacher. Respond concisely and help the user make progress on their milestones and tasks by answering any questions.';
 
 type ConversationRow = { id: string; user_id: string };
 type MessageRow = { id: string; role: 'assistant' | 'user'; content: string; created_at: string };

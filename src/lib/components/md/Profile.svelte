@@ -92,6 +92,17 @@
 
 			<ul class="py-1 text-sm">
 				<li>
+					<a
+						href="https://buy.stripe.com/4gM9AS4VZbSY0OU9he9R602"
+						target="_blank"
+						rel="noreferrer"
+						class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-stone-700 hover:bg-stone-100"
+						aria-label="Open pricing"
+					>
+						Pricing
+					</a>
+				</li>
+				<li>
 					<button
 						class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-rose-700 hover:bg-rose-50"
 						onclick={() => run(onSignOut)}
