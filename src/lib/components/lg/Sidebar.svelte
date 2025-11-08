@@ -60,7 +60,7 @@
 </script>
 
 <div
-	class="relative flex h-full min-w-0 overflow-hidden transition-[flex-basis] duration-200 ease-out"
+	class="relative flex h-full min-w-0 flex-col overflow-hidden transition-[flex-basis] duration-200 ease-out"
 	style={`flex-basis:${containerFlex};flex-grow:0;flex-shrink:0;`}
 >
 	<aside
@@ -114,10 +114,9 @@
 					}}
 				/>
 			</div>
-
-			<Profile name="User" {email} sidebarCollapsed={false} onSignOut={signOut} />
 		{/if}
 	</aside>
+	<Profile name="User" {email} sidebarCollapsed={false} onSignOut={signOut} />
 
 	<button
 		type="button"
