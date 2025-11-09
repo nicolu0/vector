@@ -40,7 +40,7 @@ export const load: LayoutServerLoad = async (event) => {
 		tutorial: false,
 		goal: '',
 		project: null,
-		milestones: [] as Array<{ id: string; title: string; done: boolean }>,
+		milestones: [] as Array<{ id: string; title: string; done: boolean, ordinal: number | null }>,
 		tasksByMilestone: {},
 		currentMilestoneId: null,
 		currentTaskId: null,

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Today from '$lib/components/md/Today.svelte';
 	import Milestones from '$lib/components/md/Milestones.svelte';
+	import Today from '$lib/components/md/Today.svelte';
 	import Tutorial from '$lib/components/md/Tutorial.svelte';
 	import Profile from '$lib/components/md/Profile.svelte';
 	import { getContext } from 'svelte';
@@ -10,7 +10,14 @@
 	import { supabase } from '$lib/supabaseClient';
 
 	type Milestone = { id: string; title: string; description?: string; ordinal?: number | null };
-	type TasksMap = Record<string, Array<{ id: string; title: string; done: boolean; ordinal?: number | null; tutorial?: boolean }>>;
+	type Task = {
+		id: string;
+		title: string;
+		done: boolean;
+		ordinal?: number | null;
+		tutorial?: boolean;
+	};
+	type TasksMap = Record<string, Array<Task>>;
 
 	let {
 		milestones = [],
@@ -80,9 +87,7 @@
 
 	async function resetProgress() {
 		if (!userId) return;
-		const allTaskIds = Object.values(tasksByMilestone)
-			.flat()
-			.map((task) => task.id);
+		const allTaskIds = (Object.values(tasksByMilestone) as Task[][]).flat().map((t) => t.id);
 
 		if (allTaskIds.length) {
 			const { error: resetErr } = await supabase
@@ -104,11 +109,11 @@
 		if (error) throw error;
 
 		tasksByMilestone = Object.fromEntries(
-			Object.entries(tasksByMilestone).map(([milestoneId, tasks]) => [
+			(Object.entries(tasksByMilestone) as [string, Task[]][]).map(([milestoneId, tasks]) => [
 				milestoneId,
 				tasks.map((task) => ({ ...task, done: false }))
 			])
-		);
+		) as TasksMap;
 
 		currentMilestoneId = nextMilestoneId;
 		currentTaskId = nextTaskId;
@@ -153,14 +158,7 @@
 						{#if tutorial}
 							<Tutorial />
 						{/if}
-
-						<Today
-							{tasksByMilestone}
-							{milestones}
-							currentMilestoneId={currentMilestoneId}
-							currentTaskId={currentTaskId}
-							{userId}
-						/>
+						<Today {tasksByMilestone} {currentMilestoneId} {currentTaskId} {userId} {milestones} />
 
 						<Milestones
 							{milestones}
@@ -181,17 +179,17 @@
 				</div>
 			{/if}
 
-				<div class="bg-stone-100">
-					<Profile
-						name="User"
-						{email}
-						{sidebarCollapsed}
-						onSignOut={signOut}
-						onResetProgress={userId ? resetProgress : null}
-					/>
-				</div>
+			<div class="bg-stone-100">
+				<Profile
+					name="User"
+					{email}
+					{sidebarCollapsed}
+					onSignOut={signOut}
+					onResetProgress={userId ? resetProgress : null}
+				/>
 			</div>
-		</aside>
+		</div>
+	</aside>
 
 	<button
 		type="button"
