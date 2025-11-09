@@ -104,8 +104,22 @@
 </div>
 
 <style>
-	::-webkit-scrollbar-track {
-		box-shadow: inset 0 0 10px 10px green;
-		border: solid 3px transparent;
+	:global(.scroll-y) {
+		scrollbar-width: thin;
+		scrollbar-color: #a8a29e transparent;
+	}
+
+	:global(.scroll-y::-webkit-scrollbar) {
+		width: 100px;
+	}
+
+	:global(.scroll-y::-webkit-scrollbar-track) {
+		margin-top: 100px;
+		background: transparent;
+	}
+
+	:global(.scroll-y::-webkit-scrollbar-thumb) {
+		background-color: #a8a29e;
+		border-radius: 0px;
 	}
 </style>

@@ -140,7 +140,7 @@
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
 	const LEFT_BTN = 28; // 7 * 4px (h-7/w-7)
 	const RIGHT_BTN = 28;
-	const H_PAD = 24; // px-3 on both sides = 12px*2
+	const H_PAD = 20; // px-3 on both sides = 12px*2
 	const SPACER_EXPANDED = `calc(${EXPANDED_WIDTH} - ${LEFT_BTN + RIGHT_BTN + H_PAD}px)`;
 </script>
 
@@ -173,11 +173,11 @@
 			<button
 				type="button"
 				onclick={toggleSidebar}
-				class="inline-flex h-7 w-7 items-center justify-center rounded-md p-1.5 leading-none text-stone-600 transition duration-200 hover:bg-stone-200 focus:outline-none"
+				class="inline-flex h-6 w-6 items-center justify-center rounded-md leading-none text-stone-600 transition duration-200 hover:bg-stone-200 focus:outline-none"
 				aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 			>
 				<svg
-					class="block h-4 w-4 shrink-0"
+					class="block h-3 w-3 shrink-0"
 					viewBox="0 0 24 24"
 					fill="none"
 					stroke="currentColor"
@@ -186,7 +186,7 @@
 					stroke-linejoin="round"
 					aria-hidden="true"
 				>
-					<rect x="2" y="3" width="21" height="18" rx="4" ry="4" />
+					<rect x="2" y="3" width="21" height="18" rx="3" ry="3" />
 					<path d="M9 3.6v16" />
 				</svg>
 			</button>
@@ -219,9 +219,44 @@
 				class="sticky top-0 z-[20] flex h-12 items-center bg-stone-50 pt-3 pb-2
            text-[10px] font-medium text-stone-600 uppercase
            transition-[margin-left] duration-200 ease-out"
-				style:margin-left={sidebarCollapsed ? '5.5rem' : '1.25rem'}
+				style:margin-left={sidebarCollapsed ? '4.5rem' : '1.2rem'}
 			>
-				PROJECT
+				<svg
+					class="h-3 w-3 text-stone-400"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					aria-hidden="true"
+				>
+					<path d="M18 2L12 21" />
+				</svg>
+				<div class="rounded-md p-1 px-1 hover:bg-stone-200">PROJECT</div>
+				<svg
+					class="h-3 w-3 text-stone-400"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					aria-hidden="true"
+				>
+					<path d="M18 2L12 21" />
+				</svg>
+				<div class="rounded-md p-1 px-1 hover:bg-stone-200">MILESTONE 2</div>
+				<svg
+					class="h-3 w-3 text-stone-400"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					aria-hidden="true"
+				>
+					<path d="M18 2L12 21" />
+				</svg>
+				<div class="rounded-md p-1 px-1 hover:bg-stone-200">TASK 2</div>
 			</div>
 
 			{@render children()}
