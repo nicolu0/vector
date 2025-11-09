@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { fly, fade } from 'svelte/transition';
 	import { browser } from '$app/environment';
 	import Task from '$lib/components/sm/Task.svelte';
 	import { supabase } from '$lib/supabaseClient';
@@ -152,8 +153,8 @@
 	>
 		<div class="min-h-0">
 			{#if currentTask}
-				<ul>
-					<li>
+				{#key currentTaskId}
+					<div in:fly|local={{ y: 10, duration: 200 }}>
 						<Task
 							id={currentTask.id}
 							title={currentTask.title}
@@ -163,8 +164,8 @@
 							onPersistSuccess={handlePersistSuccess}
 							completing={advancing}
 						/>
-					</li>
-				</ul>
+					</div>
+				{/key}
 			{:else}
 				<div class="px-2 py-1 text-sm text-stone-500">No current task assigned</div>
 			{/if}
