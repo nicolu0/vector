@@ -95,7 +95,7 @@
 						<Task
 							id={t.id}
 							title={t.title}
-							checked={!!done[t.id]}
+							checked={t.done}
 							active={selectedTaskId === t.id}
 							onToggle={toggleTask}
 							onSelect={onSelectTask ? () => onSelectTask(t.id) : null}

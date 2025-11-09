@@ -25,12 +25,20 @@
 		tutorial?: boolean;
 	}>();
 
+	async function persistDone(done: boolean) {
+		const { error } = await supabase.from('tasks').update({ done }).eq('id', id);
+		return error;
+	}
+
 	async function toggle() {
 		if (loading || completing) return;
 
 		const willCheck = !checked;
+
+		// optimistic UI update
 		onToggle(id);
 
+		// tutorial completion flow (kept as-is)
 		if (tutorial && willCheck) {
 			if (!browser) return;
 			try {
@@ -49,14 +57,21 @@
 					.update({ tutorial: false })
 					.eq('user_id', user.id);
 
-				if (updateErr) {
-					console.error('Failed to update tutorial flag', updateErr.message);
-				}
+				if (updateErr) console.error('Failed to update tutorial flag', updateErr.message);
 
 				await goto('/', { invalidateAll: true });
 			} catch (err) {
 				console.error('Error completing tutorial task', err);
 			}
+			return; // don’t also update tasks table for tutorial item
+		}
+
+		// persist to DB; revert UI on failure
+		const err = await persistDone(willCheck);
+		if (err) {
+			console.error('Failed to update task.done', err.message);
+			// revert optimistic toggle
+			onToggle(id);
 		}
 	}
 
@@ -87,15 +102,13 @@
 			onclick={toggle}
 		>
 			{#if loading}
-				<svg viewBox="0 0 24 24" class="h-3 w-3 animate-spin text-stone-500" fill="none" aria-hidden="true">
-					<circle
-						class="opacity-30"
-						cx="12"
-						cy="12"
-						r="8"
-						stroke="currentColor"
-						stroke-width="3"
-					/>
+				<svg
+					viewBox="0 0 24 24"
+					class="h-3 w-3 animate-spin text-stone-500"
+					fill="none"
+					aria-hidden="true"
+				>
+					<circle class="opacity-30" cx="12" cy="12" r="8" stroke="currentColor" stroke-width="3" />
 					<path
 						d="M20 12a8 8 0 0 0-8-8"
 						stroke="currentColor"

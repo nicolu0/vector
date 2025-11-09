@@ -187,13 +187,12 @@ export const load: LayoutServerLoad = async (event) => {
 
 	const milestones: Milestone[] = msRows;
 	payload.milestones = milestones.map(({ id, title }) => ({ id, title }));
-	console.log(milestones)
 
 	// Tasks grouped by milestone
 	const milestoneIds = milestones.map((m) => m.id);
 	const { data: taskRows, error: taskErr } = await supabase
 		.from('tasks')
-		.select('id,title,milestone_id')
+		.select('id,title,milestone_id,done')
 		.in('milestone_id', milestoneIds)
 		.order('ordinal', { ascending: true });
 
@@ -204,6 +203,7 @@ export const load: LayoutServerLoad = async (event) => {
 	for (const t of taskRows as Task[]) {
 		(byMilestone[t.milestone_id] ??= []).push({ id: t.id, title: t.title });
 	}
+	console.log(byMilestone);
 	payload.tasksByMilestone = byMilestone;
 
 	return payload;
