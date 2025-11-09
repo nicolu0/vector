@@ -20,6 +20,8 @@
 	type TasksMap = Record<string, Array<Task>>;
 
 	let {
+		sidebarCollapsed = false,
+		toggleSidebar,
 		milestones = [],
 		tasksByMilestone = {},
 		currentMilestoneId = null,
@@ -28,6 +30,8 @@
 		email = '',
 		userId = null
 	} = $props<{
+		sidebarCollapsed: boolean;
+		toggleSidebar: () => void;
 		milestones?: Milestone[];
 		tasksByMilestone?: TasksMap;
 		currentMilestoneId?: string | null;
@@ -37,15 +41,10 @@
 		userId?: string | null;
 	}>();
 
-	let sidebarCollapsed = $state(false);
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
-	const COLLAPSED_WIDTH = '3rem';
+	const COLLAPSED_WIDTH = '0rem';
 	const containerFlex = $derived(sidebarCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH);
 	const sidebarTransform = $derived(sidebarCollapsed ? 'translateX(-100%)' : 'translateX(0%)');
-
-	function toggleSidebar() {
-		sidebarCollapsed = !sidebarCollapsed;
-	}
 
 	type AuthUI = { signOut: () => Promise<void> };
 	const { signOut } = getContext<AuthUI>('auth-ui');
@@ -121,7 +120,7 @@
 </script>
 
 <div
-	class="relative flex h-full min-w-0 flex-col overflow-hidden transition-[flex-basis] duration-200 ease-out"
+	class=" relative flex h-full min-w-0 flex-col overflow-hidden transition-[flex-basis] duration-200 ease-out"
 	style={`flex-basis:${containerFlex};flex-grow:0;flex-shrink:0;`}
 >
 	<aside
@@ -136,24 +135,7 @@
 			{#if !sidebarCollapsed}
 				<div class="min-h-0 flex-1 overflow-y-auto">
 					<div class="flex flex-col">
-						<div class="flex w-full items-center justify-end gap-2 px-4 pt-3 pb-3">
-							<button
-								type="button"
-								onclick={toggleSidebar}
-								class="inline-flex items-center justify-center rounded-md p-1 text-stone-500 hover:bg-stone-200 hover:text-stone-900"
-								aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-							>
-								<svg
-									viewBox="0 0 24 24"
-									class="h-5 w-5"
-									stroke="currentColor"
-									fill="none"
-									stroke-width="1.8"
-								>
-									<path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-								</svg>
-							</button>
-						</div>
+						<div class="flex w-full items-center justify-end gap-2 pt-10"></div>
 
 						{#if tutorial}
 							<Tutorial />
@@ -177,32 +159,16 @@
 						/>
 					</div>
 				</div>
+				<div class="bg-stone-100">
+					<Profile
+						name="User"
+						{email}
+						{sidebarCollapsed}
+						onSignOut={signOut}
+						onResetProgress={userId ? resetProgress : null}
+					/>
+				</div>
 			{/if}
-
-			<div class="bg-stone-100">
-				<Profile
-					name="User"
-					{email}
-					{sidebarCollapsed}
-					onSignOut={signOut}
-					onResetProgress={userId ? resetProgress : null}
-				/>
-			</div>
 		</div>
 	</aside>
-
-	<button
-		type="button"
-		onclick={() => {
-			if (sidebarCollapsed) {
-				sidebarCollapsed = false;
-			} else {
-				goto('/');
-			}
-		}}
-		class="fixed top-3 left-3 flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 transition hover:bg-stone-200 hover:text-stone-900"
-		aria-label="Go to home"
-	>
-		<img src={vectorUrl} alt="vector" class="h-5 w-5" />
-	</button>
 </div>

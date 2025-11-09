@@ -4,7 +4,7 @@
 	let { data }: PageProps = $props();
 </script>
 
-<div class="flex h-full w-full flex-col gap-4 bg-stone-50 p-6">
+<div class="flex h-full w-full flex-col gap-4 bg-stone-50 px-3 pl-6">
 	<div class="flex">{data?.milestone?.title}</div>
 	<div class="flex">{data?.milestone?.description}</div>
 </div>
