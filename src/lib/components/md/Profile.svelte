@@ -5,16 +5,20 @@
 		email = '',
 		sidebarCollapsed = false,
 		avatarUrl = '',
-		onSignOut
+		onSignOut,
+		onResetProgress = null
 	} = $props<{
 		name?: string;
 		email?: string;
 		sidebarCollapsed?: boolean;
 		avatarUrl?: string;
 		onSignOut: () => void;
+		onResetProgress?: (() => Promise<void>) | null;
 	}>();
 
 	let open = $state(false);
+	let resetting = $state(false);
+	let resetError = $state<string | null>(null);
 
 	function close() {
 		open = false;
@@ -32,6 +36,21 @@
 	function run(cb?: () => void) {
 		close();
 		cb?.();
+	}
+
+	async function handleReset() {
+		if (!onResetProgress || resetting) return;
+		resetError = null;
+		resetting = true;
+		try {
+			await onResetProgress();
+			close();
+		} catch (err) {
+			console.error('Failed to reset progress', err);
+			resetError = 'Could not reset progress. Try again.';
+		} finally {
+			resetting = false;
+		}
 	}
 </script>
 
@@ -91,6 +110,40 @@
 			<div class="px-3 py-2 text-xs font-medium text-stone-500">{email}</div>
 
 			<ul class="py-1 text-sm">
+				{#if onResetProgress}
+					<li>
+						<button
+							class="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+							onclick={handleReset}
+							aria-label="Reset progress"
+							disabled={resetting}
+						>
+							<span>Reset progress</span>
+							{#if resetting}
+								<svg
+									viewBox="0 0 24 24"
+									class="h-4 w-4 animate-spin text-stone-500"
+									fill="none"
+									aria-hidden="true"
+								>
+									<circle
+										class="opacity-25"
+										cx="12"
+										cy="12"
+										r="10"
+										stroke="currentColor"
+										stroke-width="4"
+									/>
+									<path
+										class="opacity-75"
+										fill="currentColor"
+										d="M4 12a8 8 0 0 1 8-8v4l3-3-3-3v0a12 12 0 0 0-12 12h4Z"
+									/>
+								</svg>
+							{/if}
+						</button>
+					</li>
+				{/if}
 				<li>
 					<a
 						href="https://buy.stripe.com/4gM9AS4VZbSY0OU9he9R602"
@@ -112,6 +165,10 @@
 					</button>
 				</li>
 			</ul>
+
+			{#if resetError}
+				<div class="px-3 pb-2 text-xs text-rose-600">{resetError}</div>
+			{/if}
 		</div>
 	</div>
 {/if}

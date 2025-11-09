@@ -19,13 +19,15 @@
 	let { data, children }: LayoutProps = $props();
 	$inspect(data.milestones);
 
-	let userId = $state(data.user?.id ?? null);
+let userId = $state(data.user?.id ?? null);
 
-	let milestones = $state(data.milestones);
-	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
-	let chat = $state(data.chat);
-	let chatWidth = $state(DEFAULT_CHAT_WIDTH);
-	let resizingChat = $state(false);
+let milestones = $state(data.milestones);
+let tasksByMilestone = $state(data.tasksByMilestone ?? {});
+let currentMilestoneId = $state(data.currentMilestoneId ?? null);
+let currentTaskId = $state(data.currentTaskId ?? null);
+let chat = $state(data.chat);
+let chatWidth = $state(DEFAULT_CHAT_WIDTH);
+let resizingChat = $state(false);
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -67,6 +69,8 @@
 	$effect(() => {
 		userId = data.user?.id ?? null;
 		tasksByMilestone = data.tasksByMilestone ?? {};
+		currentMilestoneId = data.currentMilestoneId ?? null;
+		currentTaskId = data.currentTaskId ?? null;
 		chat = data.chat;
 	});
 
@@ -136,7 +140,15 @@
 
 <div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 	{#if userId}
-		<Sidebar {milestones} {tasksByMilestone} tutorial={data.tutorial} email={data?.user?.email} />
+		<Sidebar
+			{milestones}
+			{tasksByMilestone}
+			{currentMilestoneId}
+			{currentTaskId}
+			tutorial={data.tutorial}
+			email={data?.user?.email}
+			{userId}
+		/>
 	{:else}
 		<button
 			type="button"

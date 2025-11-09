@@ -7,20 +7,27 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import vectorUrl from '$lib/assets/vector.svg?url';
+	import { supabase } from '$lib/supabaseClient';
 
-	type Milestone = { id: string; title: string; description?: string };
-	type TasksMap = Record<string, Array<{ id: string; title: string }>>;
+	type Milestone = { id: string; title: string; description?: string; ordinal?: number | null };
+	type TasksMap = Record<string, Array<{ id: string; title: string; done: boolean; ordinal?: number | null; tutorial?: boolean }>>;
 
 	let {
 		milestones = [],
 		tasksByMilestone = {},
+		currentMilestoneId = null,
+		currentTaskId = null,
 		tutorial = false,
-		email = ''
+		email = '',
+		userId = null
 	} = $props<{
 		milestones?: Milestone[];
 		tasksByMilestone?: TasksMap;
+		currentMilestoneId?: string | null;
+		currentTaskId?: string | null;
 		tutorial?: boolean;
 		email?: string;
+		userId?: string | null;
 	}>();
 
 	let sidebarCollapsed = $state(false);
@@ -57,6 +64,55 @@
 		selectedMilestoneId = routeMilestoneId;
 		selectedTaskId = routeTaskId;
 	});
+
+	function findFirstMilestoneWithTask(map = tasksByMilestone) {
+		for (const milestone of milestones) {
+			const tasks = map[milestone.id] ?? [];
+			if (tasks.length > 0) {
+				return { milestoneId: milestone.id, taskId: tasks[0].id };
+			}
+		}
+		return {
+			milestoneId: milestones[0]?.id ?? null,
+			taskId: null
+		};
+	}
+
+	async function resetProgress() {
+		if (!userId) return;
+		const allTaskIds = Object.values(tasksByMilestone)
+			.flat()
+			.map((task) => task.id);
+
+		if (allTaskIds.length) {
+			const { error: resetErr } = await supabase
+				.from('tasks')
+				.update({ done: false })
+				.in('id', allTaskIds);
+			if (resetErr) throw resetErr;
+		}
+
+		const nextTarget = findFirstMilestoneWithTask();
+		const nextMilestoneId = nextTarget.milestoneId;
+		const nextTaskId = nextTarget.taskId;
+
+		const { error } = await supabase
+			.from('users')
+			.update({ current_milestone: nextMilestoneId, current_task: nextTaskId })
+			.eq('user_id', userId);
+
+		if (error) throw error;
+
+		tasksByMilestone = Object.fromEntries(
+			Object.entries(tasksByMilestone).map(([milestoneId, tasks]) => [
+				milestoneId,
+				tasks.map((task) => ({ ...task, done: false }))
+			])
+		);
+
+		currentMilestoneId = nextMilestoneId;
+		currentTaskId = nextTaskId;
+	}
 </script>
 
 <div
@@ -98,7 +154,13 @@
 							<Tutorial />
 						{/if}
 
-						<Today {tasksByMilestone} />
+						<Today
+							{tasksByMilestone}
+							{milestones}
+							currentMilestoneId={currentMilestoneId}
+							currentTaskId={currentTaskId}
+							{userId}
+						/>
 
 						<Milestones
 							{milestones}
@@ -119,11 +181,17 @@
 				</div>
 			{/if}
 
-			<div class="bg-stone-100">
-				<Profile name="User" {email} {sidebarCollapsed} onSignOut={signOut} />
+				<div class="bg-stone-100">
+					<Profile
+						name="User"
+						{email}
+						{sidebarCollapsed}
+						onSignOut={signOut}
+						onResetProgress={userId ? resetProgress : null}
+					/>
+				</div>
 			</div>
-		</div>
-	</aside>
+		</aside>
 
 	<button
 		type="button"

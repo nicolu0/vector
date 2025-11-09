@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import Task from '$lib/components/sm/Task.svelte';
 
-	type TaskData = { id: string; title: string; tutorial?: boolean };
+	type TaskData = { id: string; title: string; tutorial?: boolean; done: boolean; ordinal?: number | null };
 
 	let {
 		id,
@@ -36,9 +36,20 @@
 		goto(`/milestone/${id}`); // then navigate
 	}
 
-	let done: Record<string, boolean> = $state({});
+	let taskState = $state<Record<string, boolean>>({});
+	$effect(() => {
+		const next: Record<string, boolean> = {};
+		for (const task of tasks) {
+			next[task.id] = task.done ?? false;
+		}
+		taskState = next;
+	});
+
 	function toggleTask(taskId: string) {
-		done[taskId] = !done[taskId];
+		taskState = {
+			...taskState,
+			[taskId]: !(taskState[taskId] ?? false)
+		};
 	}
 </script>
 
@@ -95,7 +106,7 @@
 						<Task
 							id={t.id}
 							title={t.title}
-							checked={!!done[t.id]}
+							checked={taskState[t.id] ?? t.done ?? false}
 							active={selectedTaskId === t.id}
 							onToggle={toggleTask}
 							onSelect={onSelectTask ? () => onSelectTask(t.id) : null}

@@ -11,7 +11,8 @@
 		{
 			id: 'tutorial',
 			title: 'Example Task',
-			tutorial: true
+			tutorial: true,
+			done: false
 		}
 	];
 </script>
