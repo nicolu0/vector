@@ -2,7 +2,7 @@ import type { LayoutServerLoad } from './$types';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { redirect } from '@sveltejs/kit';
 
-type Project = { id: string; title: string; description: string; skills: string[] } | null;
+type Project = { id: string; title: string; description: string; skills: string[]; difficulty: string; domain: string } | null;
 type Milestone = { id: string; title: string; project_id: string };
 type Task = { id: string; title: string; milestone_id: string };
 type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; created_at: string };
@@ -154,7 +154,7 @@ export const load: LayoutServerLoad = async (event) => {
 	// Include 'skills' in the select list
 	const { data: projRow, error: projErr } = await supabase
 		.from('projects')
-		.select('id,title,description,skills')
+		.select('id,title,description,skills,difficulty,domain')
 		.eq('user_id', user.id)
 		.order('created_at', { ascending: false })
 		.limit(1)
@@ -169,6 +169,8 @@ export const load: LayoutServerLoad = async (event) => {
 			title: projRow.title,
 			description: projRow.description,
 			skills: Array.isArray(projRow.skills) ? projRow.skills : [],
+			difficulty: projRow.difficulty,
+			domain: projRow.domain,
 		}
 		: null;
 
