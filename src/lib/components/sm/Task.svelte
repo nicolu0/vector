@@ -12,7 +12,8 @@
 		active = false,
 		onToggle,
 		onSelect = null,
-		tutorial = false
+		tutorial = false,
+		onPersistSuccess = null
 	} = $props<{
 		id: string;
 		title: string;
@@ -23,6 +24,7 @@
 		onToggle: (id: string) => void;
 		onSelect?: (() => void) | null;
 		tutorial?: boolean;
+		onPersistSuccess?: ((id: string, done: boolean) => void) | null;
 	}>();
 
 	async function persistDone(done: boolean) {
@@ -72,7 +74,10 @@
 			console.error('Failed to update task.done', err.message);
 			// revert optimistic toggle
 			onToggle(id);
+			return;
 		}
+
+		onPersistSuccess?.(id, willCheck);
 	}
 
 	function openTask() {
@@ -93,7 +98,7 @@
 	>
 		<button
 			type="button"
-			class="relative ml-4 grid h-3 w-3 place-items-center rounded-full focus:outline-none
+			class="relative ml-3 grid h-3 w-3 place-items-center rounded-full focus:outline-none
 			       {checked ? 'bg-stone-900' : ''}"
 			role="checkbox"
 			aria-checked={checked}

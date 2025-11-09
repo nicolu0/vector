@@ -8,19 +8,25 @@
 	import { page } from '$app/stores';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 
-	type Milestone = { id: string; title: string; description?: string };
-	type TasksMap = Record<string, Array<{ id: string; title: string; done: boolean }>>;
+	type Milestone = { id: string; title: string; description?: string; ordinal?: number | null };
+	type TasksMap = Record<string, Array<{ id: string; title: string; done: boolean; ordinal?: number | null; tutorial?: boolean }>>;
 
 	let {
 		milestones = [],
 		tasksByMilestone = {},
+		currentMilestoneId = null,
+		currentTaskId = null,
 		tutorial = false,
-		email = ''
+		email = '',
+		userId = null
 	} = $props<{
 		milestones?: Milestone[];
 		tasksByMilestone?: TasksMap;
+		currentMilestoneId?: string | null;
+		currentTaskId?: string | null;
 		tutorial?: boolean;
 		email?: string;
+		userId?: string | null;
 	}>();
 
 	let sidebarCollapsed = $state(false);
@@ -98,7 +104,13 @@
 							<Tutorial />
 						{/if}
 
-						<Today {tasksByMilestone} />
+						<Today
+							{tasksByMilestone}
+							{milestones}
+							currentMilestoneId={currentMilestoneId}
+							currentTaskId={currentTaskId}
+							{userId}
+						/>
 
 						<Milestones
 							{milestones}

@@ -2,8 +2,8 @@
 <script lang="ts">
 	import Folder from '$lib/components/sm/Folder.svelte';
 
-	type Milestone = { id: string; title: string; description?: string };
-	type TasksMap = Record<string, Array<{ id: string; title: string; done: boolean }>>;
+	type Milestone = { id: string; title: string; description?: string; ordinal?: number | null };
+	type TasksMap = Record<string, Array<{ id: string; title: string; done: boolean; ordinal?: number | null; tutorial?: boolean }>>;
 
 	let {
 		milestones = [],
