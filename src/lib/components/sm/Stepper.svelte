@@ -36,11 +36,11 @@
                     <!-- WHITE CHECKMARK (two thin lines) -->
                     <span
                     class="pointer-events-none absolute block h-[1.5px] w-[4px] bg-white rounded
-                            rotate-45 translate-x-[-2.3px] translate-y-[2px]"
+                            rotate-45 translate-x-[-2.3px] translate-y-[1.2px]"
                     />
                     <span
                     class="pointer-events-none absolute block h-[1.5px] w-[8px] bg-white rounded
-                            -rotate-45 translate-x-[1.2px] translate-y-[0.8px]"
+                            -rotate-45 translate-x-[1.1px] translate-y-[0px]"
                     />
                 {/if}
                 </button>

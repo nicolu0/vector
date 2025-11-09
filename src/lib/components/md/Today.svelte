@@ -29,10 +29,7 @@
 	}>();
 
 	let open = $state(true);
-	let taskMap = $state(tasksByMilestone);
-	$effect(() => {
-		taskMap = tasksByMilestone;
-	});
+	let taskMap = $derived(tasksByMilestone);
 
 	const currentMilestone = $derived(
 		milestones.find((m: Milestone) => m.id === currentMilestoneId) ?? null
