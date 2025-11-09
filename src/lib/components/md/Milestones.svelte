@@ -3,7 +3,7 @@
 	import Folder from '$lib/components/sm/Folder.svelte';
 
 	type Milestone = { id: string; title: string; description?: string };
-	type TasksMap = Record<string, Array<{ id: string; title: string }>>;
+	type TasksMap = Record<string, Array<{ id: string; title: string; done: boolean }>>;
 
 	let {
 		milestones = [],

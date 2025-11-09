@@ -1,18 +1,25 @@
 <script lang="ts">
 	import Task from '$lib/components/sm/Task.svelte';
 
-	let { tasksByMilestone = {} } = $props();
+	type TasksMap = Record<string, Array<{ id: string; title: string; done: boolean }>>;
+
+	let { tasksByMilestone = {} as TasksMap } = $props();
 	let initialTasks = $derived(Object.values(tasksByMilestone ?? {}).flat());
 
 	let open = $state(true);
-	let tasks = $derived(initialTasks.slice(0, 3));
+	let tasks = $state(initialTasks.slice(0, 3));
+
+	$effect(() => {
+		tasks = initialTasks.slice(0, 3);
+	});
 
 	function toggle(e: MouseEvent) {
 		e.preventDefault();
 		open = !open;
 	}
+
 	function handleToggle(id: string) {
-		tasks = tasks.map((task) => (task.id === id ? { ...task, checked: !task.checked } : task));
+		tasks = tasks.map((task) => (task.id === id ? { ...task, done: !task.done } : task));
 	}
 </script>
 
@@ -36,7 +43,7 @@
 					<Task
 						id={task.id}
 						title={task.title}
-						checked={task.checked}
+						checked={task.done ?? false}
 						active={false}
 						onToggle={handleToggle}
 						loading={task.loading ?? false}

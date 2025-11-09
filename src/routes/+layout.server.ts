@@ -4,7 +4,7 @@ import { redirect } from '@sveltejs/kit';
 
 type Project = { id: string; title: string; description: string; skills: string[]; difficulty: string; domain: string } | null;
 type Milestone = { id: string; title: string; project_id: string };
-type Task = { id: string; title: string; milestone_id: string };
+type Task = { id: string; title: string; milestone_id: string; done: boolean };
 type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; created_at: string };
 
 export const load: LayoutServerLoad = async (event) => {
@@ -31,7 +31,7 @@ export const load: LayoutServerLoad = async (event) => {
 		goal: string;
 		project: Project;
 		milestones: Array<{ id: string; title: string }>;
-		tasksByMilestone: Record<string, Array<{ id: string; title: string }>>;
+		tasksByMilestone: Record<string, Array<{ id: string; title: string; done: boolean }>>;
 		chat: { conversationId: string | null; messages: ChatMessage[] };
 	} = {
 		user: user ? { id: user.id, email: user.email } : null,
@@ -198,10 +198,10 @@ export const load: LayoutServerLoad = async (event) => {
 
 	if (taskErr || !taskRows) return payload;
 
-	const byMilestone: Record<string, Array<{ id: string; title: string }>> = {};
+	const byMilestone: Record<string, Array<{ id: string; title: string; done: boolean }>> = {};
 	for (const m of milestoneIds) byMilestone[m] = [];
 	for (const t of taskRows as Task[]) {
-		(byMilestone[t.milestone_id] ??= []).push({ id: t.id, title: t.title });
+		(byMilestone[t.milestone_id] ??= []).push({ id: t.id, title: t.title, done: !!t.done });
 	}
 	console.log(byMilestone);
 	payload.tasksByMilestone = byMilestone;
