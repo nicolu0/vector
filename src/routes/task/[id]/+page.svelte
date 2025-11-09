@@ -13,8 +13,8 @@
 	}
 </script>
 
-<div class="flex h-full w-full flex-col gap-4 bg-stone-50 p-6">
-	<div class="mt-8 space-y-4">
+<div class="flex h-full w-full flex-col gap-4 bg-stone-50 pr-3 pl-6">
+	<div class="space-y-4">
 		<div class="mb-2 text-[32px] font-semibold text-stone-900">{task.title}</div>
 
 		<div
