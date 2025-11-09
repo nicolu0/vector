@@ -5,7 +5,7 @@
 	let initialTasks = $derived(Object.values(tasksByMilestone ?? {}).flat());
 
 	let open = $state(true);
-	let tasks = $derived(initialTasks);
+	let tasks = $derived(initialTasks.slice(0, 3));
 
 	function toggle(e: MouseEvent) {
 		e.preventDefault();
