@@ -7,6 +7,14 @@
 		content: string;
 		created_at?: string;
 	};
+	type ProjectContext = {
+		id: string;
+		title: string;
+		description?: string | null;
+		skills?: string[];
+	};
+	type MilestoneContext = { id?: string; title?: string; summary?: string | null };
+	type TaskContext = { id?: string; title?: string; goal?: string | null };
 
 	let {
 		conversationId = null,
@@ -25,6 +33,9 @@
 	let sending = $state(false);
 	let errorMessage = $state<string | null>(null);
 	let scrollRegion: HTMLDivElement | null = null;
+	let projectContext = $state<ProjectContext | null>(null);
+	let milestoneContext = $state<MilestoneContext | null>(null);
+	let taskContext = $state<TaskContext | null>(null);
 
 	const welcomeMessage: ChatMessage = {
 		id: 'welcome',
@@ -37,6 +48,37 @@
 
 	$effect(() => {
 		messages = initialMessages;
+	});
+	$effect(() => {
+		const project = $page.data?.project;
+		projectContext = project
+			? {
+					id: project.id,
+					title: project.title,
+					description: project.description ?? '',
+					skills: Array.isArray(project.skills) ? project.skills : []
+				}
+			: null;
+	});
+	$effect(() => {
+		const milestone = $page.data?.milestone;
+		milestoneContext = milestone
+			? {
+					id: milestone.id,
+					title: milestone.title,
+					summary: milestone.summary ?? ''
+				}
+			: null;
+	});
+	$effect(() => {
+		const task = $page.data?.task;
+		taskContext = task
+			? {
+					id: task.id,
+					title: task.title,
+					goal: task.goal ?? ''
+				}
+			: null;
 	});
 
 	function makeTempId() {
@@ -68,7 +110,16 @@
 			const response = await fetch('/api/chat', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ conversationId, message: text, userId })
+				body: JSON.stringify({
+					conversationId,
+					message: text,
+					userId,
+					context: {
+						project: projectContext,
+						milestone: milestoneContext,
+						task: taskContext
+					}
+				})
 			});
 
 			if (!response.ok) {

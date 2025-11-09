@@ -60,63 +60,69 @@
 </script>
 
 <div
-	class="relative flex h-full min-w-0 overflow-hidden transition-[flex-basis] duration-200 ease-out"
+	class="relative flex h-full min-w-0 flex-col overflow-hidden transition-[flex-basis] duration-200 ease-out"
 	style={`flex-basis:${containerFlex};flex-grow:0;flex-shrink:0;`}
 >
 	<aside
 		id="sidebar-nav"
-		class="relative flex h-full w-full flex-col justify-between border-r border-stone-200 bg-stone-100 backdrop-blur-sm transition-transform duration-200 ease-out"
+		class="relative flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-stone-200 bg-stone-100 backdrop-blur-sm transition-transform duration-200 ease-out"
 		class:pointer-events-none={sidebarCollapsed}
 		style:width={EXPANDED_WIDTH}
 		style:transform={sidebarTransform}
 		aria-hidden={sidebarCollapsed}
 	>
-		{#if !sidebarCollapsed}
-			<div class="flex flex-col">
-				<div class="flex w-full items-center justify-end gap-2 px-4 pt-3 pb-3">
-					<button
-						type="button"
-						onclick={toggleSidebar}
-						class="inline-flex items-center justify-center rounded-md p-1 text-stone-500 hover:bg-stone-200 hover:text-stone-900"
-						aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-					>
-						<svg
-							viewBox="0 0 24 24"
-							class="h-5 w-5"
-							stroke="currentColor"
-							fill="none"
-							stroke-width="1.8"
-						>
-							<path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-						</svg>
-					</button>
+		<div class="flex h-full min-h-0 flex-col">
+			{#if !sidebarCollapsed}
+				<div class="min-h-0 flex-1 overflow-y-auto">
+					<div class="flex flex-col">
+						<div class="flex w-full items-center justify-end gap-2 px-4 pt-3 pb-3">
+							<button
+								type="button"
+								onclick={toggleSidebar}
+								class="inline-flex items-center justify-center rounded-md p-1 text-stone-500 hover:bg-stone-200 hover:text-stone-900"
+								aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+							>
+								<svg
+									viewBox="0 0 24 24"
+									class="h-5 w-5"
+									stroke="currentColor"
+									fill="none"
+									stroke-width="1.8"
+								>
+									<path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+								</svg>
+							</button>
+						</div>
+
+						{#if tutorial}
+							<Tutorial />
+						{/if}
+
+						<Today {tasksByMilestone} />
+
+						<Milestones
+							{milestones}
+							{tasksByMilestone}
+							initiallyOpen={true}
+							selectedId={selectedMilestoneId}
+							{selectedTaskId}
+							onSelect={(id) => {
+								// Instant UI feedback
+								selectedMilestoneId = id;
+								selectedTaskId = null;
+							}}
+							onSelectTask={(taskId) => {
+								selectedTaskId = taskId;
+							}}
+						/>
+					</div>
 				</div>
+			{/if}
 
-				{#if tutorial}
-					<Tutorial />
-				{/if}
-
-				<Today {tasksByMilestone} />
-
-				<Milestones
-					{milestones}
-					{tasksByMilestone}
-					initiallyOpen={true}
-					selectedId={selectedMilestoneId}
-					{selectedTaskId}
-					onSelect={(id) => {
-						// Instant UI feedback
-						selectedMilestoneId = id;
-						selectedTaskId = null;
-					}}
-					onSelectTask={(taskId) => {
-						selectedTaskId = taskId;
-					}}
-				/>
+			<div class="bg-stone-100">
+				<Profile name="User" {email} {sidebarCollapsed} onSignOut={signOut} />
 			</div>
-
-			<Profile name="User" {email} sidebarCollapsed={false} onSignOut={signOut} />
-		{/if}
+		</div>
 	</aside>
 
 	<button
