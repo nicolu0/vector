@@ -19,15 +19,15 @@
 	let { data, children }: LayoutProps = $props();
 	$inspect(data.milestones);
 
-let userId = $state(data.user?.id ?? null);
+	let userId = $state(data.user?.id ?? null);
 
-let milestones = $state(data.milestones);
-let tasksByMilestone = $state(data.tasksByMilestone ?? {});
-let currentMilestoneId = $state(data.currentMilestoneId ?? null);
-let currentTaskId = $state(data.currentTaskId ?? null);
-let chat = $state(data.chat);
-let chatWidth = $state(DEFAULT_CHAT_WIDTH);
-let resizingChat = $state(false);
+	let milestones = $state(data.milestones);
+	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
+	let currentMilestoneId = $state(data.currentMilestoneId ?? null);
+	let currentTaskId = $state(data.currentTaskId ?? null);
+	let chat = $state(data.chat);
+	let chatWidth = $state(DEFAULT_CHAT_WIDTH);
+	let resizingChat = $state(false);
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -130,8 +130,18 @@ let resizingChat = $state(false);
 		const { task } = await res.json();
 		return task as GeneratedTask;
 	}
+	let sidebarCollapsed = $state(false);
+	function toggleSidebar() {
+		console.log(sidebarCollapsed);
+		sidebarCollapsed = !sidebarCollapsed;
+	}
 	const generateApi: GenerateAPI = { generateTask };
 	setContext<GenerateAPI>('generate-task', generateApi);
+	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
+	const LEFT_BTN = 28; // 7 * 4px (h-7/w-7)
+	const RIGHT_BTN = 28;
+	const H_PAD = 24; // px-3 on both sides = 12px*2
+	const SPACER_EXPANDED = `calc(${EXPANDED_WIDTH} - ${LEFT_BTN + RIGHT_BTN + H_PAD}px)`;
 </script>
 
 <svelte:head>
@@ -140,7 +150,50 @@ let resizingChat = $state(false);
 
 <div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 	{#if userId}
+		<div
+			class={`fixed z-20 flex items-center overflow-hidden px-3 pt-3 pb-2 ${sidebarCollapsed ? 'bg-stone-50' : ''}`}
+			style={`width:${EXPANDED_WIDTH};`}
+		>
+			<button
+				type="button"
+				onclick={() => {
+					goto('/');
+				}}
+				class="flex h-7 w-7 items-center justify-center rounded-md text-stone-700 hover:bg-stone-200 hover:text-stone-900"
+				aria-label="Go to home"
+			>
+				<img src={vectorUrl} alt="vector" class="h-5 w-5" />
+			</button>
+
+			<div
+				class="flex-none transition-[flex-basis] duration-200 ease-out"
+				style:flex-basis={sidebarCollapsed ? '8px' : SPACER_EXPANDED}
+			/>
+
+			<button
+				type="button"
+				onclick={toggleSidebar}
+				class="inline-flex h-7 w-7 items-center justify-center rounded-md p-1.5 leading-none text-stone-600 transition duration-200 hover:bg-stone-200 focus:outline-none"
+				aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+			>
+				<svg
+					class="block h-4 w-4 shrink-0"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<rect x="2" y="3" width="21" height="18" rx="4" ry="4" />
+					<path d="M9 3.6v16" />
+				</svg>
+			</button>
+		</div>
 		<Sidebar
+			{sidebarCollapsed}
+			{toggleSidebar}
 			{milestones}
 			{tasksByMilestone}
 			{currentMilestoneId}
@@ -162,6 +215,15 @@ let resizingChat = $state(false);
 
 	<div class="flex min-h-0 min-w-0 flex-1">
 		<main class="min-h-0 min-w-0 flex-1 overflow-auto">
+			<div
+				class="sticky top-0 z-[20] flex h-12 items-center bg-stone-50 pt-3 pb-2
+           text-[10px] font-medium text-stone-600 uppercase
+           transition-[margin-left] duration-200 ease-out"
+				style:margin-left={sidebarCollapsed ? '5.5rem' : '1.25rem'}
+			>
+				PROJECT
+			</div>
+
 			{@render children()}
 		</main>
 

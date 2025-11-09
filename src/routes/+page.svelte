@@ -13,9 +13,11 @@
 	let project = $state(data?.project);
 	let milestones = $state(data?.milestones);
 
-    const completedMilestones = $derived((milestones ?? []).filter((m) => m.done).length);
-    const totalMilestones = $derived((milestones ?? []).length);
-    const percentCompleted = $derived(totalMilestones ? Math.round((completedMilestones / totalMilestones) * 100) : 0);
+	const completedMilestones = $derived((milestones ?? []).filter((m) => m.done).length);
+	const totalMilestones = $derived((milestones ?? []).length);
+	const percentCompleted = $derived(
+		totalMilestones ? Math.round((completedMilestones / totalMilestones) * 100) : 0
+	);
 
 	type AuthUI = { openAuthModal: () => void };
 	const { openAuthModal } = getContext<AuthUI>('auth-ui');
@@ -36,11 +38,11 @@
 	});
 </script>
 
-<div class="flex h-full w-full min-w-0 justify-center overflow-auto bg-stone-50 p-3 px-6">
+<div class="scroll-y flex h-full w-full min-w-0 flex-col overflow-auto pr-3 pl-5">
 	{#if userId}
-		<section class="space-y-6 bg-stone-50">
+		<section class="bg-stone-50">
 			{#if project}
-				<div class="mt-8 space-y-4">
+				<div class="space-y-4">
 					<div class="mb-2 text-[32px] font-semibold text-stone-900">{project.title}</div>
 
 					<div class="mb-4 flex flex-wrap gap-2">
@@ -63,12 +65,18 @@
 						{project.description}
 					</div>
 
-                    <div class="text-[14px] leading-relaxed text-stone-800 border border-stone-200 rounded-xl p-4 bg-white">
-                        <div class="flex flex-row justify-between items-center mb-2">
-                            <div class="font-semibold text-stone-900">Milestones</div>
-                            <div class="flex rounded-full bg-stone-100 px-3 py-1 justify-center text-center items-center text-xs border border-stone-300 text-stone-700">{percentCompleted}% completed</div>
-                        </div>
-                        <Stepper milestones={milestones} />
+					<div
+						class="rounded-xl border border-stone-200 bg-white p-4 text-[14px] leading-relaxed text-stone-800"
+					>
+						<div class="mb-2 flex flex-row items-center justify-between">
+							<div class="font-semibold text-stone-900">Milestones</div>
+							<div
+								class="flex items-center justify-center rounded-full border border-stone-300 bg-stone-100 px-3 py-1 text-center text-xs text-stone-700"
+							>
+								{percentCompleted}% completed
+							</div>
+						</div>
+						<Stepper {milestones} />
 					</div>
 
 					<div
@@ -95,7 +103,9 @@
 	{/if}
 </div>
 
-<div>
-	<div></div>
-	<div></div>
-</div>
+<style>
+	::-webkit-scrollbar-track {
+		box-shadow: inset 0 0 10px 10px green;
+		border: solid 3px transparent;
+	}
+</style>
