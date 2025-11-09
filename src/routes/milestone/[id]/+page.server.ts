@@ -4,7 +4,7 @@ import { error, redirect } from '@sveltejs/kit';
 
 const FALLBACK_MILESTONE = {
 	title: 'Example Milestone',
-	summary: 'Milestones are the scope of your daily tasks. Click the arrow to expand the milestone and show the tasks. Click the Example task.'
+	description: 'Milestones are the scope of your daily tasks. Click the arrow to expand the milestone and show the tasks. Click the Example task.'
 }
 export const load: PageServerLoad = async ({ params, cookies }) => {
 	if (params.id === 'tutorial') {
@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 
 	const { data: milestone, error: qerr } = await supabase
 		.from('milestones')
-		.select('id, title, summary')
+		.select('id, title, description')
 		.eq('user_id', user?.id)
 		.eq('id', params.id)
 		.maybeSingle();

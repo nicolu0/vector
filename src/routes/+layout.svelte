@@ -19,7 +19,6 @@
 	let { data, children }: LayoutProps = $props();
 	$inspect(data.milestones);
 
-	let goal = $state(data.goal ?? '');
 	let userId = $state(data.user?.id ?? null);
 
 	let milestones = $state(data.milestones);
@@ -36,7 +35,7 @@
 	type GeneratedTask = {
 		id: string;
 		title: string;
-		goal: string;
+		description: string;
 		milestone_id: string;
 		ordinal: number;
 	};
@@ -67,7 +66,6 @@
 
 	$effect(() => {
 		userId = data.user?.id ?? null;
-		goal = data.goal ?? '';
 		tasksByMilestone = data.tasksByMilestone ?? {};
 		chat = data.chat;
 	});
