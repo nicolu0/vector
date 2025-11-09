@@ -13,7 +13,7 @@
     );
 </script>
 
-<div class="p-6 w-full">
+<div class="px-2 py-4 w-full">
     <div class="flex items-center gap-0">
         {#each milestones as m, i}
             {#if i > 0}
@@ -44,7 +44,7 @@
                     />
                 {/if}
                 </button>
-                <div id={"tip-" + i} role="tooltip" class="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-stone-700 px-2 py-1 text-xs text-white opacity-0 shadow transition-opacity duration-150 group-hover:opacity-100">
+                <div id={"tip-" + i} role="tooltip" class="pointer-events-none absolute -bottom-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-stone-700 px-2 py-1 text-xs text-white opacity-0 shadow transition-opacity duration-150 group-hover:opacity-100">
                     {m.title}
                 </div>
             </div>

@@ -13,6 +13,10 @@
 	let project = $state(data?.project);
 	let milestones = $state(data?.milestones);
 
+    const completedMilestones = $derived((milestones ?? []).filter((m) => m.done).length);
+    const totalMilestones = $derived((milestones ?? []).length);
+    const percentCompleted = $derived(totalMilestones ? Math.round((completedMilestones / totalMilestones) * 100) : 0);
+
 	type AuthUI = { openAuthModal: () => void };
 	const { openAuthModal } = getContext<AuthUI>('auth-ui');
 
@@ -60,8 +64,11 @@
 					</div>
 
                     <div class="text-[14px] leading-relaxed text-stone-800 border border-stone-200 rounded-xl p-4 bg-white">
-                        <div class="font-semibold text-stone-900 mb-2">Milestones</div>
-						<Stepper milestones={milestones} />
+                        <div class="flex flex-row justify-between items-center mb-2">
+                            <div class="font-semibold text-stone-900">Milestones</div>
+                            <div class="flex rounded-full bg-stone-100 px-3 py-1 justify-center text-center items-center text-xs border border-stone-300 text-stone-700">{percentCompleted}% completed</div>
+                        </div>
+                        <Stepper milestones={milestones} />
 					</div>
 
 					<div
