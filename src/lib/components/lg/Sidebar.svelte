@@ -8,7 +8,7 @@
 	import { page } from '$app/stores';
 	import vectorUrl from '$lib/assets/vector.svg?url';
 
-	type Milestone = { id: string; title: string; summary?: string };
+	type Milestone = { id: string; title: string; description?: string };
 	type TasksMap = Record<string, Array<{ id: string; title: string }>>;
 
 	let {

@@ -87,7 +87,6 @@
 				type="text"
 				class="w-full border-0 bg-transparent px-0 py-3 font-mono text-4xl text-stone-900 caret-stone-700 transition-all placeholder:text-stone-400 focus:border-stone-700 focus:ring-0 focus:outline-none"
 				placeholder={`${typed}`}
-				bind:value={goal}
 				autofocus
 				autocomplete="off"
 				spellcheck="false"

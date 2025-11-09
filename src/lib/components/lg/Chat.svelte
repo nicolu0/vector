@@ -13,8 +13,8 @@
 		description?: string | null;
 		skills?: string[];
 	};
-	type MilestoneContext = { id?: string; title?: string; summary?: string | null };
-	type TaskContext = { id?: string; title?: string; goal?: string | null };
+	type MilestoneContext = { id?: string; title?: string; description?: string | null };
+	type TaskContext = { id?: string; title?: string; description?: string | null };
 
 	let {
 		conversationId = null,
@@ -66,7 +66,7 @@
 			? {
 					id: milestone.id,
 					title: milestone.title,
-					summary: milestone.summary ?? ''
+					description: milestone.description ?? ''
 				}
 			: null;
 	});
@@ -76,7 +76,7 @@
 			? {
 					id: task.id,
 					title: task.title,
-					goal: task.goal ?? ''
+					description: task.description ?? ''
 				}
 			: null;
 	});

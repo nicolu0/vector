@@ -13,7 +13,7 @@ const TASK_SCHEMA = {
 	schema: {
 		type: 'object',
 		additionalProperties: false,
-		required: ['title', 'goal'],
+		required: ['title', 'description'],
 		properties: {
 			title: { type: 'string', minLength: 4, maxLength: 20 },
 			goal: { type: 'string', minLength: 40, maxLength: 800 }
@@ -24,8 +24,8 @@ const TASK_SCHEMA = {
 
 function buildPrompt(args: {
 	project: { title: string; description?: string | null };
-	milestone: { title: string; summary?: string | null; ordinal?: number | null };
-	previousTask?: { title: string; goal?: string | null } | null;
+	milestone: { title: string; description?: string | null; ordinal?: number | null };
+	previousTask?: { title: string; description?: string | null } | null;
 }) {
 	const { project, milestone, previousTask } = args;
 
@@ -33,7 +33,7 @@ function buildPrompt(args: {
 		`Project: ${project.title}`,
 		project.description ? `Project overview:\n${project.description.trim()}` : '',
 		`Current milestone: ${milestone.title}${milestone.ordinal ? ` (step ${milestone.ordinal})` : ''}`,
-		milestone.summary ? `Milestone summary:\n${milestone.summary.trim()}` : '',
+		milestone.description ? `Milestone description:\n${milestone.description.trim()}` : '',
 		'Constraints:',
 		'- Exactly ONE task.',
 		'- Fits ~30 focused minutes.',

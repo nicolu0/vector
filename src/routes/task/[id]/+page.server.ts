@@ -4,7 +4,7 @@ import { error, redirect } from '@sveltejs/kit';
 
 const FALLBACK_TASK = {
 	title: 'Example Task',
-	goal: 'You get 1 task per day. Tasks have varying scope and todos. To complete a task, click the circle next to it.'
+	description: 'You get 1 task per day. Tasks have varying scope and todos. To complete a task, click the circle next to it.'
 }
 export const load: PageServerLoad = async ({ params, cookies }) => {
 	if (params.id === 'tutorial') {
@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 
 	const { data: task, error: qerr } = await supabase
 		.from('tasks')
-		.select('id, title, goal')
+		.select('id, title, description')
 		.eq('user_id', user.id)
 		.eq('id', params.id)
 		.maybeSingle();
