@@ -33,7 +33,9 @@
 		taskMap = tasksByMilestone;
 	});
 
-	const currentMilestone = $derived(milestones.find((m) => m.id === currentMilestoneId) ?? null);
+	const currentMilestone = $derived(
+		milestones.find((m: Milestone) => m.id === currentMilestoneId) ?? null
+	);
 	const currentTask = $derived(getTask(currentMilestoneId, currentTaskId));
 
 	let currentTaskDone = $state(currentTask?.done ?? false);
@@ -51,13 +53,13 @@
 	function getTask(milestoneId: string | null, taskId: string | null): TaskEntry | null {
 		if (!milestoneId || !taskId) return null;
 		const tasks = taskMap[milestoneId] ?? [];
-		return tasks.find((task) => task.id === taskId) ?? null;
+		return tasks.find((task: TaskEntry) => task.id === taskId) ?? null;
 	}
 
 	function setTaskDone(milestoneId: string | null, taskId: string, done: boolean) {
 		if (!milestoneId) return;
 		const tasks = taskMap[milestoneId] ?? [];
-		const idx = tasks.findIndex((task) => task.id === taskId);
+		const idx = tasks.findIndex((task: TaskEntry) => task.id === taskId);
 		if (idx === -1) return;
 		const updated = [...tasks];
 		updated[idx] = { ...updated[idx], done };
@@ -74,12 +76,12 @@
 	function findNextTask(milestoneId: string | null, taskId: string | null): LocatedTask | null {
 		if (!milestoneId) return firstAvailableTask();
 		const currentTasks = taskMap[milestoneId] ?? [];
-		const currentIndex = currentTasks.findIndex((t) => t.id === taskId);
+		const currentIndex = currentTasks.findIndex((t: TaskEntry) => t.id === taskId);
 		if (currentIndex !== -1 && currentIndex + 1 < currentTasks.length) {
 			return { milestoneId, task: currentTasks[currentIndex + 1] };
 		}
 
-		const milestoneIndex = milestones.findIndex((m) => m.id === milestoneId);
+		const milestoneIndex = milestones.findIndex((m: Milestone) => m.id === milestoneId);
 		for (let i = milestoneIndex + 1; i < milestones.length; i++) {
 			const nextMilestone = milestones[i];
 			const tasks = taskMap[nextMilestone.id] ?? [];
@@ -134,7 +136,7 @@
 	}
 </script>
 
-<div class="space-y-1 px-2 py-2">
+<div class="px-2 py-2">
 	<button
 		type="button"
 		onclick={toggle}
@@ -152,11 +154,6 @@
 			{#if currentTask}
 				<ul>
 					<li>
-						{#if currentMilestone}
-							<div class="ml-3 text-[8px] font-medium tracking-wide text-stone-500 uppercase">
-								{currentMilestone.title}
-							</div>
-						{/if}
 						<Task
 							id={currentTask.id}
 							title={currentTask.title}
