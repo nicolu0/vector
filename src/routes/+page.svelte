@@ -4,6 +4,7 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { getContext, onDestroy } from 'svelte';
 	import type { PageProps } from './$types';
+	import Stepper from '$lib/components/sm/Stepper.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -58,15 +59,9 @@
 						{project.description}
 					</div>
 
-					<div
-						class="rounded-xl border border-stone-200 bg-white p-4 text-[14px] leading-relaxed text-stone-800"
-					>
-						<div class="mb-2 font-semibold text-stone-900">Milestones</div>
-						{#each milestones as milestone}
-							<div class="mb-2">
-								<div class="mb-1 font-medium text-stone-900">{milestone.title}</div>
-							</div>
-						{/each}
+                    <div class="text-[14px] leading-relaxed text-stone-800 border border-stone-200 rounded-xl p-4 bg-white">
+                        <div class="font-semibold text-stone-900 mb-2">Milestones</div>
+						<Stepper milestones={milestones} />
 					</div>
 
 					<div
