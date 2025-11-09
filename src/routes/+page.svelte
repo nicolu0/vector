@@ -53,7 +53,7 @@
 	});
 </script>
 
-<div class="scroll-y flex h-full w-full min-w-0 flex-col overflow-auto pr-3 pl-5">
+<div class="scroll-y flex h-full w-full min-w-0 flex-col overflow-auto pr-3 pl-5 pb-5">
 	{#if userId}
 		<section class="bg-stone-50">
 			{#if project}
