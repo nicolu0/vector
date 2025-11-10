@@ -2,9 +2,34 @@ import type { LayoutServerLoad } from './$types';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { redirect } from '@sveltejs/kit';
 
-type Project = { id: string; title: string; description: string; skills: string[]; difficulty: string; domain: string } | null;
-type Milestone = { id: string; title: string; project_id: string; done: boolean; ordinal: number | null };
-type Task = { id: string; title: string; milestone_id: string; done: boolean; ordinal: number | null; tutorial?: boolean };
+type Project =
+	| ({
+		id: string;
+		title: string;
+		description: string;
+		skills: string[];
+		difficulty: string;
+		domain: string;
+	} & Record<string, unknown>)
+	| null;
+
+type Milestone = {
+	id: string;
+	title: string;
+	done: boolean;
+	ordinal: number | null;
+	description?: string;
+} & Record<string, unknown>;
+type Task = {
+	id: string;
+	title: string;
+	milestone_id: string;
+	done: boolean;
+	ordinal: number | null;
+	tutorial?: boolean;
+	description?: string | null;
+	todo?: string[] | null;
+} & Record<string, unknown>;
 type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; created_at: string };
 
 export const load: LayoutServerLoad = async (event) => {
@@ -23,15 +48,15 @@ export const load: LayoutServerLoad = async (event) => {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	console.log(user)
 
 	const payload: {
 		user: { id: string, email: string | undefined } | null;
 		tutorial: boolean;
 		goal: string;
 		project: Project;
-		milestones: Array<{ id: string; title: string; done: boolean; ordinal: number | null }>;
-		tasksByMilestone: Record<string, Array<{ id: string; title: string; done: boolean; ordinal: number | null; tutorial?: boolean }>>;
+		milestones: Milestone[];
+		tasks: Task[];
+		tasksByMilestone: Record<string, Task[]>;
 		currentMilestoneId: string | null;
 		currentTaskId: string | null;
 		chat: { conversationId: string | null; messages: ChatMessage[] };
@@ -40,7 +65,8 @@ export const load: LayoutServerLoad = async (event) => {
 		tutorial: false,
 		goal: '',
 		project: null,
-		milestones: [] as Array<{ id: string; title: string; done: boolean, ordinal: number | null }>,
+		milestones: [] as Milestone[],
+		tasks: [] as Task[],
 		tasksByMilestone: {},
 		currentMilestoneId: null,
 		currentTaskId: null,
@@ -157,10 +183,9 @@ export const load: LayoutServerLoad = async (event) => {
 		}
 	}
 
-	// Include 'skills' in the select list
 	const { data: projRow, error: projErr } = await supabase
 		.from('projects')
-		.select('id,title,description,skills,difficulty,domain')
+		.select('*')
 		.eq('user_id', user.id)
 		.order('created_at', { ascending: false })
 		.limit(1)
@@ -170,14 +195,10 @@ export const load: LayoutServerLoad = async (event) => {
 
 	// Normalize to ensure skills is always an array
 	payload.project = projRow
-		? {
-			id: projRow.id,
-			title: projRow.title,
-			description: projRow.description,
+		? ({
+			...projRow,
 			skills: Array.isArray(projRow.skills) ? projRow.skills : [],
-			difficulty: projRow.difficulty,
-			domain: projRow.domain,
-		}
+		} as Project)
 		: null;
 
 	if (!payload.project) return payload;
@@ -185,37 +206,45 @@ export const load: LayoutServerLoad = async (event) => {
 	// Milestones
 	const { data: msRows, error: msErr } = await supabase
 		.from('milestones')
-		.select('id,title,project_id,done,ordinal')
+		.select('*')
 		.eq('project_id', payload.project.id)
 		.order('ordinal', { ascending: true });
 
 	if (msErr || !msRows?.length) return payload;
 
-	const milestones: Milestone[] = msRows;
-	payload.milestones = milestones.map(({ id, title, done, ordinal }) => ({ id, title, done, ordinal: ordinal ?? null }));
+	const milestones: Milestone[] = msRows.map((row) => ({
+		...row,
+		done: !!row.done,
+		ordinal: row.ordinal ?? null,
+	}));
+	payload.milestones = milestones;
 
 	// Tasks grouped by milestone
 	const milestoneIds = milestones.map((m) => m.id);
 	const { data: taskRows, error: taskErr } = await supabase
 		.from('tasks')
-		.select('id,title,milestone_id,done,ordinal')
+		.select('*')
 		.in('milestone_id', milestoneIds)
 		.order('ordinal', { ascending: true });
 
 	if (taskErr || !taskRows) return payload;
 
-	const byMilestone: Record<string, Array<{ id: string; title: string; done: boolean; ordinal: number | null; tutorial?: boolean }>> = {};
+	const normalizedTasks: Task[] = (taskRows as Task[]).map((task) => ({
+		...task,
+		done: !!task.done,
+		ordinal: task.ordinal ?? null,
+		todo: Array.isArray(task.todo) ? task.todo : task.todo ?? [],
+	}));
+	payload.tasks = normalizedTasks;
+
+	const byMilestone: Record<string, Task[]> = {};
 	for (const m of milestoneIds) byMilestone[m] = [];
-	for (const t of taskRows as Task[]) {
+	for (const t of normalizedTasks) {
 		(byMilestone[t.milestone_id] ??= []).push({
-			id: t.id,
-			title: t.title,
-			done: !!t.done,
-			ordinal: t.ordinal ?? null,
-			tutorial: false,
+			...t,
+			tutorial: t.tutorial ?? false,
 		});
 	}
-	console.log(byMilestone);
 	payload.tasksByMilestone = byMilestone;
 
 	return payload;
