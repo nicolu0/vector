@@ -54,14 +54,9 @@ export const load: LayoutServerLoad = async (event) => {
 		tutorial: boolean;
 		goal: string;
 		project: Project;
-<<<<<<< HEAD
 		milestones: Milestone[];
 		tasks: Task[];
 		tasksByMilestone: Record<string, Task[]>;
-=======
-		milestones: Array<{ id: string; title: string; done: boolean; ordinal: number | null, skills: string[] }>;
-		tasksByMilestone: Record<string, Array<{ id: string; title: string; done: boolean; ordinal: number | null; tutorial?: boolean }>>;
->>>>>>> d59c77d (feat: milestones page)
 		currentMilestoneId: string | null;
 		currentTaskId: string | null;
 		chat: { conversationId: string | null; messages: ChatMessage[] };
@@ -70,12 +65,8 @@ export const load: LayoutServerLoad = async (event) => {
 		tutorial: false,
 		goal: '',
 		project: null,
-<<<<<<< HEAD
 		milestones: [] as Milestone[],
 		tasks: [] as Task[],
-=======
-		milestones: [] as Array<{ id: string; title: string; done: boolean, ordinal: number | null, skills: string[] }>,
->>>>>>> d59c77d (feat: milestones page)
 		tasksByMilestone: {},
 		currentMilestoneId: null,
 		currentTaskId: null,
@@ -216,15 +207,23 @@ export const load: LayoutServerLoad = async (event) => {
 	const { data: msRows, error: msErr } = await supabase
 		.from('milestones')
 <<<<<<< HEAD
+<<<<<<< HEAD
 		.select('*')
 =======
 		.select('id,title,project_id,done,ordinal,skills')
 >>>>>>> d59c77d (feat: milestones page)
+=======
+		.select('id,title,project_id,done,ordinal,skills')
+=======
+		.select('*')
+>>>>>>> fa1fd8d (feat: pull all cols for milestones + tasks)
+>>>>>>> 0b16519 (feat: pull all cols for milestones + tasks)
 		.eq('project_id', payload.project.id)
 		.order('ordinal', { ascending: true });
 
 	if (msErr || !msRows?.length) return payload;
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 	const milestones: Milestone[] = msRows.map((row) => ({
 		...row,
@@ -236,6 +235,18 @@ export const load: LayoutServerLoad = async (event) => {
 	const milestones: Milestone[] = msRows;
 	payload.milestones = milestones.map(({ id, title, done, ordinal, skills }) => ({ id, title, done, ordinal: ordinal ?? null, skills: skills ?? [] }));
 >>>>>>> d59c77d (feat: milestones page)
+=======
+	const milestones: Milestone[] = msRows;
+	payload.milestones = milestones.map(({ id, title, done, ordinal, skills }) => ({ id, title, done, ordinal: ordinal ?? null, skills: skills ?? [] }));
+=======
+	const milestones: Milestone[] = msRows.map((row) => ({
+		...row,
+		done: !!row.done,
+		ordinal: row.ordinal ?? null,
+	}));
+	payload.milestones = milestones;
+>>>>>>> fa1fd8d (feat: pull all cols for milestones + tasks)
+>>>>>>> 0b16519 (feat: pull all cols for milestones + tasks)
 
 	// Tasks grouped by milestone
 	const milestoneIds = milestones.map((m) => m.id);
@@ -260,16 +271,26 @@ export const load: LayoutServerLoad = async (event) => {
 	for (const t of normalizedTasks) {
 		(byMilestone[t.milestone_id] ??= []).push({
 <<<<<<< HEAD
+<<<<<<< HEAD
 			...t,
 			tutorial: t.tutorial ?? false,
 =======
+=======
+>>>>>>> 0b16519 (feat: pull all cols for milestones + tasks)
 			id: t.id,
 			title: t.title,
 			done: !!t.done,
 			ordinal: t.ordinal ?? null,
 			tutorial: false,
 			skills: [],
+<<<<<<< HEAD
 >>>>>>> d59c77d (feat: milestones page)
+=======
+=======
+			...t,
+			tutorial: t.tutorial ?? false,
+>>>>>>> fa1fd8d (feat: pull all cols for milestones + tasks)
+>>>>>>> 0b16519 (feat: pull all cols for milestones + tasks)
 		});
 	}
 	payload.tasksByMilestone = byMilestone;
