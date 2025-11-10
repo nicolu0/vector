@@ -54,9 +54,14 @@ export const load: LayoutServerLoad = async (event) => {
 		tutorial: boolean;
 		goal: string;
 		project: Project;
+<<<<<<< HEAD
 		milestones: Milestone[];
 		tasks: Task[];
 		tasksByMilestone: Record<string, Task[]>;
+=======
+		milestones: Array<{ id: string; title: string; done: boolean; ordinal: number | null, skills: string[] }>;
+		tasksByMilestone: Record<string, Array<{ id: string; title: string; done: boolean; ordinal: number | null; tutorial?: boolean }>>;
+>>>>>>> d59c77d (feat: milestones page)
 		currentMilestoneId: string | null;
 		currentTaskId: string | null;
 		chat: { conversationId: string | null; messages: ChatMessage[] };
@@ -65,8 +70,12 @@ export const load: LayoutServerLoad = async (event) => {
 		tutorial: false,
 		goal: '',
 		project: null,
+<<<<<<< HEAD
 		milestones: [] as Milestone[],
 		tasks: [] as Task[],
+=======
+		milestones: [] as Array<{ id: string; title: string; done: boolean, ordinal: number | null, skills: string[] }>,
+>>>>>>> d59c77d (feat: milestones page)
 		tasksByMilestone: {},
 		currentMilestoneId: null,
 		currentTaskId: null,
@@ -206,18 +215,27 @@ export const load: LayoutServerLoad = async (event) => {
 	// Milestones
 	const { data: msRows, error: msErr } = await supabase
 		.from('milestones')
+<<<<<<< HEAD
 		.select('*')
+=======
+		.select('id,title,project_id,done,ordinal,skills')
+>>>>>>> d59c77d (feat: milestones page)
 		.eq('project_id', payload.project.id)
 		.order('ordinal', { ascending: true });
 
 	if (msErr || !msRows?.length) return payload;
 
+<<<<<<< HEAD
 	const milestones: Milestone[] = msRows.map((row) => ({
 		...row,
 		done: !!row.done,
 		ordinal: row.ordinal ?? null,
 	}));
 	payload.milestones = milestones;
+=======
+	const milestones: Milestone[] = msRows;
+	payload.milestones = milestones.map(({ id, title, done, ordinal, skills }) => ({ id, title, done, ordinal: ordinal ?? null, skills: skills ?? [] }));
+>>>>>>> d59c77d (feat: milestones page)
 
 	// Tasks grouped by milestone
 	const milestoneIds = milestones.map((m) => m.id);
@@ -241,8 +259,17 @@ export const load: LayoutServerLoad = async (event) => {
 	for (const m of milestoneIds) byMilestone[m] = [];
 	for (const t of normalizedTasks) {
 		(byMilestone[t.milestone_id] ??= []).push({
+<<<<<<< HEAD
 			...t,
 			tutorial: t.tutorial ?? false,
+=======
+			id: t.id,
+			title: t.title,
+			done: !!t.done,
+			ordinal: t.ordinal ?? null,
+			tutorial: false,
+			skills: [],
+>>>>>>> d59c77d (feat: milestones page)
 		});
 	}
 	payload.tasksByMilestone = byMilestone;
