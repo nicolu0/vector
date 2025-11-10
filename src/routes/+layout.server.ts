@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from '$lib/server/supabase';
 import { redirect } from '@sveltejs/kit';
 
 type Project = { id: string; title: string; description: string; skills: string[]; difficulty: string; domain: string } | null;
-type Milestone = { id: string; title: string; project_id: string; done: boolean; ordinal: number | null };
+type Milestone = { id: string; title: string; project_id: string; done: boolean; ordinal: number | null, skills: string[] };
 type Task = { id: string; title: string; milestone_id: string; done: boolean; ordinal: number | null; tutorial?: boolean };
 type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; created_at: string };
 
@@ -30,7 +30,7 @@ export const load: LayoutServerLoad = async (event) => {
 		tutorial: boolean;
 		goal: string;
 		project: Project;
-		milestones: Array<{ id: string; title: string; done: boolean; ordinal: number | null }>;
+		milestones: Array<{ id: string; title: string; done: boolean; ordinal: number | null, skills: string[] }>;
 		tasksByMilestone: Record<string, Array<{ id: string; title: string; done: boolean; ordinal: number | null; tutorial?: boolean }>>;
 		currentMilestoneId: string | null;
 		currentTaskId: string | null;
@@ -40,7 +40,7 @@ export const load: LayoutServerLoad = async (event) => {
 		tutorial: false,
 		goal: '',
 		project: null,
-		milestones: [] as Array<{ id: string; title: string; done: boolean, ordinal: number | null }>,
+		milestones: [] as Array<{ id: string; title: string; done: boolean, ordinal: number | null, skills: string[] }>,
 		tasksByMilestone: {},
 		currentMilestoneId: null,
 		currentTaskId: null,
@@ -185,14 +185,14 @@ export const load: LayoutServerLoad = async (event) => {
 	// Milestones
 	const { data: msRows, error: msErr } = await supabase
 		.from('milestones')
-		.select('id,title,project_id,done,ordinal')
+		.select('id,title,project_id,done,ordinal,skills')
 		.eq('project_id', payload.project.id)
 		.order('ordinal', { ascending: true });
 
 	if (msErr || !msRows?.length) return payload;
 
 	const milestones: Milestone[] = msRows;
-	payload.milestones = milestones.map(({ id, title, done, ordinal }) => ({ id, title, done, ordinal: ordinal ?? null }));
+	payload.milestones = milestones.map(({ id, title, done, ordinal, skills }) => ({ id, title, done, ordinal: ordinal ?? null, skills: skills ?? [] }));
 
 	// Tasks grouped by milestone
 	const milestoneIds = milestones.map((m) => m.id);
@@ -213,6 +213,7 @@ export const load: LayoutServerLoad = async (event) => {
 			done: !!t.done,
 			ordinal: t.ordinal ?? null,
 			tutorial: false,
+			skills: [],
 		});
 	}
 	console.log(byMilestone);
