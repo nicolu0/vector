@@ -206,47 +206,18 @@ export const load: LayoutServerLoad = async (event) => {
 	// Milestones
 	const { data: msRows, error: msErr } = await supabase
 		.from('milestones')
-<<<<<<< HEAD
-<<<<<<< HEAD
 		.select('*')
-=======
-		.select('id,title,project_id,done,ordinal,skills')
->>>>>>> d59c77d (feat: milestones page)
-=======
-		.select('id,title,project_id,done,ordinal,skills')
-=======
-		.select('*')
->>>>>>> fa1fd8d (feat: pull all cols for milestones + tasks)
->>>>>>> 0b16519 (feat: pull all cols for milestones + tasks)
 		.eq('project_id', payload.project.id)
 		.order('ordinal', { ascending: true });
 
 	if (msErr || !msRows?.length) return payload;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 	const milestones: Milestone[] = msRows.map((row) => ({
 		...row,
 		done: !!row.done,
 		ordinal: row.ordinal ?? null,
 	}));
 	payload.milestones = milestones;
-=======
-	const milestones: Milestone[] = msRows;
-	payload.milestones = milestones.map(({ id, title, done, ordinal, skills }) => ({ id, title, done, ordinal: ordinal ?? null, skills: skills ?? [] }));
->>>>>>> d59c77d (feat: milestones page)
-=======
-	const milestones: Milestone[] = msRows;
-	payload.milestones = milestones.map(({ id, title, done, ordinal, skills }) => ({ id, title, done, ordinal: ordinal ?? null, skills: skills ?? [] }));
-=======
-	const milestones: Milestone[] = msRows.map((row) => ({
-		...row,
-		done: !!row.done,
-		ordinal: row.ordinal ?? null,
-	}));
-	payload.milestones = milestones;
->>>>>>> fa1fd8d (feat: pull all cols for milestones + tasks)
->>>>>>> 0b16519 (feat: pull all cols for milestones + tasks)
 
 	// Tasks grouped by milestone
 	const milestoneIds = milestones.map((m) => m.id);
@@ -270,27 +241,14 @@ export const load: LayoutServerLoad = async (event) => {
 	for (const m of milestoneIds) byMilestone[m] = [];
 	for (const t of normalizedTasks) {
 		(byMilestone[t.milestone_id] ??= []).push({
-<<<<<<< HEAD
-<<<<<<< HEAD
 			...t,
 			tutorial: t.tutorial ?? false,
-=======
-=======
->>>>>>> 0b16519 (feat: pull all cols for milestones + tasks)
 			id: t.id,
 			title: t.title,
 			done: !!t.done,
 			ordinal: t.ordinal ?? null,
 			tutorial: false,
 			skills: [],
-<<<<<<< HEAD
->>>>>>> d59c77d (feat: milestones page)
-=======
-=======
-			...t,
-			tutorial: t.tutorial ?? false,
->>>>>>> fa1fd8d (feat: pull all cols for milestones + tasks)
->>>>>>> 0b16519 (feat: pull all cols for milestones + tasks)
 		});
 	}
 	payload.tasksByMilestone = byMilestone;
