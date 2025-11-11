@@ -233,30 +233,6 @@
 					<path d="M18 2L12 21" />
 				</svg>
 				<div class="rounded-md p-1 px-1 hover:bg-stone-200">PROJECT</div>
-				<svg
-					class="h-3 w-3 text-stone-400"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					aria-hidden="true"
-				>
-					<path d="M18 2L12 21" />
-				</svg>
-				<div class="rounded-md p-1 px-1 hover:bg-stone-200">MILESTONE 2</div>
-				<svg
-					class="h-3 w-3 text-stone-400"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					aria-hidden="true"
-				>
-					<path d="M18 2L12 21" />
-				</svg>
-				<div class="rounded-md p-1 px-1 hover:bg-stone-200">TASK 2</div>
 			</div>
 
 			{@render children()}

@@ -4,6 +4,12 @@
 	let task = $derived(data?.task);
 
 	let todos: string[] = $derived(task?.todo ?? []);
+	const resources = [
+		{
+			label: 'PyTorch Tensor Docs',
+			url: 'https://arxiv.org/pdf/1706.03762'
+		}
+	];
 
 	// local check state (no persistence)
 	let done = $state<boolean[]>(Array.from({ length: todos.length }, () => false));
@@ -75,5 +81,36 @@
 				</ul>
 			</div>
 		{/if}
+		<div
+			class="rounded-xl border border-stone-200 bg-white p-4 text-[14px] leading-relaxed text-stone-800"
+		>
+			<div class="mb-2 font-semibold text-stone-900">Resources</div>
+			<ul class="list-disc space-y-1 pl-5">
+				{#each resources as r}
+					<li>
+						<a
+							href={r.url}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="group flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400/60"
+							aria-label={`Open resource: ${r.label}`}
+						>
+							<span class="truncate">{r.label}</span>
+							<svg
+								class="h-4 w-4 shrink-0 -translate-x-1 opacity-70 transition-transform duration-150 group-hover:-translate-x-0.5"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								aria-hidden="true"
+							>
+								<path d="M7 17l10-10" />
+								<path d="M8 7h9v9" />
+							</svg>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		</div>
 	</div>
 </div>
