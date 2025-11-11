@@ -9,7 +9,13 @@
 	import vectorUrl from '$lib/assets/vector.svg?url';
 	import { supabase } from '$lib/supabaseClient';
 
-	type Milestone = { id: string; title: string; description?: string; ordinal?: number | null };
+	type Milestone = {
+		id: string;
+		title: string;
+		done: boolean;
+		description?: string;
+		ordinal?: number | null;
+	};
 	type Task = {
 		id: string;
 		title: string;

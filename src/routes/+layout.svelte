@@ -20,8 +20,9 @@
 	$inspect(data.milestones);
 
 	let userId = $state(data.user?.id ?? null);
-
+	let project = $state(data.project ?? null);
 	let milestones = $state(data.milestones);
+	let tasks = $state(data.tasks ?? []);
 	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
 	let currentMilestoneId = $state(data.currentMilestoneId ?? null);
 	let currentTaskId = $state(data.currentTaskId ?? null);
@@ -68,6 +69,9 @@
 
 	$effect(() => {
 		userId = data.user?.id ?? null;
+		project = data.project ?? null;
+		milestones = data.milestones ?? [];
+		tasks = data.tasks ?? [];
 		tasksByMilestone = data.tasksByMilestone ?? {};
 		currentMilestoneId = data.currentMilestoneId ?? null;
 		currentTaskId = data.currentTaskId ?? null;

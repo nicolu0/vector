@@ -27,6 +27,7 @@
 	let userId = $state(serverUserId);
 	let project = $state(data?.project);
 	let milestones = $state(data?.milestones);
+	let tasks = $state(data?.tasks ?? []);
 
 	const completedMilestones = $derived((milestones ?? []).filter((m) => m.done).length);
 	const totalMilestones = $derived((milestones ?? []).length);
@@ -50,6 +51,9 @@
 
 	$effect(() => {
 		userId = data.user?.id ?? null;
+		project = data?.project ?? null;
+		milestones = data?.milestones ?? [];
+		tasks = data?.tasks ?? [];
 	});
 </script>
 
@@ -166,24 +170,3 @@
 		<Landing onSubmit={openAuthModal} />
 	{/if}
 </div>
-
-<style>
-	:global(.scroll-y) {
-		scrollbar-width: thin;
-		scrollbar-color: #a8a29e transparent;
-	}
-
-	:global(.scroll-y::-webkit-scrollbar) {
-		width: 100px;
-	}
-
-	:global(.scroll-y::-webkit-scrollbar-track) {
-		margin-top: 100px;
-		background: transparent;
-	}
-
-	:global(.scroll-y::-webkit-scrollbar-thumb) {
-		background-color: #a8a29e;
-		border-radius: 0px;
-	}
-</style>
