@@ -1,4 +1,9 @@
 <script lang="ts">
+    import { getContext } from 'svelte';
+    import { VIEWER_CONTEXT_KEY, type ViewerContext } from '$lib/stores/viewer';
+    import { milestoneStatusStore, type MilestoneStatus } from '$lib/stores/tasks';
+    import { get } from 'svelte/store';
+
 	type Milestone = {
 		id: string;
 		title: string;
@@ -7,16 +12,33 @@
 		ordinal?: number | null;
 	};
 	let { milestones = [] as Milestone[] } = $props();
-	const lastCompletedIndex = $derived(
-		(() => {
-			for (let i = milestones.length - 1; i >= 0; i--) {
-				if (milestones[i].done) {
-					return i;
-				}
+
+    const { selectMilestone } = getContext<ViewerContext>(VIEWER_CONTEXT_KEY);
+
+    let milestoneStatus = $state(get(milestoneStatusStore));
+    $effect(() => {
+        const unsub = milestoneStatusStore.subscribe((v) => {
+            milestoneStatus = v;
+        });
+        return () => {
+            unsub();
+        };
+    })
+
+    const isDone = (m: Milestone) => milestoneStatus[m.id]?.done ?? m.done;
+
+	const lastCompletedIndex = $derived.by(() => {
+		for (let i = milestones.length - 1; i >= 0; i--) {
+			if (isDone(milestones[i])) {
+				return i;
 			}
-			return -1;
-		})()
-	);
+		}
+		return -1;
+	});
+
+    function goToMilestone(milestoneId: string) {
+        selectMilestone(milestoneId);
+    }
 </script>
 
 <div class="w-full px-2 py-4">
@@ -35,15 +57,16 @@
 					type="button"
 					class="relative flex size-3 items-center justify-center rounded-full ring-3 transition-all outline-none"
 					class:bg-stone-400={i === lastCompletedIndex + 1}
-					class:bg-emerald-400={m.done}
-					class:bg-stone-200={!m.done}
+					class:bg-emerald-400={isDone(m)}
+					class:bg-stone-200={!isDone(m)}
 					class:ring-stone-300={i === lastCompletedIndex + 1}
-					class:ring-emerald-400={m.done}
-					class:ring-stone-200={!m.done}
+					class:ring-emerald-400={isDone(m)}
+					class:ring-stone-200={!isDone(m)}
 					aria-label={m.title}
 					aria-describedby={'tip-' + i}
+                    onclick={() => goToMilestone(m.id)}
 				>
-					{#if m.done}
+					{#if isDone(m)}
 						<!-- WHITE CHECKMARK (two thin lines) -->
 						<span
 							class="pointer-events-none absolute block h-[1.5px] w-[4px] translate-x-[-2.3px] translate-y-[1.2px]

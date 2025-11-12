@@ -1,11 +1,13 @@
 <script lang="ts">
-import Task from '$lib/components/sm/Task.svelte';
+    import Task from '$lib/components/sm/Task.svelte';
+    import { type MilestoneStatus } from '$lib/stores/tasks';
 
 	type TaskData = { id: string; title: string; tutorial?: boolean; done: boolean; ordinal?: number | null };
 
 	let {
 		id,
 		name,
+		status = 'not_started',
 		tasks = [] as TaskData[],
 		initiallyOpen = false,
 		active = false,
@@ -15,6 +17,7 @@ import Task from '$lib/components/sm/Task.svelte';
 	} = $props<{
 		id: string;
 		name: string;
+		status?: MilestoneStatus;
 		tasks?: TaskData[];
 		initiallyOpen?: boolean;
 		active?: boolean;
@@ -86,9 +89,17 @@ import Task from '$lib/components/sm/Task.svelte';
 			aria-current={active ? 'page' : undefined}
 		>
 			<div class="min-w-0">
-				<div class={`truncate text-sm font-medium text-stone-900`}>
-					{name}
-				</div>
+                <div class="flex items-center gap-2 truncate text-sm font-medium text-stone-900">
+				<span class="truncate">{name}</span>
+                <span 
+                    class="inline-block w-1 h-1 shrink-0 rounded-full"
+                    class:bg-emerald-500={status === 'complete'}
+                    class:bg-amber-500={status === 'in_progress'}
+                    class:bg-stone-400={status === 'not_started'}
+                    aria-label={status}
+                    aria-hidden="true"
+                ></span>
+                </div>
 			</div>
 		</button>
 	</div>

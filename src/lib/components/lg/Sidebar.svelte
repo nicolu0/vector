@@ -5,8 +5,9 @@
 	import Profile from '$lib/components/md/Profile.svelte';
 	import { getContext } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import { tasksByMilestoneStore } from '$lib/stores/tasks';
+	import { tasksByMilestoneStore, type TasksMap, type MilestoneStatus } from '$lib/stores/tasks';
     import { get } from 'svelte/store';
+    import { todosByTaskStore, type TodosMap } from '$lib/stores/todos';
 
 	type Milestone = {
 		id: string;
@@ -22,13 +23,11 @@
 		ordinal?: number | null;
 		tutorial?: boolean;
 	};
-	type TasksMap = Record<string, Array<Task>>;
 
 	let {
 		sidebarCollapsed = false,
 		toggleSidebar,
 		milestones = [],
-		// tasksByMilestone = {},
 		currentMilestoneId = null,
 		currentTaskId = null,
 		tutorial = false,
@@ -42,7 +41,6 @@
 		sidebarCollapsed: boolean;
 		toggleSidebar: () => void;
 		milestones?: Milestone[];
-		// tasksByMilestone?: TasksMap;
 		currentMilestoneId?: string | null;
 		currentTaskId?: string | null;
 		tutorial?: boolean;
@@ -66,17 +64,54 @@
 	let selectedTaskId = $state<string | null>(selectedTaskIdProp);
 
     let tasksByMilestone = $state(get(tasksByMilestoneStore));
+    let todosByTask = $state(get(todosByTaskStore));
     $effect(() => {
-        const unsub = tasksByMilestoneStore.subscribe((v) => {
+        const unsubA = tasksByMilestoneStore.subscribe((v) => {
             tasksByMilestone = v;
         });
-        return () => unsub();
+        const unsubB = todosByTaskStore.subscribe((v) => {
+            todosByTask = v;
+        });
+        return () => { unsubA(); unsubB(); };
     });
 
 	$effect(() => {
 		selectedMilestoneId = selectedMilestoneIdProp;
 		selectedTaskId = selectedTaskIdProp;
 	});
+
+    function getMilestoneStatus(milestoneId: string) {
+        const tasks = tasksByMilestone[milestoneId] ?? [];
+        if (tasks.length === 0) return 'not_started';
+
+        let anyTodoDone = false;
+        let allTodosDoneInTask = true;
+
+        for (const t of tasks) {
+            const todos = todosByTask[t.id] ?? [];
+            if (todos.length === 0) {
+                if (!t.done) allTodosDoneInTask = false;
+                if (t.done) anyTodoDone = true;
+                continue;
+            }
+
+            const taskAny = todos.some((t) => t.done);
+            const taskAll = todos.every((t) => t.done);
+
+            if (taskAny) anyTodoDone = true;
+            if (!taskAll) allTodosDoneInTask = false;
+        }
+
+        if (allTodosDoneInTask) return 'complete';
+        if (anyTodoDone) return 'in_progress';
+        return 'not_started';
+    }
+
+    const milestoneStatus = $derived.by<Record<string, MilestoneStatus>>(() => {
+        const out: Record<string, MilestoneStatus> = {};
+        for (const m of milestones) out[m.id] = getMilestoneStatus(m.id);
+        return out;
+    });
 
 	function handleMilestoneSelect(id: string) {
 		selectedMilestoneId = id;
@@ -175,6 +210,7 @@
 							{selectedTaskId}
 							onSelect={handleMilestoneSelect}
 							onSelectTask={handleTaskSelect}
+							{milestoneStatus}
 						/>
 					</div>
 				</div>

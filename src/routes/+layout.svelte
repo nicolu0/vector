@@ -14,6 +14,7 @@
 	import type { LayoutProps } from './$types';
 	import { VIEWER_CONTEXT_KEY, type ViewSelection, type ViewerContext } from '$lib/stores/viewer';
 	import { tasksByMilestoneStore } from '$lib/stores/tasks';
+    import { todosByTaskStore, type TodosMap } from '$lib/stores/todos';
 
 	let authOpen = $state(false);
 	const DEFAULT_CHAT_WIDTH = 352;
@@ -84,6 +85,9 @@
 		chat = data.chat;
         if (data?.tasksByMilestone) {
             tasksByMilestoneStore.set(data.tasksByMilestone);
+        }
+        if (data?.todosByTask) {
+            todosByTaskStore.set(data.todosByTask);
         }
 	});
 

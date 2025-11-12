@@ -1,13 +1,15 @@
 <!-- src/lib/components/md/Milestones.svelte -->
 <script lang="ts">
 	import Folder from '$lib/components/sm/Folder.svelte';
+    import { type MilestoneStatus } from '$lib/stores/tasks';
 
-	type Milestone = { id: string; title: string; description?: string; ordinal?: number | null };
+	type Milestone = { id: string; title: string; description?: string; ordinal?: number | null; status?: MilestoneStatus };
 	type TasksMap = Record<string, Array<{ id: string; title: string; done: boolean; ordinal?: number | null; tutorial?: boolean }>>;
 
 	let {
 		milestones = [],
 		tasksByMilestone = {},
+		milestoneStatus = {},
 		initiallyOpen = true,
 		selectedId = null,
 		selectedTaskId = null,
@@ -16,6 +18,7 @@
 	} = $props<{
 		milestones?: Milestone[];
 		tasksByMilestone?: TasksMap;
+		milestoneStatus?: Record<string, MilestoneStatus>;
 		initiallyOpen?: boolean;
 		selectedId?: string | null;
 		selectedTaskId?: string | null;
@@ -49,16 +52,17 @@
 				<ul class="space-y-1">
 					{#each milestones as m (m.id)}
 						<li>
-							<Folder
-								id={m.id}
-								name={m.title}
-								tasks={tasksByMilestone[m.id] ?? []}
-								initiallyOpen={false}
-								active={selectedId === m.id}
-								{selectedTaskId}
-								{onSelectTask}
-								onSelect={onSelect ? () => onSelect(m.id) : null}
-							/>
+                            <Folder
+                                id={m.id}
+                                name={m.title}
+                                status={milestoneStatus[m.id] ?? 'not_started'}
+                                tasks={tasksByMilestone[m.id] ?? []}
+                                initiallyOpen={false}
+                                active={selectedId === m.id}
+                                {selectedTaskId}
+                                {onSelectTask}
+                                onSelect={onSelect ? () => onSelect(m.id) : null}
+                            />
 						</li>
 					{/each}
 				</ul>

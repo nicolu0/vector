@@ -1,5 +1,8 @@
 <script lang="ts">
     import { supabase } from '$lib/supabaseClient';
+    import { get } from 'svelte/store';
+    import { tasksByMilestoneStore, getMilestoneStatus } from '$lib/stores/tasks';
+    import { setTodoDoneInStore } from '$lib/stores/todos';
 
 	type Task = {
 		id: string;
@@ -39,11 +42,12 @@
 
 	async function toggle(i: number) {
 		const todo = todos[i];
-        // console.log(todo.id);
         if (!todo || inflight[i]) return;
-        
-        const prevDone = done.every(Boolean);
 
+        // const beforeMap = get(tasksByMilestoneStore);
+        // const prevMilestoneStatus = task ? getMilestoneStatus(beforeMap, task.milestone_id) : 'not_started';
+
+        const prevDone = done.every(Boolean);
         const prev = done[i];
         done[i] = !prev;
         inflight[i] = true;
@@ -51,8 +55,7 @@
         const { error } = await supabase
             .from('todos')
             .update({ done: done[i] })
-            .eq('id', todo.id)
-            .single();
+            .eq('id', todo.id);
 
         if (error) {
             done[i] = prev;
@@ -62,6 +65,7 @@
         }
 
         todos[i] = { ...todo, done: done[i] };
+        setTodoDoneInStore(todo.task_id, todo.id, done[i]);
 
         if (!task) {
             inflight[i] = false;
@@ -77,8 +81,7 @@
             const { error } = await supabase
                 .from('tasks')
                 .update({ done: allDone })
-                .eq('id', task.id)
-                .single();
+                .eq('id', task.id);
 
             if (error) {
                 console.error('Failed to update task.done', error.message);
@@ -86,6 +89,19 @@
                 task = prevTask;
             }
         }
+
+        // const afterMap = get(tasksByMilestoneStore);
+        // const newMilestoneStatus = getMilestoneStatus(afterMap, task.milestone_id);
+        // if (newMilestoneStatus !== prevMilestoneStatus) {
+        //     const { error } = await supabase
+        //         .from('milestones')
+        //         .update({ status: newMilestoneStatus })
+        //         .eq('id', task.milestone_id);
+
+        //     if (error) {
+        //         console.warn('Failed to update milestone.status', error.message);
+        //     }
+        // }
 
         inflight[i] = false;
 	}
