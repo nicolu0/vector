@@ -4,9 +4,6 @@
 	import Tutorial from '$lib/components/md/Tutorial.svelte';
 	import Profile from '$lib/components/md/Profile.svelte';
 	import { getContext } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import vectorUrl from '$lib/assets/vector.svg?url';
 	import { supabase } from '$lib/supabaseClient';
 
 	type Milestone = {
@@ -34,7 +31,11 @@
 		currentTaskId = null,
 		tutorial = false,
 		email = '',
-		userId = null
+		userId = null,
+		selectedMilestoneId: selectedMilestoneIdProp = null,
+		selectedTaskId: selectedTaskIdProp = null,
+		onSelectMilestone = null,
+		onSelectTask = null
 	} = $props<{
 		sidebarCollapsed: boolean;
 		toggleSidebar: () => void;
@@ -45,6 +46,10 @@
 		tutorial?: boolean;
 		email?: string;
 		userId?: string | null;
+		selectedMilestoneId?: string | null;
+		selectedTaskId?: string | null;
+		onSelectMilestone?: ((id: string) => void) | null;
+		onSelectTask?: ((id: string) => void) | null;
 	}>();
 
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
@@ -55,27 +60,24 @@
 	type AuthUI = { signOut: () => Promise<void> };
 	const { signOut } = getContext<AuthUI>('auth-ui');
 
-	function extractMilestoneId(pathname: string): string | null {
-		const m = /^\/milestone\/([^/]+)/.exec(pathname);
-		return m ? m[1] : null;
-	}
+	let selectedMilestoneId = $state<string | null>(selectedMilestoneIdProp);
+	let selectedTaskId = $state<string | null>(selectedTaskIdProp);
 
-	function extractTaskId(pathname: string): string | null {
-		const m = /^\/task\/([^/]+)/.exec(pathname);
-		return m ? m[1] : null;
-	}
-
-	// Derive current route selection and keep a local, instantly-updating selection
-	const routeMilestoneId = $derived<string | null>(extractMilestoneId($page.url.pathname));
-	const routeTaskId = $derived<string | null>(extractTaskId($page.url.pathname));
-	let selectedMilestoneId = $state<string | null>(routeMilestoneId);
-	let selectedTaskId = $state<string | null>(routeTaskId);
-
-	// When the route changes, sync the local selection
 	$effect(() => {
-		selectedMilestoneId = routeMilestoneId;
-		selectedTaskId = routeTaskId;
+		selectedMilestoneId = selectedMilestoneIdProp;
+		selectedTaskId = selectedTaskIdProp;
 	});
+
+	function handleMilestoneSelect(id: string) {
+		selectedMilestoneId = id;
+		selectedTaskId = null;
+		onSelectMilestone?.(id);
+	}
+
+	function handleTaskSelect(taskId: string) {
+		selectedTaskId = taskId;
+		onSelectTask?.(taskId);
+	}
 
 	function findFirstMilestoneWithTask(map = tasksByMilestone) {
 		for (const milestone of milestones) {
@@ -146,7 +148,14 @@
 						{#if tutorial}
 							<Tutorial />
 						{/if}
-						<Today {tasksByMilestone} {currentMilestoneId} {currentTaskId} {userId} {milestones} />
+						<Today
+							{tasksByMilestone}
+							{currentMilestoneId}
+							{currentTaskId}
+							{userId}
+							{milestones}
+							onSelectTask={handleTaskSelect}
+						/>
 
 						<Milestones
 							{milestones}
@@ -154,14 +163,8 @@
 							initiallyOpen={true}
 							selectedId={selectedMilestoneId}
 							{selectedTaskId}
-							onSelect={(id) => {
-								// Instant UI feedback
-								selectedMilestoneId = id;
-								selectedTaskId = null;
-							}}
-							onSelectTask={(taskId) => {
-								selectedTaskId = taskId;
-							}}
+							onSelect={handleMilestoneSelect}
+							onSelectTask={handleTaskSelect}
 						/>
 					</div>
 				</div>

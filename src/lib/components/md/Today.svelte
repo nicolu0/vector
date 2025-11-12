@@ -14,19 +14,21 @@
 	};
 	type TasksMap = Record<string, TaskEntry[]>;
 
-	let {
-		tasksByMilestone = {} as TasksMap,
-		milestones = [] as Milestone[],
-		currentMilestoneId = null,
-		currentTaskId = null,
-		userId = null
-	} = $props<{
-		tasksByMilestone?: TasksMap;
-		milestones?: Milestone[];
-		currentMilestoneId?: string | null;
-		currentTaskId?: string | null;
-		userId?: string | null;
-	}>();
+let {
+	tasksByMilestone = {} as TasksMap,
+	milestones = [] as Milestone[],
+	currentMilestoneId = null,
+	currentTaskId = null,
+	userId = null,
+	onSelectTask = null
+} = $props<{
+	tasksByMilestone?: TasksMap;
+	milestones?: Milestone[];
+	currentMilestoneId?: string | null;
+	currentTaskId?: string | null;
+	userId?: string | null;
+	onSelectTask?: ((taskId: string) => void) | null;
+}>();
 
 	let open = $state(true);
 	let taskMap = $derived(tasksByMilestone);
@@ -160,6 +162,7 @@
 							onToggle={handleToggle}
 							onPersistSuccess={handlePersistSuccess}
 							completing={advancing}
+							onSelect={onSelectTask ? () => onSelectTask(currentTask.id) : null}
 						/>
 					</div>
 				{/key}
