@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import Task from '$lib/components/sm/Task.svelte';
+import Task from '$lib/components/sm/Task.svelte';
 
 	type TaskData = { id: string; title: string; tutorial?: boolean; done: boolean; ordinal?: number | null };
 
@@ -32,8 +31,7 @@
 	}
 
 	function navigate() {
-		onSelect?.(id); // instant highlight
-		goto(`/milestone/${id}`); // then navigate
+		onSelect?.(id);
 	}
 
 	let taskState = $state<Record<string, boolean>>({});

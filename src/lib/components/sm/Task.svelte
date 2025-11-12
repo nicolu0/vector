@@ -84,9 +84,7 @@
 		onSelect?.();
 		if (tutorial) {
 			goto('/task/tutorial');
-			return;
 		}
-		goto(`/task/${id}`);
 	}
 </script>
 

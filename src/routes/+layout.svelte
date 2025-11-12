@@ -9,7 +9,10 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { goto } from '$app/navigation';
 	import { setContext } from 'svelte';
+	import { onDestroy } from 'svelte';
+	import { writable } from 'svelte/store';
 	import type { LayoutProps } from './$types';
+	import { VIEWER_CONTEXT_KEY, type ViewSelection, type ViewerContext } from '$lib/contexts/viewer';
 
 	let authOpen = $state(false);
 	const DEFAULT_CHAT_WIDTH = 352;
@@ -17,7 +20,6 @@
 	const MAX_CHAT_WIDTH = 640;
 
 	let { data, children }: LayoutProps = $props();
-	$inspect(data.milestones);
 
 	let userId = $state(data.user?.id ?? null);
 	let project = $state(data.project ?? null);
@@ -29,6 +31,8 @@
 	let chat = $state(data.chat);
 	let chatWidth = $state(DEFAULT_CHAT_WIDTH);
 	let resizingChat = $state(false);
+	let selectedMilestoneId = $state<string | null>(null);
+	let selectedTaskId = $state<string | null>(null);
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -146,6 +150,35 @@
 	const RIGHT_BTN = 28;
 	const H_PAD = 20; // px-3 on both sides = 12px*2
 	const SPACER_EXPANDED = `calc(${EXPANDED_WIDTH} - ${LEFT_BTN + RIGHT_BTN + H_PAD}px)`;
+
+	const selectionStore = writable<ViewSelection>({ type: 'project' });
+
+	function selectProject() {
+		selectionStore.set({ type: 'project' });
+	}
+	function selectMilestone(id: string) {
+		selectionStore.set({ type: 'milestone', id });
+	}
+	function selectTask(id: string) {
+		selectionStore.set({ type: 'task', id });
+	}
+
+	const viewerContext: ViewerContext = {
+		selection: selectionStore,
+		selectProject,
+		selectMilestone,
+		selectTask,
+	};
+	setContext<ViewerContext>(VIEWER_CONTEXT_KEY, viewerContext);
+
+	const unsubscribeSelection = selectionStore.subscribe((selection) => {
+		selectedTaskId = selection.type === 'task' ? selection.id : null;
+		selectedMilestoneId = selection.type === 'milestone' ? selection.id : null;
+	});
+
+	onDestroy(() => {
+		unsubscribeSelection();
+	});
 </script>
 
 <svelte:head>
@@ -161,6 +194,7 @@
 			<button
 				type="button"
 				onclick={() => {
+					selectProject();
 					goto('/');
 				}}
 				class="flex h-7 w-7 items-center justify-center rounded-md text-stone-700 hover:bg-stone-200 hover:text-stone-900"
@@ -205,11 +239,18 @@
 			tutorial={data.tutorial}
 			email={data?.user?.email}
 			{userId}
+			{selectedMilestoneId}
+			{selectedTaskId}
+			onSelectMilestone={selectMilestone}
+			onSelectTask={selectTask}
 		/>
 	{:else}
 		<button
 			type="button"
-			onclick={openAuthModal}
+			onclick={() => {
+				selectProject();
+				openAuthModal();
+			}}
 			class="fixed top-3 left-3 flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 transition hover:bg-stone-200 hover:text-stone-900"
 			aria-label="Go to home"
 		>

@@ -33,6 +33,7 @@ type Task = {
 type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; created_at: string };
 
 export const load: LayoutServerLoad = async (event) => {
+	console.log('loading again')
 	const { cookies, url } = event;
 	const supabase = createSupabaseServerClient(cookies);
 
@@ -247,7 +248,6 @@ export const load: LayoutServerLoad = async (event) => {
 			title: t.title,
 			done: !!t.done,
 			ordinal: t.ordinal ?? null,
-			tutorial: false,
 			skills: [],
 		});
 	}
