@@ -168,11 +168,35 @@
 		selectionStore.set({ type: 'task', id });
 	}
 
+	let breadcrumbMilestoneId = $derived.by((): string | null => {
+		if (selectedMilestoneId) return selectedMilestoneId;
+		if (selectedTaskId) {
+			const t = tasks.find((t) => t.id === selectedTaskId);
+			return t?.milestone_id ?? null;
+		}
+		return null;
+	});
+
+	let milestoneOrdinal = $derived.by((): number | null => {
+		if (!breadcrumbMilestoneId) return null;
+		const milestone = milestones.find((m) => m.id === breadcrumbMilestoneId);
+		return milestone?.ordinal ?? null;
+	});
+
+	let taskOrdinal = $derived.by((): number | null => {
+		if (selectedTaskId) {
+			const t = tasks.find((t) => t.id === selectedTaskId);
+			return t?.ordinal ?? null;
+		}
+
+		return null;
+	});
+
 	const viewerContext: ViewerContext = {
 		selection: selectionStore,
 		selectProject,
 		selectMilestone,
-		selectTask,
+		selectTask
 	};
 	setContext<ViewerContext>(VIEWER_CONTEXT_KEY, viewerContext);
 
@@ -216,7 +240,7 @@
 			<button
 				type="button"
 				onclick={toggleSidebar}
-				class="inline-flex h-6 w-6 items-center justify-center rounded-md leading-none text-stone-600 transition duration-200 hover:bg-stone-200 focus:outline-none"
+				class="inline-flex h-6 w-6 items-center justify-center rounded-md leading-none text-stone-400 transition duration-200 hover:bg-stone-200 focus:outline-none"
 				aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 			>
 				<svg
@@ -281,7 +305,63 @@
 				>
 					<path d="M18 2L12 21" />
 				</svg>
-				<div class="rounded-md p-1 px-1 hover:bg-stone-200">PROJECT</div>
+				<button
+					type="button"
+					class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none"
+					onclick={selectProject}
+				>
+					PROJECT
+				</button>
+				{#if selectedMilestoneId || selectedTaskId}
+					<svg
+						class="h-3 w-3 text-stone-400"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						aria-hidden="true"
+					>
+						<path d="M18 2L12 21" />
+					</svg>
+					<button
+						type="button"
+						class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
+						onclick={() => {
+							if (breadcrumbMilestoneId) {
+								selectMilestone(breadcrumbMilestoneId);
+							}
+						}}
+						disabled={!breadcrumbMilestoneId}
+					>
+						MILESTONE {milestoneOrdinal}
+					</button>
+				{/if}
+				{#if selectedTaskId}
+					<svg
+						class="h-3 w-3 text-stone-400"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						aria-hidden="true"
+					>
+						<path d="M18 2L12 21" />
+					</svg>
+					<button
+						type="button"
+						class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
+						onclick={() => {
+							if (selectedTaskId) {
+								selectTask(selectedTaskId);
+							}
+						}}
+						disabled={!selectedTaskId}
+					>
+						TASK {taskOrdinal}
+					</button>
+				{/if}
 			</div>
 
 			{@render children()}
