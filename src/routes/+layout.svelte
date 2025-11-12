@@ -163,11 +163,34 @@
 		selectionStore.set({ type: 'task', id });
 	}
 
+	let milestoneOrdinal = $derived.by((): number | null => {
+		if (selectedMilestoneId) {
+			const m = milestones.find((m) => m.id === selectedMilestoneId);
+			return m?.ordinal ?? null;
+		}
+		if (selectedTaskId) {
+			const t = tasks.find((t) => t.id === selectedTaskId);
+			if (!t) return null;
+			const m = milestones.find((m) => m.id === t.milestone_id);
+			return m?.ordinal ?? null;
+		}
+		return null;
+	});
+
+	let taskOrdinal = $derived.by((): number | null => {
+		if (selectedTaskId) {
+			const t = tasks.find((t) => t.id === selectedTaskId);
+			return t?.ordinal ?? null;
+		}
+
+		return null;
+	});
+
 	const viewerContext: ViewerContext = {
 		selection: selectionStore,
 		selectProject,
 		selectMilestone,
-		selectTask,
+		selectTask
 	};
 	setContext<ViewerContext>(VIEWER_CONTEXT_KEY, viewerContext);
 
@@ -211,7 +234,7 @@
 			<button
 				type="button"
 				onclick={toggleSidebar}
-				class="inline-flex h-6 w-6 items-center justify-center rounded-md leading-none text-stone-600 transition duration-200 hover:bg-stone-200 focus:outline-none"
+				class="inline-flex h-6 w-6 items-center justify-center rounded-md leading-none text-stone-400 transition duration-200 hover:bg-stone-200 focus:outline-none"
 				aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 			>
 				<svg
@@ -278,6 +301,34 @@
 					<path d="M18 2L12 21" />
 				</svg>
 				<div class="rounded-md p-1 px-1 hover:bg-stone-200">PROJECT</div>
+				{#if selectedMilestoneId || selectedTaskId}
+					<svg
+						class="h-3 w-3 text-stone-400"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						aria-hidden="true"
+					>
+						<path d="M18 2L12 21" />
+					</svg>
+					<div class="rounded-md p-1 px-1 hover:bg-stone-200">MILESTONE {milestoneOrdinal}</div>
+				{/if}
+				{#if selectedTaskId}
+					<svg
+						class="h-3 w-3 text-stone-400"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						aria-hidden="true"
+					>
+						<path d="M18 2L12 21" />
+					</svg>
+					<div class="rounded-md p-1 px-1 hover:bg-stone-200">TASK {taskOrdinal}</div>
+				{/if}
 			</div>
 
 			{@render children()}

@@ -29,7 +29,7 @@
 </script>
 
 {#if milestone}
-	<div class="flex h-full w-full flex-col gap-4 bg-stone-50 px-3 pb-5 pl-6">
+	<div class="flex h-full w-full flex-col gap-4 bg-stone-50 px-3 pb-5 pl-5">
 		<div>
 			<div class="mb-2 text-[32px] font-semibold text-stone-900">
 				Milestone {milestone.ordinal ?? '—'}: {milestone.title}
