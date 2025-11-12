@@ -41,9 +41,11 @@
 		const todo = todos[i];
         // console.log(todo.id);
         if (!todo || inflight[i]) return;
+        
+        const prevDone = done.every(Boolean);
 
-        const prev_done = done[i];
-        done[i] = !prev_done;
+        const prev = done[i];
+        done[i] = !prev;
         inflight[i] = true;
 
         const { error } = await supabase
@@ -53,7 +55,7 @@
             .single();
 
         if (error) {
-            done[i] = prev_done;
+            done[i] = prev;
             inflight[i] = false;
             console.error('Failed to update todo.done', error.message);
             return;
@@ -67,8 +69,6 @@
         }
 
         const allDone = done.every(Boolean);
-        const prevDone = !!task.done;
-
         if (allDone !== prevDone) {
             setTaskDone?.(task.milestone_id, task.id, allDone);
             const prevTask = { ...task };
