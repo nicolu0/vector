@@ -12,7 +12,8 @@
 	import { onDestroy } from 'svelte';
 	import { writable } from 'svelte/store';
 	import type { LayoutProps } from './$types';
-	import { VIEWER_CONTEXT_KEY, type ViewSelection, type ViewerContext } from '$lib/contexts/viewer';
+	import { VIEWER_CONTEXT_KEY, type ViewSelection, type ViewerContext } from '$lib/stores/viewer';
+	import { tasksByMilestoneStore } from '$lib/stores/tasks';
 
 	let authOpen = $state(false);
 	const DEFAULT_CHAT_WIDTH = 352;
@@ -26,6 +27,7 @@
 	let milestones = $state(data.milestones);
 	let tasks = $state(data.tasks ?? []);
 	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
+    let todosByTask = $state(data.todosByTask ?? {});
 	let currentMilestoneId = $state(data.currentMilestoneId ?? null);
 	let currentTaskId = $state(data.currentTaskId ?? null);
 	let chat = $state(data.chat);
@@ -80,6 +82,9 @@
 		currentMilestoneId = data.currentMilestoneId ?? null;
 		currentTaskId = data.currentTaskId ?? null;
 		chat = data.chat;
+        if (data?.tasksByMilestone) {
+            tasksByMilestoneStore.set(data.tasksByMilestone);
+        }
 	});
 
 	function clampChatWidth(value: number) {
@@ -233,7 +238,6 @@
 			{sidebarCollapsed}
 			{toggleSidebar}
 			{milestones}
-			{tasksByMilestone}
 			{currentMilestoneId}
 			{currentTaskId}
 			tutorial={data.tutorial}

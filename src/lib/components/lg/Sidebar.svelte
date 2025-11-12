@@ -5,6 +5,8 @@
 	import Profile from '$lib/components/md/Profile.svelte';
 	import { getContext } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
+	import { tasksByMilestoneStore } from '$lib/stores/tasks';
+    import { get } from 'svelte/store';
 
 	type Milestone = {
 		id: string;
@@ -26,7 +28,7 @@
 		sidebarCollapsed = false,
 		toggleSidebar,
 		milestones = [],
-		tasksByMilestone = {},
+		// tasksByMilestone = {},
 		currentMilestoneId = null,
 		currentTaskId = null,
 		tutorial = false,
@@ -40,7 +42,7 @@
 		sidebarCollapsed: boolean;
 		toggleSidebar: () => void;
 		milestones?: Milestone[];
-		tasksByMilestone?: TasksMap;
+		// tasksByMilestone?: TasksMap;
 		currentMilestoneId?: string | null;
 		currentTaskId?: string | null;
 		tutorial?: boolean;
@@ -62,6 +64,14 @@
 
 	let selectedMilestoneId = $state<string | null>(selectedMilestoneIdProp);
 	let selectedTaskId = $state<string | null>(selectedTaskIdProp);
+
+    let tasksByMilestone = $state(get(tasksByMilestoneStore));
+    $effect(() => {
+        const unsub = tasksByMilestoneStore.subscribe((v) => {
+            tasksByMilestone = v;
+        });
+        return () => unsub();
+    });
 
 	$effect(() => {
 		selectedMilestoneId = selectedMilestoneIdProp;

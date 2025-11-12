@@ -3,7 +3,7 @@ import type { Writable } from 'svelte/store';
 export type ViewSelection =
 	| { type: 'project' }
 	| { type: 'milestone'; id: string }
-	| { type: 'task'; id: string };
+	| { type: 'task'; id: string }
 
 export type ViewerContext = {
 	selection: Writable<ViewSelection>;

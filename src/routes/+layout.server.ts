@@ -20,6 +20,7 @@ type Milestone = {
 	ordinal: number | null;
 	description?: string;
 } & Record<string, unknown>;
+
 type Task = {
 	id: string;
 	title: string;
@@ -28,8 +29,16 @@ type Task = {
 	ordinal: number | null;
 	tutorial?: boolean;
 	description?: string | null;
-	todo?: string[] | null;
 } & Record<string, unknown>;
+
+type Todo = {
+    id: string;
+    task_id: string;
+    title: string;
+    done: boolean;
+    ordinal: number | null;
+} & Record<string, unknown>;
+
 type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; created_at: string };
 
 export const load: LayoutServerLoad = async (event) => {
@@ -57,7 +66,9 @@ export const load: LayoutServerLoad = async (event) => {
 		project: Project;
 		milestones: Milestone[];
 		tasks: Task[];
+        todos: Todo[];
 		tasksByMilestone: Record<string, Task[]>;
+        todosByTask: Record<string, Todo[]>;
 		currentMilestoneId: string | null;
 		currentTaskId: string | null;
 		chat: { conversationId: string | null; messages: ChatMessage[] };
@@ -68,7 +79,9 @@ export const load: LayoutServerLoad = async (event) => {
 		project: null,
 		milestones: [] as Milestone[],
 		tasks: [] as Task[],
+		todos: [] as Todo[],
 		tasksByMilestone: {},
+		todosByTask: {},
 		currentMilestoneId: null,
 		currentTaskId: null,
 		chat: { conversationId: null, messages: [] },
@@ -237,6 +250,33 @@ export const load: LayoutServerLoad = async (event) => {
 		todo: Array.isArray(task.todo) ? task.todo : task.todo ?? [],
 	}));
 	payload.tasks = normalizedTasks;
+
+    const taskIds = taskRows.map((t) => t.id);
+    const { data: todoRows, error: todoErr } = await supabase
+        .from('todos')
+        .select('*')
+        .in('task_id', taskIds)
+        .eq('user_id', user.id)
+        .order('ordinal', { ascending: true });
+
+    if (todoErr || !todoRows) return payload;
+
+    const normalizedTodos: Todo[] = (todoRows as Todo[]).map((todo) => ({
+        ...todo,
+        done: !!todo.done,
+        ordinal: todo.ordinal ?? null,
+    }));
+    payload.todos = normalizedTodos;
+
+    const byTask: Record<string, Todo[]> = {};
+    for (const t of taskIds) byTask[t] = [];
+    for (const td of normalizedTodos) (byTask[td.task_id] ??= []).push(td);
+    payload.todosByTask = byTask;
+
+    payload.tasks = payload.tasks.map((t) => ({
+        ...t,
+        todo: payload.todosByTask[t.id] ?? [],
+    }));
 
 	const byMilestone: Record<string, Task[]> = {};
 	for (const m of milestoneIds) byMilestone[m] = [];

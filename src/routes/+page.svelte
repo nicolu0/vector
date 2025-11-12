@@ -7,7 +7,8 @@
 	import ProjectView from '$lib/components/lg/Project.svelte';
 	import MilestoneView from '$lib/components/lg/Milestone.svelte';
 	import TaskView from '$lib/components/lg/Task.svelte';
-	import { VIEWER_CONTEXT_KEY, type ViewerContext, type ViewSelection } from '$lib/contexts/viewer';
+	import { VIEWER_CONTEXT_KEY, type ViewerContext, type ViewSelection } from '$lib/stores/viewer';
+	import { tasksByMilestoneStore, setTaskDoneInStore, type TasksMap } from '$lib/stores/tasks';
 
 	let { data }: PageProps = $props();
 
@@ -16,6 +17,8 @@ let userId = $state(serverUserId);
 let project = $state(data?.project ?? null);
 let milestones = $state(data?.milestones ?? []);
 let tasks = $state(data?.tasks ?? []);
+let tasksByMilestone = $state<TasksMap>({});
+let todosByTask = $state(data?.todosByTask ?? {});
 let selection = $state<ViewSelection>({ type: 'project' });
 
 type AuthUI = { openAuthModal: () => void };
@@ -24,6 +27,17 @@ const viewer = getContext<ViewerContext>(VIEWER_CONTEXT_KEY);
 const selectionUnsubscribe = viewer.selection.subscribe((value) => {
 	selection = value;
 });
+
+$effect(() => {
+    if (data?.tasksByMilestone) {
+        tasksByMilestone = data.tasksByMilestone;
+    }
+});
+
+const unsubTasks = tasksByMilestoneStore.subscribe((v) => {
+    tasksByMilestone = v;
+});
+onDestroy(unsubTasks);
 
 	if (browser) {
 		const {
@@ -65,6 +79,19 @@ const selectedTask = $derived.by(() => {
 	}
 	return null;
 });
+
+const selectedTodos = $derived.by(() => {
+    const currentSelection = selection as ViewSelection;
+    if (currentSelection.type === 'task') {
+        return todosByTask[currentSelection.id] ?? [];
+    }
+    return [];
+});
+
+function setTaskDone(milestoneId: string, taskId: string, done: boolean) {
+    setTaskDoneInStore(milestoneId, taskId, done);
+}
+
 </script>
 
 <div class="scroll-y flex h-full w-full min-w-0 flex-col overflow-auto pr-3 pb-5 pl-5">
@@ -73,7 +100,7 @@ const selectedTask = $derived.by(() => {
 			{#if selection.type === 'milestone' && selectedMilestone}
 				<MilestoneView milestone={selectedMilestone} />
 			{:else if selection.type === 'task' && selectedTask}
-				<TaskView task={selectedTask} />
+				<TaskView task={selectedTask} todos={selectedTodos ?? []} setTaskDone={setTaskDone} />
 			{:else}
 				<ProjectView {project} {milestones} />
 			{/if}

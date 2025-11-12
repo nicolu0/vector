@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { supabase } from '$lib/supabaseClient';
+
 	type Task = {
 		id: string;
 		title: string;
@@ -10,9 +12,16 @@
 		todo?: string[] | null;
 	} & Record<string, unknown>;
 
-	let { task = null } = $props<{ task: Task | null }>();
+    type Todo = {
+        id: string;
+        task_id: string;
+        title: string;
+        done: boolean;
+        ordinal: number | null;
+    } & Record<string, unknown>;
 
-	let todos: string[] = $derived(task?.todo ?? []);
+	let { task = null, todos = [] as Todo[], setTaskDone } = $props<{ task: Task | null, todos: Todo[], setTaskDone?: (milestoneId: string, taskId: string, done: boolean) => void }>();
+
 	const resources = [
 		{
 			label: 'PyTorch Tensor Docs',
@@ -20,14 +29,65 @@
 		}
 	];
 
-	// local check state (no persistence)
-	let done = $state<boolean[]>(Array.from({ length: todos.length }, () => false));
+	// local optimistic update
+	let done = $state<boolean[]>(todos.map((t: Todo) => !!t.done));
+    let inflight = $state<boolean[]>(todos.map(() => false));
 	$effect(() => {
-		done = Array.from({ length: todos.length }, () => false);
+		done = todos.map((t: Todo) => !!t.done);
+        inflight = todos.map(() => false);
 	});
 
-	function toggle(i: number) {
-		done[i] = !done[i];
+	async function toggle(i: number) {
+		const todo = todos[i];
+        // console.log(todo.id);
+        if (!todo || inflight[i]) return;
+
+        const prev_done = done[i];
+        done[i] = !prev_done;
+        inflight[i] = true;
+
+        const { error } = await supabase
+            .from('todos')
+            .update({ done: done[i] })
+            .eq('id', todo.id)
+            .single();
+
+        if (error) {
+            done[i] = prev_done;
+            inflight[i] = false;
+            console.error('Failed to update todo.done', error.message);
+            return;
+        }
+
+        todos[i] = { ...todo, done: done[i] };
+
+        if (!task) {
+            inflight[i] = false;
+            return;
+        }
+
+        const allDone = done.every(Boolean);
+        const prevDone = !!task.done;
+
+        if (allDone !== prevDone) {
+            setTaskDone?.(task.milestone_id, task.id, allDone);
+            const prevTask = { ...task };
+            task = { ...task, done: allDone };
+
+            const { error } = await supabase
+                .from('tasks')
+                .update({ done: allDone })
+                .eq('id', task.id)
+                .single();
+
+            if (error) {
+                console.error('Failed to update task.done', error.message);
+                setTaskDone?.(prevTask.milestone_id, prevTask.id, prevDone);
+                task = prevTask;
+            }
+        }
+
+        inflight[i] = false;
 	}
 </script>
 
@@ -52,18 +112,16 @@
 								<div class="flex w-full items-center gap-2 rounded-md transition">
 									<button
 										type="button"
-										class="relative ml-1 grid h-4 w-4 place-items-center rounded-full focus:outline-none {done[
-											i
-										]
-											? 'bg-stone-900'
-											: ''}"
+										class="relative ml-1 grid h-4 w-4 place-items-center rounded-full focus:outline-none {done[i] ? 'bg-stone-900' : ''}"
 										role="checkbox"
 										aria-checked={done[i]}
 										aria-label={done[i] ? 'Mark incomplete' : 'Mark complete'}
+                                        aria-busy={inflight[i]}
+                                        disabled={inflight[i]}
 										onclick={() => toggle(i)}
 									>
 										{#if done[i]}
-											<svg viewBox="0 0 24 24" class="h-3 w-3 text-stone-50" fill="none">
+											<svg viewBox="0 0 24 24" class="h-3 w-3 text-stone-50" fill="none" aria-hidden="true">
 												<path
 													d="M7 12.5 L10.25 15.75 L16.75 9.25"
 													stroke="currentColor"
@@ -85,7 +143,7 @@
 												? 'text-stone-400 line-through'
 												: 'text-stone-800'}"
 										>
-											{item}
+											{item.title}
 										</span>
 									</div>
 								</div>

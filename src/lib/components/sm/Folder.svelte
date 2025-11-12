@@ -104,7 +104,7 @@ import Task from '$lib/components/sm/Task.svelte';
 						<Task
 							id={t.id}
 							title={t.title}
-							checked={taskState[t.id] ?? t.done ?? false}
+							checked={t.done}
 							active={selectedTaskId === t.id}
 							onToggle={toggleTask}
 							onSelect={onSelectTask ? () => onSelectTask(t.id) : null}
