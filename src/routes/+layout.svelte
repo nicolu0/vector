@@ -163,18 +163,19 @@
 		selectionStore.set({ type: 'task', id });
 	}
 
-	let milestoneOrdinal = $derived.by((): number | null => {
-		if (selectedMilestoneId) {
-			const m = milestones.find((m) => m.id === selectedMilestoneId);
-			return m?.ordinal ?? null;
-		}
+	let breadcrumbMilestoneId = $derived.by((): string | null => {
+		if (selectedMilestoneId) return selectedMilestoneId;
 		if (selectedTaskId) {
 			const t = tasks.find((t) => t.id === selectedTaskId);
-			if (!t) return null;
-			const m = milestones.find((m) => m.id === t.milestone_id);
-			return m?.ordinal ?? null;
+			return t?.milestone_id ?? null;
 		}
 		return null;
+	});
+
+	let milestoneOrdinal = $derived.by((): number | null => {
+		if (!breadcrumbMilestoneId) return null;
+		const milestone = milestones.find((m) => m.id === breadcrumbMilestoneId);
+		return milestone?.ordinal ?? null;
 	});
 
 	let taskOrdinal = $derived.by((): number | null => {
@@ -300,7 +301,13 @@
 				>
 					<path d="M18 2L12 21" />
 				</svg>
-				<div class="rounded-md p-1 px-1 hover:bg-stone-200">PROJECT</div>
+				<button
+					type="button"
+					class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none"
+					onclick={selectProject}
+				>
+					PROJECT
+				</button>
 				{#if selectedMilestoneId || selectedTaskId}
 					<svg
 						class="h-3 w-3 text-stone-400"
@@ -313,7 +320,18 @@
 					>
 						<path d="M18 2L12 21" />
 					</svg>
-					<div class="rounded-md p-1 px-1 hover:bg-stone-200">MILESTONE {milestoneOrdinal}</div>
+					<button
+						type="button"
+						class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
+						onclick={() => {
+							if (breadcrumbMilestoneId) {
+								selectMilestone(breadcrumbMilestoneId);
+							}
+						}}
+						disabled={!breadcrumbMilestoneId}
+					>
+						MILESTONE {milestoneOrdinal}
+					</button>
 				{/if}
 				{#if selectedTaskId}
 					<svg
@@ -327,7 +345,18 @@
 					>
 						<path d="M18 2L12 21" />
 					</svg>
-					<div class="rounded-md p-1 px-1 hover:bg-stone-200">TASK {taskOrdinal}</div>
+					<button
+						type="button"
+						class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
+						onclick={() => {
+							if (selectedTaskId) {
+								selectTask(selectedTaskId);
+							}
+						}}
+						disabled={!selectedTaskId}
+					>
+						TASK {taskOrdinal}
+					</button>
 				{/if}
 			</div>
 

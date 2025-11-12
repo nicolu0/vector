@@ -51,7 +51,7 @@
 
 		<div class="mb-4 flex flex-wrap gap-2">
 			<span
-				class="inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-medium text-rose-900"
+				class="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900"
 			>
 				{project.difficulty}
 			</span>
