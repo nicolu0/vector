@@ -102,7 +102,8 @@
 			aria-checked={checked}
 			aria-label={checked ? 'Mark incomplete' : 'Mark complete'}
 			aria-busy={loading}
-			onclick={toggle}
+			disabled
+            tabindex="-1"
 		>
 			{#if loading}
 				<svg
