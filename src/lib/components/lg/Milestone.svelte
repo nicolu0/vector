@@ -19,6 +19,78 @@
 		{
 			label: 'scikit-learn - train_test_split',
 			url: 'https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html?utm_source=chatgpt.com'
+		},
+        {
+			label: 'PyTorch Tensor Docsasf',
+			url: 'https://arxiv.org/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTorch Tensor 331Docsasf',
+			url: 'https://arxiv.21521org/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTorch Ten12421sor Docsasf',
+			url: 'https://ar21421421xiv.org/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTorch T124ensor Docsasf',
+			url: 'https1232131://arxiv.org/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTorc12412421h Tensor Docsasf',
+			url: 'htt124124214ps://arxiv.org/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTorch Tensor124214215125 Docsasf',
+			url: 'https://a12421x124iv.org/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTor12421ch Tenso1252115ocsasf',
+			url: 'https://arx12215iv.org/25215pdf/1721506asfsa.03762'
+		},
+        {
+			label: 'PyTo21412412412412rch Tensor Docsasf',
+			url: 'htt22424242ps://arxiv.org/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTorch Tensor Docsas11111sssdds',
+			url: 'https://arxiv.oasa3q3rtrg/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTo41421412421rch Tensor Docsasf',
+			url: 'https:/1412arxi5356v.o7747rg/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'P1223yTorch Ten5657465645dsor Docsasf',
+			url: 'https://arxiv.org/pdfdfsfddght45/1706asfsa.03762'
+		},
+        {
+			label: 'PyTor1242141242156754ufdsfdsch Tensor Docsasf',
+			url: 'https://ffafad3q4256ytearxiv.org/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTor124526436tsdch Tensor Docsasf',
+			url: 'https://asdfjy6745rxiv.org/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTor1524365rgsgffgfch Tensor Docsasf',
+			url: 'https://arxivgfgfgfgfgfxcvbcvv.org/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTorch Tet5y46udhrtnsor Docsasf',
+			url: 'https://arxiczxczxczxcv787org/pdf806asfsa.03762'
+		},
+        {
+			label: 'PyTorch Tens3256ertkgor Docsasf',
+			url: 'https://arxiv.or32565fgfgcccccccbg/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyT53252342432423orch Tensor Docsasf',
+			url: 'https:/1io43tigjksdkjf/arxiv.org/pdf/1706asfsa.03762'
+		},
+        {
+			label: 'PyTorch Te20594060395049nsor Docsasf',
+			url: 'https://arxiv.org/fdsklklkllklklasdfsafsafaspdf/1706asfsa.03762'
 		}
 	];
 
@@ -29,7 +101,7 @@
 </script>
 
 {#if milestone}
-	<div class="flex h-full w-full flex-col gap-4 bg-stone-50 px-3 pb-5 pl-5">
+	<div class="flex h-full w-full flex-col gap-4 bg-stone-50">
 		<div>
 			<div class="mb-2 text-[32px] font-semibold text-stone-900">
 				Milestone {milestone.ordinal ?? '—'}: {milestone.title}

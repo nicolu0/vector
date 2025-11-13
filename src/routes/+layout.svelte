@@ -37,6 +37,8 @@
 	let selectedMilestoneId = $state<string | null>(null);
 	let selectedTaskId = $state<string | null>(null);
 
+    let scrollContainer = $state<HTMLElement | null>(null);
+
 	type AuthUI = {
 		openAuthModal: () => void;
 		signInWithGoogle: (redirectPath?: string) => Promise<void>;
@@ -161,6 +163,7 @@
 	const SPACER_EXPANDED = `calc(${EXPANDED_WIDTH} - ${LEFT_BTN + RIGHT_BTN + H_PAD}px)`;
 
 	const selectionStore = writable<ViewSelection>({ type: 'project' });
+    let currentSelection = $state<ViewSelection>({ type: 'project' });
 
 	function selectProject() {
 		selectionStore.set({ type: 'project' });
@@ -205,6 +208,7 @@
 	setContext<ViewerContext>(VIEWER_CONTEXT_KEY, viewerContext);
 
 	const unsubscribeSelection = selectionStore.subscribe((selection) => {
+        currentSelection = selection;
 		selectedTaskId = selection.type === 'task' ? selection.id : null;
 		selectedMilestoneId = selection.type === 'milestone' ? selection.id : null;
 	});
@@ -212,6 +216,26 @@
 	onDestroy(() => {
 		unsubscribeSelection();
 	});
+
+    const selectionKey = $derived.by(() => {
+        const s = currentSelection;
+        if (s.type === 'project') return 'project';
+        if (s.type === 'milestone') return `m:${s.id}`;
+        if (s.type === 'task') return `t:${s.id}`;
+        return 'project';
+    });
+
+    $effect(() => {
+        const s = selectionKey;
+        const el = scrollContainer;
+        if (!browser || !el) return;
+
+        console.log('resetting scroll');
+        console.log(el.scrollTop, el.scrollLeft);
+
+        el.scrollTop = 0;
+        el.scrollLeft = 0;
+    });
 </script>
 
 <svelte:head>
@@ -291,7 +315,7 @@
 	{/if}
 
 	<div class="flex min-h-0 min-w-0 flex-1">
-		<main class="min-h-0 min-w-0 flex-1 overflow-auto">
+		<main class="min-h-0 min-w-0 flex-1 flex flex-col">
 			<div
 				class="sticky top-0 z-[20] flex h-12 items-center bg-stone-50 pt-3 pb-2
            text-[10px] font-medium text-stone-600 uppercase
@@ -367,8 +391,10 @@
 					</button>
 				{/if}
 			</div>
-
-			{@render children()}
+            
+            <div bind:this={scrollContainer} class="flex-1 overflow-auto">
+                {@render children()}
+            </div>
 		</main>
 
 		{#if userId}
@@ -376,7 +402,7 @@
 				role="separator"
 				aria-orientation="vertical"
 				aria-label="Resize chat panel"
-				class={`h-full w-2 flex-shrink-0 cursor-col-resize transition select-none ${
+				class={`h-full w-1 flex-shrink-0 cursor-col-resize transition select-none ${
 					resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
 				}`}
 				onpointerdown={startChatResize}
