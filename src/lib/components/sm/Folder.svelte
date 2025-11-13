@@ -60,16 +60,15 @@
 	}
 </script>
 
-<!-- Row -->
 <div
-	class={`flex items-center rounded-md  px-1 transition ${
+	class={`flex w-full min-w-0 max-w-full items-center rounded-md px-1 transition ${
 		active ? 'bg-stone-300/50' : 'hover:bg-stone-200/50'
 	}`}
 >
 	<button
 		type="button"
 		onclick={navigate}
-		class="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left"
+		class="flex w-full min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-left"
 		aria-label={`Open milestone ${name}`}
 		aria-current={active ? 'page' : undefined}
 	>
@@ -82,8 +81,8 @@
 			aria-hidden="true"
 		></span>
 		<div class="min-w-0">
-			<div class="flex items-center gap-2 truncate text-sm font-medium text-stone-900">
-				<span class="truncate">{name}</span>
+			<div class="flex min-w-0 items-center gap-2 text-sm font-medium text-stone-900">
+				<span class="block truncate">{name}</span>
 			</div>
 		</div>
 	</button>
@@ -112,7 +111,7 @@
 >
 	<div class="min-h-0">
 		{#if tasks.length > 0}
-			<ul class="mt-1 space-y-1">
+			<ul class="mt-1 min-w-0 space-y-1">
 				{#each tasks as t (t.id)}
 					<Task
 						id={t.id}

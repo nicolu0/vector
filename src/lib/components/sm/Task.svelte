@@ -88,9 +88,9 @@
 	}
 </script>
 
-<li class="group">
+<li class="group w-full min-w-0">
 	<div
-		class={`flex w-full items-center gap-1 rounded-md transition ${
+		class={`flex w-full max-w-full min-w-0 items-center gap-1 rounded-md px-1 transition ${
 			active ? 'bg-stone-300/50' : 'hover:bg-stone-200/50'
 		}`}
 	>
@@ -140,12 +140,12 @@
 		<button
 			type="button"
 			onclick={openTask}
-			class="flex min-w-0 flex-1 items-center justify-between rounded-md py-1"
+			class="flex min-w-0 flex-1 items-center justify-between overflow-hidden rounded-md py-1"
 			aria-current={active ? 'page' : undefined}
 			aria-label={`Open task ${title}`}
 		>
 			<span
-				class="min-w-0 truncate text-sm tracking-tight {checked
+				class="block min-w-0 truncate text-sm tracking-tight {checked
 					? 'text-stone-400 line-through'
 					: 'text-stone-800'}"
 			>

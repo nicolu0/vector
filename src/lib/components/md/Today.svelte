@@ -142,7 +142,7 @@ let {
     });
 </script>
 
-<div class="px-2 py-2">
+<div class="w-full min-w-0 px-2 py-2 overflow-x-hidden">
 	<button
 		type="button"
 		onclick={toggle}

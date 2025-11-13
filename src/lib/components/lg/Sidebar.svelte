@@ -6,8 +6,8 @@
 	import { getContext } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { tasksByMilestoneStore, type TasksMap, type MilestoneStatus } from '$lib/stores/tasks';
-    import { get } from 'svelte/store';
-    import { todosByTaskStore } from '$lib/stores/todos';
+	import { get } from 'svelte/store';
+	import { todosByTaskStore } from '$lib/stores/todos';
 
 	type Milestone = {
 		id: string;
@@ -63,55 +63,59 @@
 	let selectedMilestoneId = $state<string | null>(selectedMilestoneIdProp);
 	let selectedTaskId = $state<string | null>(selectedTaskIdProp);
 
-    let tasksByMilestone = $state(get(tasksByMilestoneStore));
-    let todosByTask = $state(get(todosByTaskStore));
-    $effect(() => {
-        const unsubA = tasksByMilestoneStore.subscribe((v) => {
-            tasksByMilestone = v;
-        });
-        const unsubB = todosByTaskStore.subscribe((v) => {
-            todosByTask = v;
-        });
-        return () => { unsubA(); unsubB(); };
-    });
+	let tasksByMilestone = $state(get(tasksByMilestoneStore));
+	$inspect(tasksByMilestone);
+	let todosByTask = $state(get(todosByTaskStore));
+	$effect(() => {
+		const unsubA = tasksByMilestoneStore.subscribe((v) => {
+			tasksByMilestone = v;
+		});
+		const unsubB = todosByTaskStore.subscribe((v) => {
+			todosByTask = v;
+		});
+		return () => {
+			unsubA();
+			unsubB();
+		};
+	});
 
 	$effect(() => {
 		selectedMilestoneId = selectedMilestoneIdProp;
 		selectedTaskId = selectedTaskIdProp;
 	});
 
-    function getMilestoneStatus(milestoneId: string) {
-        const tasks = tasksByMilestone[milestoneId] ?? [];
-        if (tasks.length === 0) return 'not_started';
+	function getMilestoneStatus(milestoneId: string) {
+		const tasks = tasksByMilestone[milestoneId] ?? [];
+		if (tasks.length === 0) return 'not_started';
 
-        let anyTodoDone = false;
-        let allTodosDoneInTask = true;
+		let anyTodoDone = false;
+		let allTodosDoneInTask = true;
 
-        for (const t of tasks) {
-            const todos = todosByTask[t.id] ?? [];
-            if (todos.length === 0) {
-                if (!t.done) allTodosDoneInTask = false;
-                if (t.done) anyTodoDone = true;
-                continue;
-            }
+		for (const t of tasks) {
+			const todos = todosByTask[t.id] ?? [];
+			if (todos.length === 0) {
+				if (!t.done) allTodosDoneInTask = false;
+				if (t.done) anyTodoDone = true;
+				continue;
+			}
 
-            const taskAny = todos.some((t) => t.done);
-            const taskAll = todos.every((t) => t.done);
+			const taskAny = todos.some((t) => t.done);
+			const taskAll = todos.every((t) => t.done);
 
-            if (taskAny) anyTodoDone = true;
-            if (!taskAll) allTodosDoneInTask = false;
-        }
+			if (taskAny) anyTodoDone = true;
+			if (!taskAll) allTodosDoneInTask = false;
+		}
 
-        if (allTodosDoneInTask) return 'complete';
-        if (anyTodoDone) return 'in_progress';
-        return 'not_started';
-    }
+		if (allTodosDoneInTask) return 'complete';
+		if (anyTodoDone) return 'in_progress';
+		return 'not_started';
+	}
 
-    const milestoneStatus = $derived.by<Record<string, MilestoneStatus>>(() => {
-        const out: Record<string, MilestoneStatus> = {};
-        for (const m of milestones) out[m.id] = getMilestoneStatus(m.id);
-        return out;
-    });
+	const milestoneStatus = $derived.by<Record<string, MilestoneStatus>>(() => {
+		const out: Record<string, MilestoneStatus> = {};
+		for (const m of milestones) out[m.id] = getMilestoneStatus(m.id);
+		return out;
+	});
 
 	function handleMilestoneSelect(id: string) {
 		selectedMilestoneId = id;
@@ -184,19 +188,16 @@
 		style:transform={sidebarTransform}
 		aria-hidden={sidebarCollapsed}
 	>
-		<div class="flex h-full min-h-0 flex-col">
+		<div class="flex h-full min-h-0 min-w-0 flex-col">
 			{#if !sidebarCollapsed}
-				<div class="min-h-0 flex-1 overflow-y-auto">
-					<div class="flex flex-col">
+				<div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
+					<div class="flex min-w-0 flex-col">
 						<div class="flex w-full items-center justify-end gap-2 pt-10"></div>
 
-						{#if tutorial}
-							<Tutorial />
-						{/if}
 						<Today
 							{tasksByMilestone}
-							currentMilestoneId={currentMilestoneId}
-							currentTaskId={currentTaskId}
+							{currentMilestoneId}
+							{currentTaskId}
 							{userId}
 							{milestones}
 							onSelectTask={handleTaskSelect}
