@@ -1,3 +1,4 @@
 @import 'tailwindcss';
+@import 'tailwind-scrollbar-hide/v4';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';

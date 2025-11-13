@@ -37,7 +37,45 @@
 	let selectedMilestoneId = $state<string | null>(null);
 	let selectedTaskId = $state<string | null>(null);
 
+    let headerElement = $state<HTMLElement | null>(null);
     let scrollContainer = $state<HTMLElement | null>(null);
+    let headerHeight = $state(0);
+    let thumbTop = $state(0);
+    let thumbHeight = $state(0);
+    let isScrolling = $state(false);
+    let scrollHideTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    function updateThumb() {
+        const el = scrollContainer;
+        if (!el) return;
+
+        const view = el.clientHeight;
+        const content = el.scrollHeight;
+
+        if (content <= view) {
+            thumbTop = 0;
+            thumbHeight = 0;
+            return;
+        }
+
+        const ratio = view / content;
+        const minThumb = 32;
+        thumbHeight = Math.max(minThumb, view * ratio);
+
+        const maxThumbTop = view - thumbHeight;
+        const scrollRatio = el.scrollTop / (content - view);
+        thumbTop = maxThumbTop * scrollRatio;
+    }
+
+    function handleScroll() {
+        updateThumb();
+        isScrolling = true;
+        
+        if (scrollHideTimeout) clearTimeout(scrollHideTimeout);
+        scrollHideTimeout = setTimeout(() => {
+            isScrolling = false;
+        }, 500);
+    }
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -230,11 +268,21 @@
         const el = scrollContainer;
         if (!browser || !el) return;
 
-        console.log('resetting scroll');
-        console.log(el.scrollTop, el.scrollLeft);
+        // console.log('resetting scroll');
+        // console.log(el.scrollTop, el.scrollLeft);
 
         el.scrollTop = 0;
         el.scrollLeft = 0;
+
+        queueMicrotask(() => {
+            updateThumb();
+        });
+    });
+
+    $effect(() => {
+        const el = headerElement;
+        if (!browser || !el) return;
+        headerHeight = el.offsetHeight;
     });
 </script>
 
@@ -314,9 +362,10 @@
 		</button>
 	{/if}
 
-	<div class="flex min-h-0 min-w-0 flex-1">
-		<main class="min-h-0 min-w-0 flex-1 flex flex-col">
+	<div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+		<main class="min-h-0 min-w-0 flex-1 flex flex-col overflow-hidden">
 			<div
+                bind:this={headerElement}
 				class="sticky top-0 z-[20] flex h-12 items-center bg-stone-50 pt-3 pb-2
            text-[10px] font-medium text-stone-600 uppercase
            transition-[margin-left] duration-200 ease-out"
@@ -392,27 +441,40 @@
 				{/if}
 			</div>
             
-            <div bind:this={scrollContainer} class="flex-1 overflow-auto">
+            <div bind:this={scrollContainer} class="flex-1 overflow-auto scrollbar-hide" onscroll={handleScroll}>
                 {@render children()}
             </div>
 		</main>
 
 		{#if userId}
-			<div
-				role="separator"
-				aria-orientation="vertical"
-				aria-label="Resize chat panel"
-				class={`h-full w-1 flex-shrink-0 cursor-col-resize transition select-none ${
-					resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
-				}`}
-				onpointerdown={startChatResize}
-			/>
-			<Chat
-				conversationId={chat?.conversationId ?? null}
-				initialMessages={chat?.messages ?? []}
-				{userId}
-				width={`${chatWidth}px`}
-			/>
+            <div
+                class="relative h-full w-1 flex-shrink-0"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize chat panel"
+            >
+                <div
+                    class={`h-full w-1 flex-shrink-0 cursor-col-resize transition select-none ${
+                        resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
+                    }`}
+                    onpointerdown={startChatResize}
+                />
+
+                {#if thumbHeight > 0}
+                    <div
+                        class="absolute right-0 w-full bg-stone-400/80 transition-opacity duration-150"
+                        style:top={`${thumbTop + headerHeight}px`}
+                        style:height={`${thumbHeight}px`}
+                        style:opacity={isScrolling ? 1 : 0}
+                    />
+                {/if}
+            </div>
+            <Chat
+                conversationId={chat?.conversationId ?? null}
+                initialMessages={chat?.messages ?? []}
+                {userId}
+                width={`${chatWidth}px`}
+            />
 		{/if}
 	</div>
 

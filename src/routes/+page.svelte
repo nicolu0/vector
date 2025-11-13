@@ -111,7 +111,7 @@
     }
 </script>
 
-<div class="scroll-y flex w-full min-w-0 flex-col pr-4 pb-5 pl-5">
+<div class="flex w-full min-w-0 flex-col pr-4 pb-5 pl-5">
 	{#if userId}
 		<section class="bg-stone-50">
 			{#if selection.type === 'milestone' && selectedMilestone}
