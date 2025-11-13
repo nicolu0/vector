@@ -168,7 +168,7 @@
 			{#if message.role === 'user'}
 				<div class="flex justify-end">
 					<div
-						class="max-w-[80%] rounded-2xl bg-stone-900 px-3 py-2 text-xs leading-5 break-words whitespace-pre-wrap text-white"
+						class="max-w-[80%] rounded-xl bg-stone-200 px-3 py-2 text-xs leading-5 break-words whitespace-pre-wrap text-stone-900"
 					>
 						{message.content}
 					</div>

@@ -91,19 +91,19 @@
 <li class="group">
 	<div
 		class={`flex w-full items-center gap-1 rounded-md transition ${
-			active ? 'bg-stone-300' : 'hover:bg-stone-200'
+			active ? 'bg-stone-300/50' : 'hover:bg-stone-200/50'
 		}`}
 	>
 		<button
 			type="button"
 			class="relative ml-3 grid h-3 w-3 place-items-center rounded-full focus:outline-none
-			       {checked ? 'bg-stone-900' : ''}"
+			       {checked ? 'bg-stone-700' : ''}"
 			role="checkbox"
 			aria-checked={checked}
 			aria-label={checked ? 'Mark incomplete' : 'Mark complete'}
 			aria-busy={loading}
 			disabled
-            tabindex="-1"
+			tabindex="-1"
 		>
 			{#if loading}
 				<svg

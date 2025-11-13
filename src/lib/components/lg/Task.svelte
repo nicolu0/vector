@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { supabase } from '$lib/supabaseClient';
-    import { get } from 'svelte/store';
-    import { tasksByMilestoneStore, getMilestoneStatus } from '$lib/stores/tasks';
-    import { setTodoDoneInStore } from '$lib/stores/todos';
+	import { supabase } from '$lib/supabaseClient';
+	import { get } from 'svelte/store';
+	import { tasksByMilestoneStore, getMilestoneStatus } from '$lib/stores/tasks';
+	import { setTodoDoneInStore } from '$lib/stores/todos';
 
 	type Task = {
 		id: string;
@@ -15,15 +15,23 @@
 		todo?: string[] | null;
 	} & Record<string, unknown>;
 
-    type Todo = {
-        id: string;
-        task_id: string;
-        title: string;
-        done: boolean;
-        ordinal: number | null;
-    } & Record<string, unknown>;
+	type Todo = {
+		id: string;
+		task_id: string;
+		title: string;
+		done: boolean;
+		ordinal: number | null;
+	} & Record<string, unknown>;
 
-	let { task = null, todos = [] as Todo[], setTaskDone } = $props<{ task: Task | null, todos: Todo[], setTaskDone?: (milestoneId: string, taskId: string, done: boolean) => void }>();
+	let {
+		task = null,
+		todos = [] as Todo[],
+		setTaskDone
+	} = $props<{
+		task: Task | null;
+		todos: Todo[];
+		setTaskDone?: (milestoneId: string, taskId: string, done: boolean) => void;
+	}>();
 
 	const resources = [
 		{
@@ -34,76 +42,70 @@
 
 	// local optimistic update
 	let done = $state<boolean[]>(todos.map((t: Todo) => !!t.done));
-    let inflight = $state<boolean[]>(todos.map(() => false));
+	let inflight = $state<boolean[]>(todos.map(() => false));
 	$effect(() => {
 		done = todos.map((t: Todo) => !!t.done);
-        inflight = todos.map(() => false);
+		inflight = todos.map(() => false);
 	});
 
 	async function toggle(i: number) {
 		const todo = todos[i];
-        if (!todo || inflight[i]) return;
+		if (!todo || inflight[i]) return;
 
-        // const beforeMap = get(tasksByMilestoneStore);
-        // const prevMilestoneStatus = task ? getMilestoneStatus(beforeMap, task.milestone_id) : 'not_started';
+		// const beforeMap = get(tasksByMilestoneStore);
+		// const prevMilestoneStatus = task ? getMilestoneStatus(beforeMap, task.milestone_id) : 'not_started';
 
-        const prevDone = done.every(Boolean);
-        const prev = done[i];
-        done[i] = !prev;
-        inflight[i] = true;
+		const prevDone = done.every(Boolean);
+		const prev = done[i];
+		done[i] = !prev;
+		inflight[i] = true;
 
-        const { error } = await supabase
-            .from('todos')
-            .update({ done: done[i] })
-            .eq('id', todo.id);
+		const { error } = await supabase.from('todos').update({ done: done[i] }).eq('id', todo.id);
 
-        if (error) {
-            done[i] = prev;
-            inflight[i] = false;
-            console.error('Failed to update todo.done', error.message);
-            return;
-        }
+		if (error) {
+			done[i] = prev;
+			inflight[i] = false;
+			console.error('Failed to update todo.done', error.message);
+			return;
+		}
 
-        todos[i] = { ...todo, done: done[i] };
-        setTodoDoneInStore(todo.task_id, todo.id, done[i]);
+		todos[i] = { ...todo, done: done[i] };
+		setTodoDoneInStore(todo.task_id, todo.id, done[i]);
 
-        if (!task) {
-            inflight[i] = false;
-            return;
-        }
+		if (!task) {
+			inflight[i] = false;
+			return;
+		}
 
-        const allDone = done.every(Boolean);
-        if (allDone !== prevDone) {
-            setTaskDone?.(task.milestone_id, task.id, allDone);
-            const prevTask = { ...task };
-            task = { ...task, done: allDone };
+		const allDone = done.every(Boolean);
+		if (allDone !== prevDone) {
+			setTaskDone?.(task.milestone_id, task.id, allDone);
+			const prevTask = { ...task };
+			task = { ...task, done: allDone };
 
-            const { error } = await supabase
-                .from('tasks')
-                .update({ done: allDone })
-                .eq('id', task.id);
+			const { error } = await supabase.from('tasks').update({ done: allDone }).eq('id', task.id);
 
-            if (error) {
-                console.error('Failed to update task.done', error.message);
-                setTaskDone?.(prevTask.milestone_id, prevTask.id, prevDone);
-                task = prevTask;
-            }
-        }
+			if (error) {
+				console.error('Failed to update task.done', error.message);
+				setTaskDone?.(prevTask.milestone_id, prevTask.id, prevDone);
+				task = prevTask;
+			}
+		}
 
-        // const afterMap = get(tasksByMilestoneStore);
-        // const newMilestoneStatus = getMilestoneStatus(afterMap, task.milestone_id);
-        // if (newMilestoneStatus !== prevMilestoneStatus) {
-        //     const { error } = await supabase
-        //         .from('milestones')
-        //         .update({ status: newMilestoneStatus })
-        //         .eq('id', task.milestone_id);
+		// const afterMap = get(tasksByMilestoneStore);
+		// const newMilestoneStatus = getMilestoneStatus(afterMap, task.milestone_id);
+		// if (newMilestoneStatus !== prevMilestoneStatus) {
+		//     const { error } = await supabase
+		//         .from('milestones')
+		//         .update({ status: newMilestoneStatus })
+		//         .eq('id', task.milestone_id);
 
-        //     if (error) {
-        //         console.warn('Failed to update milestone.status', error.message);
-        //     }
-        // }
+		//     if (error) {
+		//         console.warn('Failed to update milestone.status', error.message);
+		//     }
+		// }
 
-        inflight[i] = false;
+		inflight[i] = false;
 	}
 </script>
 
@@ -128,16 +130,25 @@
 								<div class="flex w-full items-center gap-2 rounded-md transition">
 									<button
 										type="button"
-										class="relative ml-1 grid h-4 w-4 place-items-center rounded-full focus:outline-none {done[i] ? 'bg-stone-900' : ''}"
+										class="relative ml-1 grid h-4 w-4 place-items-center rounded-full focus:outline-none {done[
+											i
+										]
+											? 'bg-stone-700'
+											: ''}"
 										role="checkbox"
 										aria-checked={done[i]}
 										aria-label={done[i] ? 'Mark incomplete' : 'Mark complete'}
-                                        aria-busy={inflight[i]}
-                                        disabled={inflight[i]}
+										aria-busy={inflight[i]}
+										disabled={inflight[i]}
 										onclick={() => toggle(i)}
 									>
 										{#if done[i]}
-											<svg viewBox="0 0 24 24" class="h-3 w-3 text-stone-50" fill="none" aria-hidden="true">
+											<svg
+												viewBox="0 0 24 24"
+												class="h-3 w-3 text-stone-50"
+												fill="none"
+												aria-hidden="true"
+											>
 												<path
 													d="M7 12.5 L10.25 15.75 L16.75 9.25"
 													stroke="currentColor"
