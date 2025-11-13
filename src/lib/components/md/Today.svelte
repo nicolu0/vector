@@ -3,6 +3,8 @@
 	import { browser } from '$app/environment';
 	import Task from '$lib/components/sm/Task.svelte';
 	import { supabase } from '$lib/supabaseClient';
+    import { getContext } from 'svelte';
+    import { VIEWER_CONTEXT_KEY, type ViewerContext, type ViewSelection } from '$lib/stores/viewer';
 
 	type Milestone = { id: string; title: string; ordinal?: number | null };
 	type TaskEntry = {
@@ -11,14 +13,14 @@
 		done: boolean;
 		ordinal?: number | null;
 		tutorial?: boolean;
-	};
+	} & Record<string, unknown>;
 	type TasksMap = Record<string, TaskEntry[]>;
 
 let {
 	tasksByMilestone = {} as TasksMap,
 	milestones = [] as Milestone[],
-	currentMilestoneId = null,
-	currentTaskId = null,
+	currentMilestoneId: initialMilestoneId = null,
+	currentTaskId: initialTaskId = null,
 	userId = null,
 	onSelectTask = null
 } = $props<{
@@ -30,20 +32,26 @@ let {
 	onSelectTask?: ((taskId: string) => void) | null;
 }>();
 
+    const { selectMilestone, selectTask } = getContext<ViewerContext>(VIEWER_CONTEXT_KEY);
+
 	let open = $state(true);
 	let taskMap = $derived(tasksByMilestone);
 
-	const currentMilestone = $derived(
-		milestones.find((m: Milestone) => m.id === currentMilestoneId) ?? null
-	);
-	const currentTask = $derived(getTask(currentMilestoneId, currentTaskId));
+    let currentMilestoneId = $state<string | null>(initialMilestoneId);
+    let currentTaskId = $state<string | null>(initialTaskId);
 
-	let currentTaskDone = $state(currentTask?.done ?? false);
-	$effect(() => {
-		currentTaskDone = currentTask?.done ?? false;
-	});
+    $inspect(`currentMilestoneId: ${currentMilestoneId}`);
+    $inspect(`currentTaskId: ${currentTaskId}`);
 
-	let advancing = $state(false);
+
+    $effect(() => {
+        if (currentMilestoneId == null && initialMilestoneId != null) {
+            currentMilestoneId = initialMilestoneId;
+        }
+        if (currentTaskId == null && initialTaskId != null) {
+            currentTaskId = initialTaskId;
+        }
+    });
 
 	function toggle(e: MouseEvent) {
 		e.preventDefault();
@@ -56,21 +64,24 @@ let {
 		return tasks.find((task: TaskEntry) => task.id === taskId) ?? null;
 	}
 
-	function setTaskDone(milestoneId: string | null, taskId: string, done: boolean) {
-		if (!milestoneId) return;
-		const tasks = taskMap[milestoneId] ?? [];
-		const idx = tasks.findIndex((task: TaskEntry) => task.id === taskId);
-		if (idx === -1) return;
-		const updated = [...tasks];
-		updated[idx] = { ...updated[idx], done };
-		taskMap = { ...taskMap, [milestoneId]: updated };
-	}
+    const currentTask = $derived(getTask(currentMilestoneId, currentTaskId));
+    // $inspect(currentTask);
+	let currentTaskDone = $state(currentTask?.done ?? false);
+	$effect(() => {
+		currentTaskDone = currentTask?.done ?? false;
+	});
 
-	function handleToggle(id: string) {
-		if (!currentTask || currentTask.id !== id) return;
-		currentTaskDone = !currentTaskDone;
-		setTaskDone(currentMilestoneId, id, currentTaskDone);
-	}
+    const taskKey = $derived(`${currentMilestoneId ?? ''}:${currentTaskId ?? ''}`);
+
+    function firstAvailableTask(): LocatedTask | null {
+        for (const milestone of milestones) {
+            const tasks = taskMap[milestone.id] ?? [];
+            if (tasks.length > 0) {
+                return { milestoneId: milestone.id, task: tasks[0] };
+            }
+        }
+        return null;
+    }
 
 	type LocatedTask = { milestoneId: string; task: TaskEntry };
 	function findNextTask(milestoneId: string | null, taskId: string | null): LocatedTask | null {
@@ -78,26 +89,16 @@ let {
 		const currentTasks = taskMap[milestoneId] ?? [];
 		const currentIndex = currentTasks.findIndex((t: TaskEntry) => t.id === taskId);
 		if (currentIndex !== -1 && currentIndex + 1 < currentTasks.length) {
-			return { milestoneId, task: currentTasks[currentIndex + 1] };
-		}
+            return { milestoneId, task: currentTasks[currentIndex + 1] };
+        }
 
 		const milestoneIndex = milestones.findIndex((m: Milestone) => m.id === milestoneId);
 		for (let i = milestoneIndex + 1; i < milestones.length; i++) {
 			const nextMilestone = milestones[i];
 			const tasks = taskMap[nextMilestone.id] ?? [];
-			if (tasks.length > 0) {
-				return { milestoneId: nextMilestone.id, task: tasks[0] };
-			}
-		}
-		return null;
-	}
-
-	function firstAvailableTask(): LocatedTask | null {
-		for (const milestone of milestones) {
-			const tasks = taskMap[milestone.id] ?? [];
-			if (tasks.length > 0) {
-				return { milestoneId: milestone.id, task: tasks[0] };
-			}
+            if (tasks.length > 0) {
+                return { milestoneId: nextMilestone.id, task: tasks[0] };
+            }
 		}
 		return null;
 	}
@@ -114,26 +115,31 @@ let {
 		if (error) throw error;
 	}
 
-	async function handlePersistSuccess(id: string, done: boolean) {
-		if (!done || advancing) return;
-		const next = findNextTask(currentMilestoneId, id);
-		const nextMilestoneId = next?.milestoneId ?? null;
-		const nextTaskId = next?.task?.id ?? null;
+    let prevDone = $state(currentTaskDone);
+    $effect(() => {
+        const now = currentTask?.done ?? false;
 
-		advancing = true;
-		try {
-			await persistCurrentSelection(nextMilestoneId, nextTaskId);
-			currentMilestoneId = nextMilestoneId;
-			currentTaskId = nextTaskId;
-			currentTaskDone = next?.task?.done ?? false;
-		} catch (err) {
-			console.error('Failed to update current task selection', err);
-			setTaskDone(currentMilestoneId, id, false);
-			currentTaskDone = false;
-		} finally {
-			advancing = false;
-		}
-	}
+        if (prevDone === false && now === true && currentTask && currentTask.id === currentTaskId) {
+            const next = findNextTask(currentMilestoneId, currentTaskId);
+            const nextMilestoneId = next?.milestoneId ?? null;
+            const nextTaskId = next?.task?.id ?? null;
+
+            currentMilestoneId = nextMilestoneId;
+            currentTaskId = nextTaskId;
+
+            if (nextMilestoneId) selectMilestone(nextMilestoneId);
+            if (nextTaskId) selectTask(nextTaskId);
+
+            void (async () => {
+                try {
+                    await persistCurrentSelection(nextMilestoneId, nextTaskId);
+                } catch (err) {
+                    console.error('Failed to update current task selection', err);
+                }
+            })();
+        }
+        prevDone = now;
+    });
 </script>
 
 <div class="px-2 py-2">
@@ -159,9 +165,7 @@ let {
 							title={currentTask.title}
 							checked={currentTaskDone}
 							active={false}
-							onToggle={handleToggle}
-							onPersistSuccess={handlePersistSuccess}
-							completing={advancing}
+                            onToggle={() => {}}
 							onSelect={onSelectTask ? () => onSelectTask(currentTask.id) : null}
 						/>
 					</div>

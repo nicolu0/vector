@@ -4,32 +4,41 @@ import OpenAI from 'openai';
 import { OPENAI_API_KEY } from '$env/static/private';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 
-type ProjectBrief = {
+type ProjectDescription = {
     title: string;
     description: string;
-    domain: 'research' | 'internship';
+    skills: string[];
+    domain: string;
 };
 
 type Milestone = {
     title: string;
-    summary: string;
+    description: string;
+    ordinal: number;
+    skills: string[];
 };
 
 type Milestones = {
     milestones: Milestone[];
 };
 
-const BRIEF_SCHEMA = {
+const PROJECT_DESCRIPTION_SCHEMA = {
     type: 'json_schema',
-    name: 'brief_v1',
+    name: 'project_description_v1',
     schema: {
         type: 'object',
         additionalProperties: false,
-        required: ['title', 'description', 'domain'],
+        required: ['title', 'description', 'skills','domain'],
         properties: {
             title: { type: 'string', minLength: 8, maxLength: 100 },
             description: { type: 'string', minLength: 40, maxLength: 800 },
-            domain: { type: 'string', enum: ['research', 'internship'] },
+            skills: {
+                type: 'array',
+                minItems: 3,
+                maxItems: 12,
+                items: { type: 'string', minLength: 1, maxLength: 40 }
+            },
+            domain: { type: 'string', minLength: 2, maxLength: 50 },
         }
     },
     strict: true
@@ -45,15 +54,22 @@ const MILESTONE_SCHEMA = {
         properties: {
             milestones: {
                 type: 'array',
-                minItems: 4,
-                maxItems: 6,
+                minItems: 6,
+                maxItems: 10,
                 items: {
                     type: 'object',
                     additionalProperties: false,
-                    required: ['title', 'summary'],
+                    required: ['title', 'ordinal', 'description', 'skills'],
                     properties: {
                         title: { type: 'string', minLength: 6, maxLength: 80 },
-                        summary: { type: 'string', minLength: 20, maxLength: 400 },
+                        ordinal: { type: 'integer', minimum: 1, maximum: 10 },
+                        description: { type: 'string', minLength: 20, maxLength: 400 },
+                        skills: {
+                            type: 'array',
+                            minItems: 1,
+                            maxItems: 8,
+                            items: { type: 'string', minLength: 1, maxLength: 40 }
+                        }
                     }
                 }
             }
@@ -62,12 +78,15 @@ const MILESTONE_SCHEMA = {
     strict: true
 } as const;
 
-function isProjectBrief(x: unknown): x is ProjectBrief {
+function isProjectDescription(x: unknown): x is ProjectDescription {
     if (!x || typeof x !== 'object') return false;
     const o = x as any;
+    const skillsValid =
+        Array.isArray(o.skills) && o.skills.every((s: any) => typeof s === 'string' && s.length > 0);
     return typeof o.title === 'string'
         && typeof o.description === 'string'
-        && (o.domain === 'research' || o.domain === 'internship');
+        && typeof o.domain === 'string'
+        && skillsValid;
 }
 
 function isMilestones(x: unknown): x is Milestones {
@@ -75,8 +94,15 @@ function isMilestones(x: unknown): x is Milestones {
     const arr = (x as any).milestones;
     return Array.isArray(arr) && arr.length >= 1 &&
         arr.every((m: any) =>
-            m && typeof m.title === 'string' &&
-            typeof m.summary === 'string'
+            m && 
+            typeof m.title === 'string' &&
+            typeof m.ordinal === 'number' &&
+            typeof m.description === 'string' &&
+            Number.isInteger(m.ordinal) &&
+            m.ordinal >= 1 &&
+            m.ordinal <= 10 &&
+            Array.isArray(m.skills) &&
+            m.skills.every((s: any) => typeof s === 'string' && s.length > 0)
         );
 }
 
@@ -102,7 +128,13 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
     const oa = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-    async function jsonResponse<T>(system: string, input: string, schema: any, guard: (x: unknown) => x is T, fallback: T): Promise<T> {
+    async function jsonResponse<T>(
+        system: string, 
+        input: string, 
+        schema: any, 
+        guard: (x: unknown) => x is T, 
+        fallback: T
+    ): Promise<T> {
         try {
             const res = await oa.responses.create({
                 model: 'gpt-5-2025-08-07',
@@ -119,78 +151,89 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
         }
     }
 
-    const briefFallback: ProjectBrief = {
+    const projectFallback: ProjectDescription = {
         title: `Path to ${goal.slice(0, 64)}`,
         description: 'Three-week plan to build a focused project that demonstrates capability, produces tangible artifacts, and positions you for outreach to secure a research role or internship.',
-        domain: /lab|research/i.test(goal) ? 'research' : 'internship'
+        domain: 'Software Engineering',
+        skills: ['Git']
     };
-
-    const briefPrompt = JSON.stringify({
-        goal,
-        instruction: 'Generate a concise title (<=100), description (<=800), and select domain: research|internship.'
-    });
-
-    const brief = await jsonResponse<ProjectBrief>(
-        'You write concise project briefs from a user\'s goal. Return valid JSON only.',
-        briefPrompt,
-        BRIEF_SCHEMA,
-        isProjectBrief,
-        briefFallback
-    );
-
-    const { data: proj, error: pErr } = await supabase
-        .from('projects')
-        .insert([{
-            user_id: user.id,
-            title: brief.title,
-            description: brief.description,
-            domain: brief.domain,
-            difficulty: 'standard',
-            timeline: '3 weeks',
-            status: 'not_started',
-            metadata: {
-                brief,
-                plan_sizing: sizing,
-                goal
-            }
-        }]).select('id, title, description, domain').single();
-
-    if (pErr) throw error(500, `Failed to create project: ${pErr.message}`);
 
     const milestonesFallback: Milestones = {
         milestones: [
-            { title: 'Scope & Data', summary: 'Define problem, metric, and small dataset sample. Set up repo.' },
-            { title: 'Baseline', summary: 'Implement a minimal end-to-end baseline to produce first results.' },
-            { title: 'Improvement', summary: 'Add one targeted enhancement based on initial error analysis.' },
-            { title: 'Evaluation', summary: 'Run rigorous evaluation, error taxonomy, and (if applicable) ablations.' },
-            { title: 'Packaging & Demo', summary: 'Polish README/report, figures, and record a short demo or notebook.' }
+            { title: 'Scope & Data', description: 'Define problem, metric, and small dataset sample. Set up repo.', ordinal: 1, skills: ['Git'] },
+            { title: 'Baseline', description: 'Implement a minimal end-to-end baseline to produce first results.', ordinal: 2, skills: ['Git'] },
+            { title: 'Improvement', description: 'Add one targeted enhancement based on initial error analysis.', ordinal: 3, skills: ['Git'] },
+            { title: 'Evaluation', description: 'Run rigorous evaluation, error taxonomy, and (if applicable) ablations.', ordinal: 4, skills: ['Git'] },
+            { title: 'Packaging & Demo', description: 'Polish README/report, figures, and record a short demo or notebook.', ordinal: 5, skills: ['Git'] }
         ]
     };
 
-    const milestonesPrompt = JSON.stringify({
+    const projectPrompt = JSON.stringify({
         goal,
-        brief,
-        constraint: 'Produce 4-6 milestones for a single coherent project toward the stated domain. Each milestone advances the same artifact.'
+        instruction: 'From the user goal, generate a concise project title (<=100), description (<=800), 3-12 concrete skills (strings), and a domain/field string (2-50 chars).'
     });
 
-    const milestones = await jsonResponse<Milestones>(
-        'You propose milestone titles for a single project toward a research role or internship. Return VALID JSON only.',
+    const projectDesc = await jsonResponse<ProjectDescription>(
+        "You write concise project descriptions. Return VALID JSON ONLY with title, description, skills (array of strings), and domain (discipline/field).",
+        projectPrompt,
+        PROJECT_DESCRIPTION_SCHEMA,
+        isProjectDescription,
+        projectFallback
+    );
+
+    const milestonesPrompt = JSON.stringify({
+        goal,
+        projectDesc,
+        instruction: 'Produce 6-10 milestones for a single coherent project in the provided domain. Each milestone advances the same artifact. Include title, ordinal (1..10), description, and skills (tags).'
+    })
+
+    const generatedMilestones = await jsonResponse<Milestones>(
+        'You propose milestones for a single project. Return VALID JSON ONLY.',
         milestonesPrompt,
         MILESTONE_SCHEMA,
         isMilestones,
         milestonesFallback
     );
 
-    const milestonesClean = (milestones.milestones?.length ? milestones.milestones : milestonesFallback.milestones)
-        .slice(0, 6);
+    let milestonesClean = (generatedMilestones.milestones?.length ? generatedMilestones.milestones : milestonesFallback.milestones).slice(0, 10);
 
-    const msRows = milestonesClean.map((m, i) => ({
+    if (milestonesClean.length < 6) {
+        milestonesClean = milestonesFallback.milestones;
+    }
+
+    milestonesClean.sort((a, b) => a.ordinal - b.ordinal);
+    milestonesClean = milestonesClean.map((m, i) => ({...m, ordinal: i + 1}));
+
+    const { data: proj, error: pErr } = await supabase
+        .from('projects')
+        .insert([{
+            user_id: user.id,
+            title: projectDesc.title,
+            description: projectDesc.description,
+            domain: projectDesc.domain,
+            skills: projectDesc.skills,
+            difficulty: 'Medium',
+            timeline: '3 weeks',
+            status: 'not_started',
+            metadata: {
+                projectDesc,
+                plan_sizing: sizing,
+                goal
+            },
+            prerequisites: null
+        }]).select('id, title, description, domain, skills').single();
+
+    if (pErr) throw error(500, `Failed to create project: ${pErr.message}`);
+
+    const msRows = milestonesClean.map((m) => ({
         user_id: user.id,
         project_id: proj.id,
         title: m.title,
-        summary: m.summary,
-        ordinal: i + 1,
-        status: 'planned',
+        description: m.description,
+        skills: m.skills,
+        ordinal: m.ordinal,
+        status: 'not_started',
+        done: false,
         metadata: null
     }));
 
@@ -198,11 +241,11 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
         .from('milestones')
         .upsert(msRows, { onConflict: 'project_id,ordinal' });
 
-    if (msErr) throw error(500, msErr.message);
+    if (msErr) throw error(500, `Failed to create milestones: ${msErr.message}`);
 
     const { data: msList, error: fetchMsErr } = await supabase
         .from('milestones')
-        .select('id, ordinal, title, summary')
+        .select('id, ordinal, title, description, skills')
         .eq('project_id', proj.id)
         .order('ordinal', { ascending: true });
 
@@ -213,7 +256,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
             id: proj.id,
             title: proj.title,
             description: proj.description,
-            domain: brief.domain
+            domain: proj.domain,
+            skills: proj.skills
         },
         milestones: msList
     });

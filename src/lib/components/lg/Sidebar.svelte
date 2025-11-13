@@ -7,7 +7,7 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { tasksByMilestoneStore, type TasksMap, type MilestoneStatus } from '$lib/stores/tasks';
     import { get } from 'svelte/store';
-    import { todosByTaskStore, type TodosMap } from '$lib/stores/todos';
+    import { todosByTaskStore } from '$lib/stores/todos';
 
 	type Milestone = {
 		id: string;
@@ -195,8 +195,8 @@
 						{/if}
 						<Today
 							{tasksByMilestone}
-							{currentMilestoneId}
-							{currentTaskId}
+							currentMilestoneId={currentMilestoneId}
+							currentTaskId={currentTaskId}
 							{userId}
 							{milestones}
 							onSelectTask={handleTaskSelect}
