@@ -462,7 +462,7 @@
 
                 {#if thumbHeight > 0}
                     <div
-                        class="absolute right-0 w-full bg-stone-400/80 transition-opacity duration-150"
+                        class="absolute right-0 w-full bg-stone-400/80 transition-opacity duration-150 pointer-events-none"
                         style:top={`${thumbTop + headerHeight}px`}
                         style:height={`${thumbHeight}px`}
                         style:opacity={isScrolling ? 1 : 0}
