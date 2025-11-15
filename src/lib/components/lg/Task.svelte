@@ -3,6 +3,8 @@
 	import { get } from 'svelte/store';
 	import { tasksByMilestoneStore, getMilestoneStatus } from '$lib/stores/tasks';
 	import { setTodoDoneInStore } from '$lib/stores/todos';
+	import { getContext } from 'svelte';
+	import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
 
 	type Task = {
 		id: string;
@@ -32,6 +34,8 @@
 		todos: Todo[];
 		setTaskDone?: (milestoneId: string, taskId: string, done: boolean) => void;
 	}>();
+	const appMode = getContext<AppModeContext>(APP_MODE_CONTEXT_KEY) ?? { isDemo: false };
+	const isDemo = appMode.isDemo;
 
 	const resources = [
 		{
@@ -60,13 +64,15 @@
 		done[i] = !prev;
 		inflight[i] = true;
 
-		const { error } = await supabase.from('todos').update({ done: done[i] }).eq('id', todo.id);
+		if (!isDemo) {
+			const { error } = await supabase.from('todos').update({ done: done[i] }).eq('id', todo.id);
 
-		if (error) {
-			done[i] = prev;
-			inflight[i] = false;
-			console.error('Failed to update todo.done', error.message);
-			return;
+			if (error) {
+				done[i] = prev;
+				inflight[i] = false;
+				console.error('Failed to update todo.done', error.message);
+				return;
+			}
 		}
 
 		todos[i] = { ...todo, done: done[i] };
@@ -83,12 +89,14 @@
 			const prevTask = { ...task };
 			task = { ...task, done: allDone };
 
-			const { error } = await supabase.from('tasks').update({ done: allDone }).eq('id', task.id);
+			if (!isDemo) {
+				const { error } = await supabase.from('tasks').update({ done: allDone }).eq('id', task.id);
 
-			if (error) {
-				console.error('Failed to update task.done', error.message);
-				setTaskDone?.(prevTask.milestone_id, prevTask.id, prevDone);
-				task = prevTask;
+				if (error) {
+					console.error('Failed to update task.done', error.message);
+					setTaskDone?.(prevTask.milestone_id, prevTask.id, prevDone);
+					task = prevTask;
+				}
 			}
 		}
 

@@ -15,6 +15,7 @@
 	import { VIEWER_CONTEXT_KEY, type ViewSelection, type ViewerContext } from '$lib/stores/viewer';
 	import { tasksByMilestoneStore } from '$lib/stores/tasks';
 	import { todosByTaskStore, type TodosMap } from '$lib/stores/todos';
+	import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
 
 	let authOpen = $state(false);
 	const DEFAULT_CHAT_WIDTH = 352;
@@ -22,6 +23,8 @@
 	const MAX_CHAT_WIDTH = 640;
 
 	let { data, children }: LayoutProps = $props();
+	const appModeContext: AppModeContext = { isDemo: true };
+	setContext(APP_MODE_CONTEXT_KEY, appModeContext);
 
 	let userId = $state(data.user?.id ?? null);
 	let project = $state(data.project ?? null);
@@ -279,74 +282,91 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-{#if userId}
-	<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
-		<div
-			class={`fixed z-20 flex items-center overflow-hidden px-3 pt-3 pb-2 ${sidebarCollapsed ? 'bg-stone-50' : ''}`}
-			style={`width:${EXPANDED_WIDTH};`}
+<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
+	<div
+		class={`fixed z-20 flex items-center overflow-hidden px-3 pt-3 pb-2 ${sidebarCollapsed ? 'bg-stone-50' : ''}`}
+		style={`width:${EXPANDED_WIDTH};`}
+	>
+		<button
+			type="button"
+			onclick={() => {
+				selectProject();
+			}}
+			class="flex h-7 w-7 items-center justify-center rounded-md text-stone-700 hover:bg-stone-200 hover:text-stone-900"
+			aria-label="Go to home"
 		>
-			<button
-				type="button"
-				onclick={() => {
-					selectProject();
-					goto('/');
-				}}
-				class="flex h-7 w-7 items-center justify-center rounded-md text-stone-700 hover:bg-stone-200 hover:text-stone-900"
-				aria-label="Go to home"
+			<img src={vectorUrl} alt="vector" class="h-5 w-5" />
+		</button>
+
+		<div
+			class="flex-none transition-[flex-basis] duration-200 ease-out"
+			style:flex-basis={sidebarCollapsed ? '8px' : SPACER_EXPANDED}
+		/>
+
+		<button
+			type="button"
+			onclick={toggleSidebar}
+			class="inline-flex h-6 w-6 items-center justify-center rounded-md leading-none text-stone-400 transition duration-200 hover:bg-stone-200 focus:outline-none"
+			aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+		>
+			<svg
+				class="block h-3 w-3 shrink-0"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"
 			>
-				<img src={vectorUrl} alt="vector" class="h-5 w-5" />
-			</button>
+				<rect x="2" y="3" width="21" height="18" rx="3" ry="3" />
+				<path d="M9 3.6v16" />
+			</svg>
+		</button>
+	</div>
+	<Sidebar
+		{sidebarCollapsed}
+		{toggleSidebar}
+		{milestones}
+		{currentMilestoneId}
+		{currentTaskId}
+		tutorial={data.tutorial}
+		email={data?.user?.email}
+		{userId}
+		{selectedMilestoneId}
+		{selectedTaskId}
+		onSelectMilestone={selectMilestone}
+		onSelectTask={selectTask}
+	/>
 
+	<div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+		<main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
 			<div
-				class="flex-none transition-[flex-basis] duration-200 ease-out"
-				style:flex-basis={sidebarCollapsed ? '8px' : SPACER_EXPANDED}
-			/>
-
-			<button
-				type="button"
-				onclick={toggleSidebar}
-				class="inline-flex h-6 w-6 items-center justify-center rounded-md leading-none text-stone-400 transition duration-200 hover:bg-stone-200 focus:outline-none"
-				aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+				bind:this={headerElement}
+				class="sticky top-0 z-[20] flex h-12 items-center bg-stone-50 pt-3 pb-2
+           text-[10px] font-medium text-stone-600 uppercase
+           transition-[margin-left] duration-200 ease-out"
+				style:margin-left={sidebarCollapsed ? '4.5rem' : '1.2rem'}
 			>
 				<svg
-					class="block h-3 w-3 shrink-0"
+					class="h-3 w-3 text-stone-400"
 					viewBox="0 0 24 24"
 					fill="none"
 					stroke="currentColor"
 					stroke-width="2"
 					stroke-linecap="round"
-					stroke-linejoin="round"
 					aria-hidden="true"
 				>
-					<rect x="2" y="3" width="21" height="18" rx="3" ry="3" />
-					<path d="M9 3.6v16" />
+					<path d="M18 2L12 21" />
 				</svg>
-			</button>
-		</div>
-		<Sidebar
-			{sidebarCollapsed}
-			{toggleSidebar}
-			{milestones}
-			{currentMilestoneId}
-			{currentTaskId}
-			tutorial={data.tutorial}
-			email={data?.user?.email}
-			{userId}
-			{selectedMilestoneId}
-			{selectedTaskId}
-			onSelectMilestone={selectMilestone}
-			onSelectTask={selectTask}
-		/>
-
-		<div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-			<main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-				<div
-					bind:this={headerElement}
-					class="sticky top-0 z-[20] flex h-12 items-center bg-stone-50 pt-3 pb-2
-           text-[10px] font-medium text-stone-600 uppercase
-           transition-[margin-left] duration-200 ease-out"
-					style:margin-left={sidebarCollapsed ? '4.5rem' : '1.2rem'}
+				<button
+					type="button"
+					class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none"
+					onclick={selectProject}
 				>
+					PROJECT
+				</button>
+				{#if selectedMilestoneId || selectedTaskId}
 					<svg
 						class="h-3 w-3 text-stone-400"
 						viewBox="0 0 24 24"
@@ -360,105 +380,80 @@
 					</svg>
 					<button
 						type="button"
-						class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none"
-						onclick={selectProject}
+						class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
+						onclick={() => {
+							if (breadcrumbMilestoneId) {
+								selectMilestone(breadcrumbMilestoneId);
+							}
+						}}
+						disabled={!breadcrumbMilestoneId}
 					>
-						PROJECT
+						MILESTONE {milestoneOrdinal}
 					</button>
-					{#if selectedMilestoneId || selectedTaskId}
-						<svg
-							class="h-3 w-3 text-stone-400"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							aria-hidden="true"
-						>
-							<path d="M18 2L12 21" />
-						</svg>
-						<button
-							type="button"
-							class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
-							onclick={() => {
-								if (breadcrumbMilestoneId) {
-									selectMilestone(breadcrumbMilestoneId);
-								}
-							}}
-							disabled={!breadcrumbMilestoneId}
-						>
-							MILESTONE {milestoneOrdinal}
-						</button>
-					{/if}
-					{#if selectedTaskId}
-						<svg
-							class="h-3 w-3 text-stone-400"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							aria-hidden="true"
-						>
-							<path d="M18 2L12 21" />
-						</svg>
-						<button
-							type="button"
-							class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
-							onclick={() => {
-								if (selectedTaskId) {
-									selectTask(selectedTaskId);
-								}
-							}}
-							disabled={!selectedTaskId}
-						>
-							TASK {taskOrdinal}
-						</button>
-					{/if}
-				</div>
-
-				<div
-					bind:this={scrollContainer}
-					class="scrollbar-hide flex-1 overflow-auto"
-					onscroll={handleScroll}
-				>
-					{@render children()}
-				</div>
-			</main>
-
-			<div
-				class="relative h-full w-1 flex-shrink-0"
-				role="separator"
-				aria-orientation="vertical"
-				aria-label="Resize chat panel"
-			>
-				<div
-					class={`h-full w-1 flex-shrink-0 cursor-col-resize transition select-none ${
-						resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
-					}`}
-					onpointerdown={startChatResize}
-				/>
-
-				{#if thumbHeight > 0}
-					<div
-						class="pointer-events-none absolute right-0 w-full bg-stone-400/80 transition-opacity duration-150"
-						style:top={`${thumbTop + headerHeight}px`}
-						style:height={`${thumbHeight}px`}
-						style:opacity={isScrolling ? 1 : 0}
-					/>
+				{/if}
+				{#if selectedTaskId}
+					<svg
+						class="h-3 w-3 text-stone-400"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						aria-hidden="true"
+					>
+						<path d="M18 2L12 21" />
+					</svg>
+					<button
+						type="button"
+						class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
+						onclick={() => {
+							if (selectedTaskId) {
+								selectTask(selectedTaskId);
+							}
+						}}
+						disabled={!selectedTaskId}
+					>
+						TASK {taskOrdinal}
+					</button>
 				{/if}
 			</div>
-			<Chat
-				conversationId={chat?.conversationId ?? null}
-				initialMessages={chat?.messages ?? []}
-				{userId}
-				width={`${chatWidth}px`}
+
+			<div
+				bind:this={scrollContainer}
+				class="scrollbar-hide flex-1 overflow-auto"
+				onscroll={handleScroll}
+			>
+				{@render children()}
+			</div>
+		</main>
+
+		<div
+			class="relative h-full w-1 flex-shrink-0"
+			role="separator"
+			aria-orientation="vertical"
+			aria-label="Resize chat panel"
+		>
+			<div
+				class={`h-full w-1 flex-shrink-0 cursor-col-resize transition select-none ${
+					resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
+				}`}
+				onpointerdown={startChatResize}
 			/>
+
+			{#if thumbHeight > 0}
+				<div
+					class="pointer-events-none absolute right-0 w-full bg-stone-400/80 transition-opacity duration-150"
+					style:top={`${thumbTop + headerHeight}px`}
+					style:height={`${thumbHeight}px`}
+					style:opacity={isScrolling ? 1 : 0}
+				/>
+			{/if}
 		</div>
+		<Chat
+			conversationId={chat?.conversationId ?? null}
+			initialMessages={chat?.messages ?? []}
+			{userId}
+			width={`${chatWidth}px`}
+		/>
 	</div>
-{:else}
-	<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
-		{@render children()}
-	</div>
-{/if}
-<AuthModal open={authOpen} onClose={closeAuthModal} {signInWithGoogle} />
+</div>

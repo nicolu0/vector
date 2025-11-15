@@ -13,7 +13,7 @@ export const load: LayoutLoad = async () => {
 
 	const milestone = {
 		id: 'demo-milestone-1',
-		title: 'Plan your launch content',
+		title: 'Example Milestone',
 		description: 'Sketch the first milestone to show how Vector groups the work.',
 		project_id: 'demo-project',
 		done: false,
@@ -21,23 +21,30 @@ export const load: LayoutLoad = async () => {
 	};
 	const task = {
 		id: 'demo-task-1',
-		title: 'Plan your launch content',
-		description: 'Sketch the first milestone to show how Vector groups the work.',
+		title: 'Example Task',
+		description: 'Milestones are broken down into tasks. You can generate 1 task a day. Most tasks can be finished within 30 minutes, but the difficulty will adjust according to your skill.',
 		milestone_id: 'demo-milestone-1',
 		project_id: 'demo-project',
 		done: false,
 		ordinal: 1
 	};
-	const todo = {
+	const todos = [{
 		id: 'demo-todo-1',
-		title: 'Plan your launch content',
-		description: 'Sketch the first milestone to show how Vector groups the work.',
+		title: 'Click the circle on the left to check off a todo',
 		task_id: 'demo-task-1',
 		milestone_id: 'demo-milestone-1',
 		project_id: 'demo-project',
 		done: false,
 		ordinal: 1
-	};
+	}, {
+		id: 'demo-todo-2',
+		title: 'Check off all the todos to complete a task',
+		task_id: 'demo-task-1',
+		milestone_id: 'demo-milestone-1',
+		project_id: 'demo-project',
+		done: false,
+		ordinal: 1
+	}];
 
 	return {
 		user: { id: 'demo-user', email: 'demo@vector.dev' },
@@ -46,9 +53,9 @@ export const load: LayoutLoad = async () => {
 		project,
 		milestones: [milestone],
 		tasks: [task],
-		todos: [todo],
+		todos: todos,
 		tasksByMilestone: { [milestone.id]: [task] },
-		todosByTask: { [task.id]: [todo] },
+		todosByTask: { [task.id]: todos },
 		currentMilestoneId: milestone.id,
 		currentTaskId: task.id,
 		chat: { conversationId: null, messages: [] }

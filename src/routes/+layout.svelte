@@ -15,6 +15,7 @@
 	import { VIEWER_CONTEXT_KEY, type ViewSelection, type ViewerContext } from '$lib/stores/viewer';
 	import { tasksByMilestoneStore } from '$lib/stores/tasks';
 	import { todosByTaskStore, type TodosMap } from '$lib/stores/todos';
+	import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
 
 	let authOpen = $state(false);
 	const DEFAULT_CHAT_WIDTH = 352;
@@ -22,6 +23,8 @@
 	const MAX_CHAT_WIDTH = 640;
 
 	let { data, children }: LayoutProps = $props();
+	const appModeContext: AppModeContext = { isDemo: data.isDemoRoute ?? false };
+	setContext(APP_MODE_CONTEXT_KEY, appModeContext);
 
 	let userId = $state(data.user?.id ?? null);
 	let project = $state(data.project ?? null);
@@ -32,6 +35,7 @@
 	let currentMilestoneId = $state(data.currentMilestoneId ?? null);
 	let currentTaskId = $state(data.currentTaskId ?? null);
 	let chat = $state(data.chat);
+	let isDemoRoute = $state(data.isDemoRoute ?? false);
 	let chatWidth = $state(DEFAULT_CHAT_WIDTH);
 	let resizingChat = $state(false);
 	let selectedMilestoneId = $state<string | null>(null);
@@ -123,10 +127,12 @@
 		currentMilestoneId = data.currentMilestoneId ?? null;
 		currentTaskId = data.currentTaskId ?? null;
 		chat = data.chat;
-		if (data?.tasksByMilestone) {
+		isDemoRoute = data.isDemoRoute ?? false;
+		appModeContext.isDemo = isDemoRoute;
+		if (!isDemoRoute && data?.tasksByMilestone) {
 			tasksByMilestoneStore.set(data.tasksByMilestone);
 		}
-		if (data?.todosByTask) {
+		if (!isDemoRoute && data?.todosByTask) {
 			todosByTaskStore.set(data.todosByTask);
 		}
 	});
@@ -287,7 +293,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-{#if userId}
+{#if userId && !isDemoRoute}
 	<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 		<div
 			class={`fixed z-20 flex items-center overflow-hidden px-3 pt-3 pb-2 ${sidebarCollapsed ? 'bg-stone-50' : ''}`}

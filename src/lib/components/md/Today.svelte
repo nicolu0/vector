@@ -5,6 +5,7 @@
 	import { supabase } from '$lib/supabaseClient';
     import { getContext } from 'svelte';
     import { VIEWER_CONTEXT_KEY, type ViewerContext, type ViewSelection } from '$lib/stores/viewer';
+    import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
 
 	type Milestone = { id: string; title: string; ordinal?: number | null };
 	type TaskEntry = {
@@ -33,6 +34,8 @@ let {
 }>();
 
     const { selectMilestone, selectTask } = getContext<ViewerContext>(VIEWER_CONTEXT_KEY);
+    const appMode = getContext<AppModeContext>(APP_MODE_CONTEXT_KEY) ?? { isDemo: false };
+    const isDemo = appMode.isDemo;
 
 	let open = $state(true);
 	let taskMap = $derived(tasksByMilestone);
@@ -107,7 +110,7 @@ let {
 		nextMilestoneId: string | null,
 		nextTaskId: string | null
 	) {
-		if (!browser || !userId) return;
+        if (!browser || !userId || isDemo) return;
 		const { error } = await supabase
 			.from('users')
 			.update({ current_milestone: nextMilestoneId, current_task: nextTaskId })
