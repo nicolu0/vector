@@ -484,6 +484,7 @@
                 initialMessages={chat?.messages ?? []}
                 {userId}
                 width={`${chatWidth}px`}
+                resizing={resizingChat}
             />
 		{/if}
 	</div>
