@@ -1,10 +1,9 @@
 <script lang="ts">
 	import vectorUrl from '$lib/assets/vector.svg?url';
-	import AuthModal from '$lib/components/lg/AuthModal.svelte';
 	import { browser } from '$app/environment';
 	import Landing from '$lib/components/lg/Landing.svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import { getContext, onDestroy, tick } from 'svelte';
+	import { getContext, onDestroy } from 'svelte';
 	import type { PageProps } from './$types';
 	import ProjectView from '$lib/components/lg/Project.svelte';
 	import MilestoneView from '$lib/components/lg/Milestone.svelte';
@@ -29,15 +28,12 @@
 	let selection = $state<ViewSelection>({ type: 'project' });
 	let lastMilestoneDone: Record<string, boolean> = {};
 
-	// scroll container ref
-	let scrollContainer: HTMLDivElement | null = null;
-
 	type AuthUI = {
 		openAuthModal: () => void;
 		signInWithGoogle: (redirectPath?: string) => Promise<void>;
 	};
 
-	const { openAuthModal, signInWithGoogle } = getContext<AuthUI>('auth-ui');
+	const { openAuthModal } = getContext<AuthUI>('auth-ui');
 	const viewer = getContext<ViewerContext>(VIEWER_CONTEXT_KEY);
 
 	const selectionUnsubscribe = viewer.selection.subscribe((value) => {
@@ -124,13 +120,7 @@
 	function setTaskDone(milestoneId: string, taskId: string, done: boolean) {
 		setTaskDoneInStore(milestoneId, taskId, done);
 	}
-
-	// optional: also scroll once on initial client render
-	$effect(() => {
-		// tie this to selection so it re-runs if initial selection changes on load
-		const _type = selection.type;
-		void _type;
-	});
+	let demo = $state(false);
 </script>
 
 {#if userId}

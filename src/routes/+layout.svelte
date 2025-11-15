@@ -195,9 +195,9 @@
 	const generateApi: GenerateAPI = { generateTask };
 	setContext<GenerateAPI>('generate-task', generateApi);
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
-	const LEFT_BTN = 28; // 7 * 4px (h-7/w-7)
+	const LEFT_BTN = 28;
 	const RIGHT_BTN = 28;
-	const H_PAD = 20; // px-3 on both sides = 12px*2
+	const H_PAD = 20;
 	const SPACER_EXPANDED = `calc(${EXPANDED_WIDTH} - ${LEFT_BTN + RIGHT_BTN + H_PAD}px)`;
 
 	const selectionStore = writable<ViewSelection>({ type: 'project' });
@@ -267,9 +267,6 @@
 		const s = selectionKey;
 		const el = scrollContainer;
 		if (!browser || !el) return;
-
-		// console.log('resetting scroll');
-		// console.log(el.scrollTop, el.scrollLeft);
 
 		el.scrollTop = 0;
 		el.scrollLeft = 0;
