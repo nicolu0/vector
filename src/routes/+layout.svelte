@@ -14,7 +14,7 @@
 	import type { LayoutProps } from './$types';
 	import { VIEWER_CONTEXT_KEY, type ViewSelection, type ViewerContext } from '$lib/stores/viewer';
 	import { tasksByMilestoneStore } from '$lib/stores/tasks';
-    import { todosByTaskStore, type TodosMap } from '$lib/stores/todos';
+	import { todosByTaskStore, type TodosMap } from '$lib/stores/todos';
 
 	let authOpen = $state(false);
 	const DEFAULT_CHAT_WIDTH = 352;
@@ -28,7 +28,7 @@
 	let milestones = $state(data.milestones);
 	let tasks = $state(data.tasks ?? []);
 	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
-    let todosByTask = $state(data.todosByTask ?? {});
+	let todosByTask = $state(data.todosByTask ?? {});
 	let currentMilestoneId = $state(data.currentMilestoneId ?? null);
 	let currentTaskId = $state(data.currentTaskId ?? null);
 	let chat = $state(data.chat);
@@ -37,45 +37,45 @@
 	let selectedMilestoneId = $state<string | null>(null);
 	let selectedTaskId = $state<string | null>(null);
 
-    let headerElement = $state<HTMLElement | null>(null);
-    let scrollContainer = $state<HTMLElement | null>(null);
-    let headerHeight = $state(0);
-    let thumbTop = $state(0);
-    let thumbHeight = $state(0);
-    let isScrolling = $state(false);
-    let scrollHideTimeout: ReturnType<typeof setTimeout> | null = null;
+	let headerElement = $state<HTMLElement | null>(null);
+	let scrollContainer = $state<HTMLElement | null>(null);
+	let headerHeight = $state(0);
+	let thumbTop = $state(0);
+	let thumbHeight = $state(0);
+	let isScrolling = $state(false);
+	let scrollHideTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    function updateThumb() {
-        const el = scrollContainer;
-        if (!el) return;
+	function updateThumb() {
+		const el = scrollContainer;
+		if (!el) return;
 
-        const view = el.clientHeight;
-        const content = el.scrollHeight;
+		const view = el.clientHeight;
+		const content = el.scrollHeight;
 
-        if (content <= view) {
-            thumbTop = 0;
-            thumbHeight = 0;
-            return;
-        }
+		if (content <= view) {
+			thumbTop = 0;
+			thumbHeight = 0;
+			return;
+		}
 
-        const ratio = view / content;
-        const minThumb = 32;
-        thumbHeight = Math.max(minThumb, view * ratio);
+		const ratio = view / content;
+		const minThumb = 32;
+		thumbHeight = Math.max(minThumb, view * ratio);
 
-        const maxThumbTop = view - thumbHeight;
-        const scrollRatio = el.scrollTop / (content - view);
-        thumbTop = maxThumbTop * scrollRatio;
-    }
+		const maxThumbTop = view - thumbHeight;
+		const scrollRatio = el.scrollTop / (content - view);
+		thumbTop = maxThumbTop * scrollRatio;
+	}
 
-    function handleScroll() {
-        updateThumb();
-        isScrolling = true;
-        
-        if (scrollHideTimeout) clearTimeout(scrollHideTimeout);
-        scrollHideTimeout = setTimeout(() => {
-            isScrolling = false;
-        }, 500);
-    }
+	function handleScroll() {
+		updateThumb();
+		isScrolling = true;
+
+		if (scrollHideTimeout) clearTimeout(scrollHideTimeout);
+		scrollHideTimeout = setTimeout(() => {
+			isScrolling = false;
+		}, 500);
+	}
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -123,12 +123,12 @@
 		currentMilestoneId = data.currentMilestoneId ?? null;
 		currentTaskId = data.currentTaskId ?? null;
 		chat = data.chat;
-        if (data?.tasksByMilestone) {
-            tasksByMilestoneStore.set(data.tasksByMilestone);
-        }
-        if (data?.todosByTask) {
-            todosByTaskStore.set(data.todosByTask);
-        }
+		if (data?.tasksByMilestone) {
+			tasksByMilestoneStore.set(data.tasksByMilestone);
+		}
+		if (data?.todosByTask) {
+			todosByTaskStore.set(data.todosByTask);
+		}
 	});
 
 	function clampChatWidth(value: number) {
@@ -201,7 +201,7 @@
 	const SPACER_EXPANDED = `calc(${EXPANDED_WIDTH} - ${LEFT_BTN + RIGHT_BTN + H_PAD}px)`;
 
 	const selectionStore = writable<ViewSelection>({ type: 'project' });
-    let currentSelection = $state<ViewSelection>({ type: 'project' });
+	let currentSelection = $state<ViewSelection>({ type: 'project' });
 
 	function selectProject() {
 		selectionStore.set({ type: 'project' });
@@ -246,7 +246,7 @@
 	setContext<ViewerContext>(VIEWER_CONTEXT_KEY, viewerContext);
 
 	const unsubscribeSelection = selectionStore.subscribe((selection) => {
-        currentSelection = selection;
+		currentSelection = selection;
 		selectedTaskId = selection.type === 'task' ? selection.id : null;
 		selectedMilestoneId = selection.type === 'milestone' ? selection.id : null;
 	});
@@ -255,43 +255,43 @@
 		unsubscribeSelection();
 	});
 
-    const selectionKey = $derived.by(() => {
-        const s = currentSelection;
-        if (s.type === 'project') return 'project';
-        if (s.type === 'milestone') return `m:${s.id}`;
-        if (s.type === 'task') return `t:${s.id}`;
-        return 'project';
-    });
+	const selectionKey = $derived.by(() => {
+		const s = currentSelection;
+		if (s.type === 'project') return 'project';
+		if (s.type === 'milestone') return `m:${s.id}`;
+		if (s.type === 'task') return `t:${s.id}`;
+		return 'project';
+	});
 
-    $effect(() => {
-        const s = selectionKey;
-        const el = scrollContainer;
-        if (!browser || !el) return;
+	$effect(() => {
+		const s = selectionKey;
+		const el = scrollContainer;
+		if (!browser || !el) return;
 
-        // console.log('resetting scroll');
-        // console.log(el.scrollTop, el.scrollLeft);
+		// console.log('resetting scroll');
+		// console.log(el.scrollTop, el.scrollLeft);
 
-        el.scrollTop = 0;
-        el.scrollLeft = 0;
+		el.scrollTop = 0;
+		el.scrollLeft = 0;
 
-        queueMicrotask(() => {
-            updateThumb();
-        });
-    });
+		queueMicrotask(() => {
+			updateThumb();
+		});
+	});
 
-    $effect(() => {
-        const el = headerElement;
-        if (!browser || !el) return;
-        headerHeight = el.offsetHeight;
-    });
+	$effect(() => {
+		const el = headerElement;
+		if (!browser || !el) return;
+		headerHeight = el.offsetHeight;
+	});
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
-	{#if userId}
+{#if userId}
+	<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 		<div
 			class={`fixed z-20 flex items-center overflow-hidden px-3 pt-3 pb-2 ${sidebarCollapsed ? 'bg-stone-50' : ''}`}
 			style={`width:${EXPANDED_WIDTH};`}
@@ -348,135 +348,128 @@
 			onSelectMilestone={selectMilestone}
 			onSelectTask={selectTask}
 		/>
-	{:else}
-		<button
-			type="button"
-			onclick={() => {
-				selectProject();
-				openAuthModal();
-			}}
-			class="fixed top-3 left-3 flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 transition hover:bg-stone-200 hover:text-stone-900"
-			aria-label="Go to home"
-		>
-			<img src={vectorUrl} alt="vector" class="h-5 w-5" />
-		</button>
-	{/if}
 
-	<div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-		<main class="min-h-0 min-w-0 flex-1 flex flex-col overflow-hidden">
-			<div
-                bind:this={headerElement}
-				class="sticky top-0 z-[20] flex h-12 items-center bg-stone-50 pt-3 pb-2
+		<div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+			<main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+				<div
+					bind:this={headerElement}
+					class="sticky top-0 z-[20] flex h-12 items-center bg-stone-50 pt-3 pb-2
            text-[10px] font-medium text-stone-600 uppercase
            transition-[margin-left] duration-200 ease-out"
-				style:margin-left={sidebarCollapsed ? '4.5rem' : '1.2rem'}
+					style:margin-left={sidebarCollapsed ? '4.5rem' : '1.2rem'}
+				>
+					<svg
+						class="h-3 w-3 text-stone-400"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						aria-hidden="true"
+					>
+						<path d="M18 2L12 21" />
+					</svg>
+					<button
+						type="button"
+						class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none"
+						onclick={selectProject}
+					>
+						PROJECT
+					</button>
+					{#if selectedMilestoneId || selectedTaskId}
+						<svg
+							class="h-3 w-3 text-stone-400"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							aria-hidden="true"
+						>
+							<path d="M18 2L12 21" />
+						</svg>
+						<button
+							type="button"
+							class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
+							onclick={() => {
+								if (breadcrumbMilestoneId) {
+									selectMilestone(breadcrumbMilestoneId);
+								}
+							}}
+							disabled={!breadcrumbMilestoneId}
+						>
+							MILESTONE {milestoneOrdinal}
+						</button>
+					{/if}
+					{#if selectedTaskId}
+						<svg
+							class="h-3 w-3 text-stone-400"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							aria-hidden="true"
+						>
+							<path d="M18 2L12 21" />
+						</svg>
+						<button
+							type="button"
+							class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
+							onclick={() => {
+								if (selectedTaskId) {
+									selectTask(selectedTaskId);
+								}
+							}}
+							disabled={!selectedTaskId}
+						>
+							TASK {taskOrdinal}
+						</button>
+					{/if}
+				</div>
+
+				<div
+					bind:this={scrollContainer}
+					class="scrollbar-hide flex-1 overflow-auto"
+					onscroll={handleScroll}
+				>
+					{@render children()}
+				</div>
+			</main>
+
+			<div
+				class="relative h-full w-1 flex-shrink-0"
+				role="separator"
+				aria-orientation="vertical"
+				aria-label="Resize chat panel"
 			>
-				<svg
-					class="h-3 w-3 text-stone-400"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					aria-hidden="true"
-				>
-					<path d="M18 2L12 21" />
-				</svg>
-				<button
-					type="button"
-					class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none"
-					onclick={selectProject}
-				>
-					PROJECT
-				</button>
-				{#if selectedMilestoneId || selectedTaskId}
-					<svg
-						class="h-3 w-3 text-stone-400"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						aria-hidden="true"
-					>
-						<path d="M18 2L12 21" />
-					</svg>
-					<button
-						type="button"
-						class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
-						onclick={() => {
-							if (breadcrumbMilestoneId) {
-								selectMilestone(breadcrumbMilestoneId);
-							}
-						}}
-						disabled={!breadcrumbMilestoneId}
-					>
-						MILESTONE {milestoneOrdinal}
-					</button>
-				{/if}
-				{#if selectedTaskId}
-					<svg
-						class="h-3 w-3 text-stone-400"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						aria-hidden="true"
-					>
-						<path d="M18 2L12 21" />
-					</svg>
-					<button
-						type="button"
-						class="rounded-md px-1 py-0.5 hover:bg-stone-200 focus:outline-none disabled:opacity-50"
-						onclick={() => {
-							if (selectedTaskId) {
-								selectTask(selectedTaskId);
-							}
-						}}
-						disabled={!selectedTaskId}
-					>
-						TASK {taskOrdinal}
-					</button>
+				<div
+					class={`h-full w-1 flex-shrink-0 cursor-col-resize transition select-none ${
+						resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
+					}`}
+					onpointerdown={startChatResize}
+				/>
+
+				{#if thumbHeight > 0}
+					<div
+						class="pointer-events-none absolute right-0 w-full bg-stone-400/80 transition-opacity duration-150"
+						style:top={`${thumbTop + headerHeight}px`}
+						style:height={`${thumbHeight}px`}
+						style:opacity={isScrolling ? 1 : 0}
+					/>
 				{/if}
 			</div>
-            
-            <div bind:this={scrollContainer} class="flex-1 overflow-auto scrollbar-hide" onscroll={handleScroll}>
-                {@render children()}
-            </div>
-		</main>
-
-		{#if userId}
-            <div
-                class="relative h-full w-1 flex-shrink-0"
-                role="separator"
-                aria-orientation="vertical"
-                aria-label="Resize chat panel"
-            >
-                <div
-                    class={`h-full w-1 flex-shrink-0 cursor-col-resize transition select-none ${
-                        resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
-                    }`}
-                    onpointerdown={startChatResize}
-                />
-
-                {#if thumbHeight > 0}
-                    <div
-                        class="absolute right-0 w-full bg-stone-400/80 transition-opacity duration-150 pointer-events-none"
-                        style:top={`${thumbTop + headerHeight}px`}
-                        style:height={`${thumbHeight}px`}
-                        style:opacity={isScrolling ? 1 : 0}
-                    />
-                {/if}
-            </div>
-            <Chat
-                conversationId={chat?.conversationId ?? null}
-                initialMessages={chat?.messages ?? []}
-                {userId}
-                width={`${chatWidth}px`}
-            />
-		{/if}
+			<Chat
+				conversationId={chat?.conversationId ?? null}
+				initialMessages={chat?.messages ?? []}
+				{userId}
+				width={`${chatWidth}px`}
+			/>
+		</div>
 	</div>
-
-	<AuthModal open={authOpen} onClose={closeAuthModal} {signInWithGoogle} />
-</div>
+{:else}
+	<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
+		{@render children()}
+	</div>
+{/if}
+<AuthModal open={authOpen} onClose={closeAuthModal} {signInWithGoogle} />

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import vectorUrl from '$lib/assets/vector.svg?url';
 	import AuthModal from '$lib/components/lg/AuthModal.svelte';
 	import { browser } from '$app/environment';
 	import Landing from '$lib/components/lg/Landing.svelte';
@@ -39,18 +40,8 @@
 	const { openAuthModal, signInWithGoogle } = getContext<AuthUI>('auth-ui');
 	const viewer = getContext<ViewerContext>(VIEWER_CONTEXT_KEY);
 
-	// helper to scroll halfway down
-	async function scrollToHalf() {
-		if (!browser) return;
-		await tick(); // wait for DOM/layout after any view change
-		if (!scrollContainer) return;
-		scrollContainer.scrollTop = scrollContainer.scrollHeight / 2;
-	}
-
-	// subscribe to selection changes; update local state + scroll
 	const selectionUnsubscribe = viewer.selection.subscribe((value) => {
 		selection = value;
-		void scrollToHalf();
 	});
 
 	$effect(() => {
@@ -139,12 +130,11 @@
 		// tie this to selection so it re-runs if initial selection changes on load
 		const _type = selection.type;
 		void _type;
-		void scrollToHalf();
 	});
 </script>
 
-<div class="flex w-full min-w-0 flex-col pr-4 pb-5 pl-5">
-	{#if userId}
+{#if userId}
+	<div class="flex w-full min-w-0 flex-col pr-4 pb-5 pl-5">
 		<section class="bg-stone-50">
 			{#if selection.type === 'milestone' && selectedMilestone}
 				<MilestoneView milestone={selectedMilestone} />
@@ -154,7 +144,17 @@
 				<ProjectView {project} {milestones} />
 			{/if}
 		</section>
-	{:else}
-		<AuthModal open={true} {signInWithGoogle} />
-	{/if}
-</div>
+	</div>
+{:else}
+	<button
+		type="button"
+		onclick={() => {
+			openAuthModal();
+		}}
+		class="fixed top-3 left-3 flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 transition hover:bg-stone-200 hover:text-stone-900"
+		aria-label="Go to home"
+	>
+		<img src={vectorUrl} alt="vector" class="h-5 w-5" />
+	</button>
+	<Landing />
+{/if}
