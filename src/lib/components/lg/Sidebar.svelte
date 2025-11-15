@@ -36,8 +36,7 @@
 		selectedMilestoneId: selectedMilestoneIdProp = null,
 		selectedTaskId: selectedTaskIdProp = null,
 		onSelectMilestone = null,
-		onSelectTask = null,
-        headerHeight = 0,
+		onSelectTask = null
 	} = $props<{
 		sidebarCollapsed: boolean;
 		toggleSidebar: () => void;
@@ -51,7 +50,6 @@
 		selectedTaskId?: string | null;
 		onSelectMilestone?: ((id: string) => void) | null;
 		onSelectTask?: ((id: string) => void) | null;
-		headerHeight?: number;
 	}>();
 
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
@@ -176,6 +174,54 @@
 		currentMilestoneId = nextMilestoneId;
 		currentTaskId = nextTaskId;
 	}
+
+    let headerHeight = 48;
+    let scrollContainer = $state<HTMLElement | null>(null);
+    let thumbTop = $state(0);
+    let thumbHeight = $state(0);
+    let isScrolling = $state(false);
+    let scrollHideTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    function updateThumb() {
+        const el = scrollContainer;
+        if (!el) return;
+
+        const view = el.clientHeight;
+        const content = el.scrollHeight;
+
+        if (content <= view) {
+            thumbTop = 0;
+            thumbHeight = 0;
+            return;
+        }
+
+        const ratio = view / content;
+        const minThumb = 32;
+        thumbHeight = Math.max(minThumb, view * ratio);
+
+        const maxThumbTop = view - thumbHeight;
+        const scrollRatio = el.scrollTop / (content - view);
+        thumbTop = maxThumbTop * scrollRatio;
+    }
+
+    function handleScroll() {
+        updateThumb();
+        isScrolling = true;
+        
+        if (scrollHideTimeout) clearTimeout(scrollHideTimeout);
+        scrollHideTimeout = setTimeout(() => {
+            isScrolling = false;
+        }, 500);
+    }
+
+    $effect(() => {
+        const el = scrollContainer;
+        if (!el) return;
+
+        queueMicrotask(() => {
+            updateThumb();
+        });
+    });
 </script>
 
 <div
@@ -200,29 +246,42 @@
                 sidebarCollapsed ? 'opacity-0' : 'opacity-100'
             }`}
         >
-            <div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
-                <div class="flex min-w-0 flex-col">
-                    <div class="flex w-full items-center justify-end gap-2 pt-10"></div>
+            <div class="absolute inset-x-0 top-0 bottom-0">
+                <div class="flex h-full flex-col">
+                    <div class="min-h-0 min-w-0 flex-1 overflow-y-auto scrollbar-hide" bind:this={scrollContainer} onscroll={handleScroll}>
+                        <div class="flex min-w-0 flex-col">
+                            <div class="flex w-full items-center justify-end gap-2 pt-10"></div>
 
-                    <Today
-                        {tasksByMilestone}
-                        {currentMilestoneId}
-                        {currentTaskId}
-                        {userId}
-                        {milestones}
-                        onSelectTask={handleTaskSelect}
-                    />
+                            <Today
+                                {tasksByMilestone}
+                                {currentMilestoneId}
+                                {currentTaskId}
+                                {userId}
+                                {milestones}
+                                onSelectTask={handleTaskSelect}
+                            />
 
-                    <Milestones
-                        {milestones}
-                        {tasksByMilestone}
-                        initiallyOpen={true}
-                        selectedId={selectedMilestoneId}
-                        {selectedTaskId}
-                        onSelect={handleMilestoneSelect}
-                        onSelectTask={handleTaskSelect}
-                        {milestoneStatus}
-                    />
+                            <Milestones
+                                {milestones}
+                                {tasksByMilestone}
+                                initiallyOpen={true}
+                                selectedId={selectedMilestoneId}
+                                {selectedTaskId}
+                                onSelect={handleMilestoneSelect}
+                                onSelectTask={handleTaskSelect}
+                                {milestoneStatus}
+                            />
+                        </div>
+                    </div>
+
+                    {#if thumbHeight > 0}
+                        <div
+                            class="absolute right-0 w-1 bg-stone-400/80 transition-opacity duration-150 pointer-events-none"
+                            style:top={`${thumbTop + headerHeight}px`}
+                            style:height={`${thumbHeight - headerHeight}px`}
+                            style:opacity={isScrolling ? 1 : 0}
+                        />
+                    {/if}
                 </div>
             </div>
             <div class="bg-stone-100">
