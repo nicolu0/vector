@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 </script>
 
 <section
@@ -13,7 +14,10 @@
 			We help you build stand-out projects with daily tasks tailored to your goals, interests, and
 			skill. generates daily tasks and resources to help you build in-demand projects. Vector
 			generates
-			<button class="italic underline decoration-[1px] underline-offset-2">demo project</button>
+			<button
+				onclick={() => goto('/demo')}
+				class="italic underline decoration-[1px] underline-offset-2">demo project</button
+			>
 			daily tasks and resources to help you build in-demand projects.
 		</p>
 		<div class="line my-8 flex w-full items-center justify-center gap-4">
