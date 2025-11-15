@@ -36,7 +36,8 @@
 		selectedMilestoneId: selectedMilestoneIdProp = null,
 		selectedTaskId: selectedTaskIdProp = null,
 		onSelectMilestone = null,
-		onSelectTask = null
+		onSelectTask = null,
+        headerHeight = 0,
 	} = $props<{
 		sidebarCollapsed: boolean;
 		toggleSidebar: () => void;
@@ -50,6 +51,7 @@
 		selectedTaskId?: string | null;
 		onSelectMilestone?: ((id: string) => void) | null;
 		onSelectTask?: ((id: string) => void) | null;
+		headerHeight?: number;
 	}>();
 
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
@@ -177,7 +179,7 @@
 </script>
 
 <div
-	class=" relative flex h-full min-w-0 flex-col overflow-hidden transition-[flex-basis] duration-200 ease-out"
+	class="relative flex h-full min-w-0 flex-col overflow-hidden transition-[flex-basis] duration-200 ease-out"
 	style={`flex-basis:${containerFlex};flex-grow:0;flex-shrink:0;`}
 >
 	<aside
@@ -188,43 +190,50 @@
 		style:transform={sidebarTransform}
 		aria-hidden={sidebarCollapsed}
 	>
-		<div class="flex h-full min-h-0 min-w-0 flex-col">
-			{#if !sidebarCollapsed}
-				<div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
-					<div class="flex min-w-0 flex-col">
-						<div class="flex w-full items-center justify-end gap-2 pt-10"></div>
+        <div 
+            class="z-[100] pointer-events-none absolute inset-y-0 left-0 right-[1px] top-0 h-12 bg-stone-100"
+            aria-hidden="true"
+        />
 
-						<Today
-							{tasksByMilestone}
-							{currentMilestoneId}
-							{currentTaskId}
-							{userId}
-							{milestones}
-							onSelectTask={handleTaskSelect}
-						/>
+		<div 
+            class={`flex h-full min-h-0 min-w-0 flex-col transition-opacity duration-200 ease-out ${
+                sidebarCollapsed ? 'opacity-0' : 'opacity-100'
+            }`}
+        >
+            <div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
+                <div class="flex min-w-0 flex-col">
+                    <div class="flex w-full items-center justify-end gap-2 pt-10"></div>
 
-						<Milestones
-							{milestones}
-							{tasksByMilestone}
-							initiallyOpen={true}
-							selectedId={selectedMilestoneId}
-							{selectedTaskId}
-							onSelect={handleMilestoneSelect}
-							onSelectTask={handleTaskSelect}
-							{milestoneStatus}
-						/>
-					</div>
-				</div>
-				<div class="bg-stone-100">
-					<Profile
-						name="User"
-						{email}
-						{sidebarCollapsed}
-						onSignOut={signOut}
-						onResetProgress={userId ? resetProgress : null}
-					/>
-				</div>
-			{/if}
+                    <Today
+                        {tasksByMilestone}
+                        {currentMilestoneId}
+                        {currentTaskId}
+                        {userId}
+                        {milestones}
+                        onSelectTask={handleTaskSelect}
+                    />
+
+                    <Milestones
+                        {milestones}
+                        {tasksByMilestone}
+                        initiallyOpen={true}
+                        selectedId={selectedMilestoneId}
+                        {selectedTaskId}
+                        onSelect={handleMilestoneSelect}
+                        onSelectTask={handleTaskSelect}
+                        {milestoneStatus}
+                    />
+                </div>
+            </div>
+            <div class="bg-stone-100">
+                <Profile
+                    name="User"
+                    {email}
+                    {sidebarCollapsed}
+                    onSignOut={signOut}
+                    onResetProgress={userId ? resetProgress : null}
+                />
+            </div>
 		</div>
 	</aside>
 </div>
