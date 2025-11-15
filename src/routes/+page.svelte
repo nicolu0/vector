@@ -1,4 +1,5 @@
 <script lang="ts">
+	import AuthModal from '$lib/components/lg/AuthModal.svelte';
 	import { browser } from '$app/environment';
 	import Landing from '$lib/components/lg/Landing.svelte';
 	import { supabase } from '$lib/supabaseClient';
@@ -30,8 +31,12 @@
 	// scroll container ref
 	let scrollContainer: HTMLDivElement | null = null;
 
-	type AuthUI = { openAuthModal: () => void };
-	const { openAuthModal } = getContext<AuthUI>('auth-ui');
+	type AuthUI = {
+		openAuthModal: () => void;
+		signInWithGoogle: (redirectPath?: string) => Promise<void>;
+	};
+
+	const { openAuthModal, signInWithGoogle } = getContext<AuthUI>('auth-ui');
 	const viewer = getContext<ViewerContext>(VIEWER_CONTEXT_KEY);
 
 	// helper to scroll halfway down
@@ -138,7 +143,7 @@
 	});
 </script>
 
-<div class="flex w-full min-w-0 flex-col pb-5 pl-5 pr-4">
+<div class="flex w-full min-w-0 flex-col pr-4 pb-5 pl-5">
 	{#if userId}
 		<section class="bg-stone-50">
 			{#if selection.type === 'milestone' && selectedMilestone}
@@ -150,6 +155,6 @@
 			{/if}
 		</section>
 	{:else}
-		<Landing onSubmit={openAuthModal} />
+		<AuthModal open={true} {signInWithGoogle} />
 	{/if}
 </div>

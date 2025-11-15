@@ -7,7 +7,7 @@
 	} = $props<{
 		open?: boolean;
 		signInWithGoogle: () => void;
-		onClose: () => void;
+		onClose?: () => void;
 	}>();
 
 	function handleBackdropClick(e: MouseEvent) {
