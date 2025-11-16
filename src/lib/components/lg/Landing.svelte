@@ -1,43 +1,94 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { fade, fly } from 'svelte/transition';
-
-	const EMAIL = '21andrewch@gmail.com';
-	let copied = false;
-	let hovering = false;
-	let hideTimer: ReturnType<typeof setTimeout> | null = null;
-	let resetTimer: ReturnType<typeof setTimeout> | null = null;
-
-	async function copy() {
-		try {
-			await navigator.clipboard.writeText(EMAIL);
-			copied = true;
-			if (resetTimer) clearTimeout(resetTimer);
-			resetTimer = setTimeout(() => (copied = false), 3000);
-		} catch {}
-	}
+	import { onMount, onDestroy } from 'svelte';
+	import { fly } from 'svelte/transition';
 
 	let showIntro = $state(false);
 	let showContact = $state(false);
 
 	onMount(() => {
 		showIntro = true;
+        showContact = false;
 	});
+
+    onDestroy(() => {
+        clearAllTimers();
+    });
+    
+    let isTransitioning = $state(false);
+    let contactTimer: ReturnType<typeof setTimeout> | null = null;
+    let introTimer: ReturnType<typeof setTimeout> | null = null;
+    let unlockTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function clearAllTimers() {
+        if (contactTimer) {
+            clearTimeout(contactTimer);
+            contactTimer = null;
+        }
+        if (introTimer) {
+            clearTimeout(introTimer);
+            introTimer = null;
+        }
+        if (unlockTimer) {
+            clearTimeout(unlockTimer);
+            unlockTimer = null;
+        }
+    }
 
 	function handleContactClick(event: MouseEvent) {
 		event.preventDefault();
 
+        if (isTransitioning || showContact) return;
+
+        isTransitioning = true;
+        clearAllTimers();
+
 		showIntro = false;
 
-		const lastDelay = 350;
-		const lastDuration = 500;
-		const total = lastDelay + lastDuration;
+		const introOutDelay = 350;
+		const introOutDuration = 500;
+		const introOutTotal = introOutDelay + introOutDuration;
 
-		setTimeout(() => {
+		contactTimer = setTimeout(() => {
 			showContact = true;
-		}, total);
+            
+            const contactInDelay = 300;
+            const contactInDuration = 600;
+            const contactInTotal = contactInDelay + contactInDuration;
+
+            unlockTimer = setTimeout(() => {
+                isTransitioning = false;
+                unlockTimer = null;
+            }, contactInTotal + 10);
+		}, introOutTotal);
 	}
+
+    function handleBackToHomeClick(event: MouseEvent) {
+        event.preventDefault();
+
+        if (isTransitioning || showIntro) return;
+
+        isTransitioning = true;
+        clearAllTimers();
+
+        showContact = false;
+
+        const contactOutDelay = 140;
+        const contactOutDuration = 500;
+        const contactOutTotal = contactOutDelay + contactOutDuration;
+
+        introTimer = setTimeout(() => {
+            showIntro = true;
+            
+            const introInDelay = 490;
+            const introInDuration = 600;
+            const introInTotal = introInDelay + introInDuration;
+
+            unlockTimer = setTimeout(() => {
+                isTransitioning = false;
+                unlockTimer = null;
+            }, introInTotal + 10);
+        }, contactOutTotal);
+    }
 </script>
 
 <div class="relative h-full w-full">
@@ -143,34 +194,63 @@
 				>
 			</span>
 			<span>
-				<a
-					href="#contact"
+				<button
+                    type="button"
 					class="transition-colors duration-200 hover:text-stone-800"
-					onclick={handleContactClick}>contact us.</a
-				>
+					onclick={handleContactClick}
+                >
+                    contact us.
+                </button>
 			</span>
 		</div>
 	{/if}
 
-	{#if showContact}
-		<div
-			class="absolute inset-0 flex items-center justify-center selection:bg-stone-600 selection:text-stone-50"
-			style="font-family: 'Cormorant Garamond', serif"
-		>
-			<div class="text-md flex flex-col items-center gap-1 text-center text-stone-600">
-				<div class="mb-8" in:fly={{ y: 12, duration: 600, delay: 0 }}>
-					<div class="text-xl italic">Andrew Chang</div>
-					<div>(510) 935-8199</div>
-					<div>21andrewch@gmail.com</div>
-				</div>
-				<div class="mb-4" in:fly={{ y: 12, duration: 600, delay: 150 }}>
-					<div class="text-xl italic">Nico Luo</div>
-					<div>(949) 656-6275</div>
-					<div>nicoluo@gmail.com</div>
-				</div>
-			</div>
-		</div>
-	{/if}
+    {#if showContact}
+        <div
+            class="absolute inset-0 flex items-center justify-center selection:bg-stone-600 selection:text-stone-50"
+            style="font-family: 'Cormorant Garamond', serif"
+        >
+            <div class="flex flex-col items-center text-center gap-1 text-md text-stone-600">
+                <div 
+                    class="mb-8" 
+                    in:fly={{ y: 12, duration: 600, delay: 0 }}
+                    out:fly={{ y: -8, duration: 500, delay: 0 }}
+                >
+                    <div class="text-xl italic">
+                        Andrew Chang
+                    </div>
+                    <div>(510) 935-8199</div>
+                    <div>21andrewch@gmail.com</div>
+                </div>
+                <div 
+                    class="mb-4" 
+                    in:fly={{ y: 12, duration: 600, delay: 150 }}
+                    out:fly={{ y: -8, duration: 500, delay: 70 }}
+                >
+                    <div class="text-xl italic">Nico Luo</div>
+                    <div>(949) 656-6275</div>
+                    <div>nicoluo@gmail.com</div>
+                </div>
+            </div>
+
+            <div 
+                class="pointer-events-auto absolute bottom-16 left-0 right-0 flex justify-center gap-12 text-md text-stone-500 selection:bg-stone-600 selection:text-stone-50" 
+                style="font-family: 'Cormorant Garamond', serif"
+                in:fly={{ y: 12, duration: 600, delay: 300 }}
+                out:fly={{ y: -8, duration: 500, delay: 140 }}
+            >
+                <span>
+                    <button
+                        type="button"
+                        class="hover:text-stone-800 transition-colors duration-200"
+                        onclick={handleBackToHomeClick}
+                    >
+                        back to home.
+                    </button>
+                </span>
+            </div>
+        </div>
+    {/if}
 </div>
 
 <style>
