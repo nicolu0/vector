@@ -304,8 +304,8 @@
 	}
 </style>
 
-<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
-	{#if userId && !isDemoRoute}
+{#if userId && !isDemoRoute}
+    <div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 		<div
 			class="fixed z-20 flex items-center overflow-hidden px-3 pt-3 pb-2"
 		>
@@ -472,11 +472,11 @@
 					/>
 				{/if}
 			</div>
-            
-      <div bind:this={scrollContainer} class="flex-1 overflow-auto scrollbar-hide" onscroll={handleScroll}>
-        {@render children()}
-      </div>
-		</main>
+        </div>
+
+        <div bind:this={scrollContainer} class="flex-1 overflow-auto scrollbar-hide" onscroll={handleScroll}>
+            {@render children()}
+        </div>
 
 		{#if userId}
             <div
@@ -507,9 +507,9 @@
                 {userId}
                 width={`${chatWidth}px`}
                 resizing={resizingChat}
-            />
-		{/if}
-	</div>
+                />
+        {/if}
+    </div>
 {:else}
 	<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 		{@render children()}
