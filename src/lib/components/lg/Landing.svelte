@@ -16,14 +16,6 @@
 			resetTimer = setTimeout(() => (copied = false), 3000);
 		} catch {}
 	}
-
-	function onEnter() {
-		if (hideTimer) clearTimeout(hideTimer);
-		hovering = true;
-	}
-	function onLeave() {
-		hideTimer = setTimeout(() => (hovering = false), 120);
-	}
 </script>
 
 <section
