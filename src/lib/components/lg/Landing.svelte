@@ -1,140 +1,233 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { fade, fly } from 'svelte/transition';
 
-	interface Props {
-		onSubmit?: () => void;
+	const EMAIL = '21andrewch@gmail.com';
+	let copied = false;
+	let hovering = false;
+	let hideTimer: ReturnType<typeof setTimeout> | null = null;
+	let resetTimer: ReturnType<typeof setTimeout> | null = null;
+
+	async function copy() {
+		try {
+			await navigator.clipboard.writeText(EMAIL);
+			copied = true;
+			if (resetTimer) clearTimeout(resetTimer);
+			resetTimer = setTimeout(() => (copied = false), 3000);
+		} catch {}
 	}
-	let { onSubmit = () => {} }: Props = $props();
 
-	let goal = $state('');
+    let showIntro = $state(false);
+    let showContact = $state(false);
 
-	// Sentences to cycle (exact phrasings you asked for)
-	const sentences = [
-		'Quant at Jane Street',
-		'Firmware at Apple',
-		'Hardware at NVIDIA',
-		'Robotics at Tesla',
-		'ML research at Stanford'
-	] as const;
+    onMount(() => {
+        showIntro = true;
+    });
 
-	// Typewriter state
-	let sIdx = $state(0); // which sentence
-	let subIdx = $state(0); // character index
-	let deleting = $state(false);
-	let typed = $state('');
-	let timer: ReturnType<typeof setTimeout> | null = null;
+    function handleContactClick(event: MouseEvent) {
+        event.preventDefault();
 
-	const TYPING_MS = 55; // per char while typing
-	const DELETING_MS = 35; // per char while deleting
-	const HOLD_AFTER_TYPE = 1100; // pause when fully typed
-	const HOLD_AFTER_DELETE = 350; // pause when fully deleted
+        showIntro = false;
 
-	function loop() {
-		const full = sentences[sIdx];
+        const lastDelay = 350;
+        const lastDuration = 500;
+        const total = lastDelay + lastDuration;
 
-		if (!deleting) {
-			// typing forward
-			if (subIdx < full.length) {
-				subIdx += 1;
-				typed = full.slice(0, subIdx);
-				timer = setTimeout(loop, TYPING_MS);
-			} else {
-				// reached end, hold, then start deleting
-				timer = setTimeout(() => {
-					deleting = true;
-					loop();
-				}, HOLD_AFTER_TYPE);
-			}
-		} else {
-			// deleting backward
-			if (subIdx > 0) {
-				subIdx -= 1;
-				typed = full.slice(0, subIdx);
-				timer = setTimeout(loop, DELETING_MS);
-			} else {
-				// finished deleting; advance to next sentence
-				deleting = false;
-				sIdx = (sIdx + 1) % sentences.length;
-				timer = setTimeout(loop, HOLD_AFTER_DELETE);
-			}
-		}
-	}
-	const enabled = $derived(goal.trim().length > 0);
-	onMount(() => {
-		loop();
-	});
-	onDestroy(() => {
-		if (timer) clearTimeout(timer);
-	});
-
-	function handleSubmit() {
-		document.cookie = `vector:goal=${encodeURIComponent(goal)}; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`;
-		onSubmit();
-	}
+        setTimeout(() => {
+            showContact = true;
+        }, total);
+    }
 </script>
 
-<section class="flex h-full w-full max-w-3xl flex-col justify-center space-y-10">
-	<header class="space-y-2">
-		<h1 class="text-5xl font-semibold tracking-tight text-stone-900">What is your dream job?</h1>
-		<p class="text-xl text-stone-600">
-			Vector generates daily tasks and resources to help you build in-demand projects.
-		</p>
-	</header>
+<div class="relative w-full h-full">
+    {#if showIntro}
+        <div
+            class="flex h-full w-1/3 mx-auto flex-col items-center justify-center text-justify selection:bg-stone-600 selection:text-stone-50"
+            style="font-family: 'Cormorant Garamond', serif"
+        >
+            <div class="flex max-w-xl flex-col">
+                <div 
+                    class="mb-1"
+                    in:fly={{ y: 16, duration: 600, delay: 0 }}
+                    out:fly={{ y: -8, duration: 500, delay: 0 }}
+                >
+                    <span class="text-stone-700 text-lg tracking-wide italic">vector</span>
+                    <span class="text-stone-700 text-md"> (v) </span>
+                    <span class="text-stone-400 text-sm" style="font-family: 'Inter', sans-serif">&nbsp;-&nbsp;</span>
+                    <span class="text-stone-700 text-md tracking-wide mb-1 ">
+                        to find one's direction
+                    </span>
+                </div>
+                <p 
+                    class="text-md text-stone-600 mb-3" 
+                    style="font-family: 'Cormorant Garamond', serif"
+                    in:fly={{ y: 16, duration: 600, delay: 70 }}
+                    out:fly={{ y: -8, duration: 500, delay: 50 }}
+                >
+                    Vector is learning by building, turned into a daily habit. 
+                    You tell us your goals and we turn them into a guided project made of daily tasks: build this feature, read this resource. 
+                    Each task is tailored to your goals and skill level, so you're never guessing what to do next. 
+                    Day by day, you become the student your dream colleges and internships want.
+                    <!-- <button
+                        onclick={() => goto('/demo')}
+                        class="italic underline decoration-[1px] underline-offset-2 hover:text-stone-800 transition-colors duration-200">demo project</button
+                    > -->
+                </p>
 
-	<form class="space-y-6" onsubmit={handleSubmit}>
-		<div class="flex flex-row gap-4 bg-stone-50">
-			<input
-				type="text"
-				class="w-full border-0 bg-transparent px-0 py-3 font-mono text-4xl text-stone-900 caret-stone-700 transition-all placeholder:text-stone-400 focus:border-stone-700 focus:ring-0 focus:outline-none"
-				placeholder={`${typed}`}
-				autofocus
-				autocomplete="off"
-				spellcheck="false"
-			/>
+                <p 
+                    class="text-md text-stone-600" 
+                    style="font-family: 'Cormorant Garamond', serif"
+                    in:fly={{ y: 16, duration: 600, delay: 140 }}
+                    out:fly={{ y: -8, duration: 500, delay: 100 }}
+                >
+                    Build, learn,
+                    <span class="italic">Vector.</span>
+                </p>
+                <div 
+                    class="my-8 flex w-full items-center justify-center gap-4"
+                    in:fly={{ y: 16, duration: 600, delay: 210 }}
+                    out:fly={{ y: -8, duration: 500, delay: 150 }}
+                >
+                    <span class="h-px w-1/6 rounded-full bg-stone-200"></span>
 
-			<button
-				type="submit"
-				disabled={!enabled}
-				aria-label="Continue"
-				aria-disabled={!enabled}
-				class={`inline-flex h-10 w-10 items-center justify-center self-center rounded-xl transition
-    ${
-			enabled
-				? 'animate-nudge-right text-stone-900 hover:bg-stone-100'
-				: 'cursor-not-allowed text-stone-400 opacity-60'
-		}`}
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					class="h-7 w-7"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-				>
-					<path d="M5 12h14" stroke-linecap="round" stroke-linejoin="round" />
-					<path d="M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-				</svg>
-			</button>
-		</div>
-	</form>
-</section>
+                    <img
+                        src="/mastery.svg"
+                        alt="mastery"
+                        class="pointer-events-none h-4 w-4 object-contain select-none"
+                    />
+
+                    <span class="h-px w-1/6 rounded-full bg-stone-200"></span>
+                </div>
+
+                <div 
+                    class="mb-1"
+                    in:fly={{ y: 16, duration: 600, delay: 280 }}
+                    out:fly={{ y: -8, duration: 500, delay: 200 }}
+                >
+                    <span class="text-stone-700 text-lg tracking-wide mb-1 italic">you</span>
+                    <span class="text-stone-700 text-md"> (n) </span>
+                    <span class="text-stone-400 text-sm" style="font-family: 'Inter', sans-serif">&nbsp;-&nbsp;</span>
+                    <span class="text-stone-700 text-md tracking-wide mb-1 ">
+                        an ambitious student
+                    </span>
+                </div>
+
+                <p 
+                    class="text-md text-stone-600 mb-3" 
+                    style="font-family: 'Cormorant Garamond', serif"
+                    in:fly={{ y: 16, duration: 600, delay: 350 }}
+                    out:fly={{ y: -8, duration: 500, delay: 250 }}
+                >
+                    You want to be the student with the projects everyone admires.
+                    The ones that colleges, research labs, and companies look for.
+                    You care less about looking "well-rounded" and more about going all-in on one thing until you're the best at it.
+                    <!-- <span class="relative inline-block">
+                        <button
+                            class="italic underline decoration-[1px] underline-offset-2 hover:text-stone-800 transition-colors duration-200"
+                            onclick={copy}
+                            aria-describedby="contact-tip"
+                        >
+                            contact us
+                        </button>
+
+                        {#if copied}
+                            <div
+                                id="contact-tip"
+                                class="pointer-events-none absolute top-[110%] flex flex-row items-center gap-1 rounded-md bg-stone-700 px-2 py-1 text-xs whitespace-nowrap text-stone-50 shadow-md"
+                                in:fly={{ y: -2, duration: 200 }}
+                                out:fade={{ duration: 120 }}
+                            >
+                                {#if copied}
+                                    <svg viewBox="0 0 24 24" class="h-3 w-3 text-stone-50" fill="none">
+                                        <path
+                                            d="M7 12.5 L10.25 15.75 L16.75 9.25"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            pathLength="100"
+                                            class="check"
+                                            class:check-animated={copied}
+                                        />
+                                    </svg>
+                                {:else}
+                                    <svg viewBox="0 0 24 24" class="h-3 w-3 text-stone-50" fill="none"> </svg>
+                                {/if}
+                                Email copied to clipboard
+                            </div>
+                        {/if}
+                    </span> -->
+                </p>
+
+                <p 
+                    class="text-md text-stone-600" 
+                    style="font-family: 'Cormorant Garamond', serif"
+                    in:fly={{ y: 16, duration: 600, delay: 420 }}
+                    out:fly={{ y: -8, duration: 500, delay: 300 }}
+                >
+                    If this sounds like you, contact us.
+                </p>
+            </div>
+        </div>
+
+        <div 
+            class="pointer-events-auto absolute bottom-16 left-0 right-0 flex justify-center gap-12 text-md text-stone-500 selection:bg-stone-600 selection:text-stone-50" 
+            style="font-family: 'Cormorant Garamond', serif"
+            in:fly={{ y: 16, duration: 600, delay: 490 }}
+            out:fly={{ y: -8, duration: 500, delay: 350 }}
+        >
+            <span>
+                <a href="/demo" class="hover:text-stone-800 transition-colors duration-200">demo project.</a>
+            </span>
+            <span>
+                <a href="#contact" class="hover:text-stone-800 transition-colors duration-200" onclick={handleContactClick}>contact us.</a>
+            </span>
+        </div>
+    {/if}
+
+    {#if showContact}
+        <div
+            class="absolute inset-0 flex items-center justify-center selection:bg-stone-600 selection:text-stone-50"
+            style="font-family: 'Cormorant Garamond', serif"
+        >
+            <div class="flex flex-col items-center text-center gap-1 text-md text-stone-600">
+                <div class="mb-8" in:fly={{ y: 12, duration: 600, delay: 0 }}>
+                    <div class="text-xl italic">
+                        Andrew Chang
+                    </div>
+                    <div>(510) 935-8199</div>
+                    <div>21andrewch@gmail.com</div>
+                </div>
+                <div class="mb-4" in:fly={{ y: 12, duration: 600, delay: 150 }}>
+                    <div class="text-xl italic">Nico Luo</div>
+                    <div>(949) 656-6275</div>
+                    <div>nicoluo@gmail.com</div>
+                </div>
+            </div>
+        </div>
+    {/if}
+</div>
 
 <style>
-	/* Optional subtle placeholder fade on update */
-	input::placeholder {
-		transition: opacity 0.2s ease-in-out;
+	.check {
+		/* Static checkmark: fully drawn */
+		stroke-dasharray: none;
+		stroke-dashoffset: 0;
 	}
-	@keyframes nudge-right {
-		0%,
-		100% {
-			transform: translateX(0);
-		}
-		50% {
-			transform: translateX(6px);
-		}
+
+	.check-animated {
+		stroke-dasharray: 100;
+		stroke-dashoffset: 100;
+		animation: draw-check 200ms 100ms ease-out forwards;
 	}
-	.animate-nudge-right {
-		animation: nudge-right 1.25s ease-in-out infinite;
+
+	@keyframes draw-check {
+		from {
+			stroke-dashoffset: 100;
+		}
+		to {
+			stroke-dashoffset: 0;
+		}
 	}
 </style>

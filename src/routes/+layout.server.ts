@@ -42,8 +42,8 @@ type Todo = {
 type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; created_at: string };
 
 export const load: LayoutServerLoad = async (event) => {
-	console.log('loading again')
 	const { cookies, url } = event;
+	const isDemoRoute = event.route.id === '/demo';
 	const supabase = createSupabaseServerClient(cookies);
 
 	// OAuth exchange
@@ -72,6 +72,7 @@ export const load: LayoutServerLoad = async (event) => {
 		currentMilestoneId: string | null;
 		currentTaskId: string | null;
 		chat: { conversationId: string | null; messages: ChatMessage[] };
+		isDemoRoute: boolean;
 	} = {
 		user: user ? { id: user.id, email: user.email } : null,
 		tutorial: false,
@@ -85,7 +86,13 @@ export const load: LayoutServerLoad = async (event) => {
 		currentMilestoneId: null,
 		currentTaskId: null,
 		chat: { conversationId: null, messages: [] },
+		isDemoRoute,
 	};
+
+	if (isDemoRoute) {
+		payload.user = null;
+		return payload;
+	}
 
 	if (!user) return payload;
 

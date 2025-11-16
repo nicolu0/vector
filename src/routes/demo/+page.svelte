@@ -56,28 +56,9 @@
 			if (lastMilestoneDone[milestoneId] === done) continue;
 
 			lastMilestoneDone[milestoneId] = done;
-
-			const { error } = await supabase
-				.from('milestones')
-				.update({ done, status })
-				.eq('id', milestoneId);
-			if (error) {
-				console.error('Failed to update milestone.done', milestoneId, error.message);
-			}
 		}
 	});
 	onDestroy(unsubMilestoneStatus);
-
-	if (browser) {
-		const {
-			data: { subscription }
-		} = supabase.auth.onAuthStateChange((_event, session) => {
-			userId = session?.user?.id ?? null;
-		});
-		onDestroy(() => {
-			subscription?.unsubscribe();
-		});
-	}
 
 	$effect(() => {
 		userId = data.user?.id ?? null;
@@ -123,28 +104,14 @@
 	let demo = $state(false);
 </script>
 
-{#if userId}
-	<div class="flex w-full min-w-0 flex-col pr-4 pb-5 pl-5">
-		<section class="bg-stone-50">
-			{#if selection.type === 'milestone' && selectedMilestone}
-				<MilestoneView milestone={selectedMilestone} />
-			{:else if selection.type === 'task' && selectedTask}
-				<TaskView task={selectedTask} todos={selectedTodos ?? []} {setTaskDone} />
-			{:else}
-				<ProjectView {project} {milestones} />
-			{/if}
-		</section>
-	</div>
-{:else}
-	<button
-		type="button"
-		onclick={() => {
-			openAuthModal();
-		}}
-		class="fixed top-3 left-3 flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 transition hover:bg-stone-200 hover:text-stone-900"
-		aria-label="Go to home"
-	>
-		<img src={vectorUrl} alt="vector" class="h-5 w-5 opacity-80" />
-	</button>
-	<Landing />
-{/if}
+<div class="flex w-full min-w-0 flex-col pr-4 pb-5 pl-5">
+	<section class="bg-stone-50">
+		{#if selection.type === 'milestone' && selectedMilestone}
+			<MilestoneView milestone={selectedMilestone} />
+		{:else if selection.type === 'task' && selectedTask}
+			<TaskView task={selectedTask} todos={selectedTodos ?? []} {setTaskDone} />
+		{:else}
+			<ProjectView {project} {milestones} />
+		{/if}
+	</section>
+</div>

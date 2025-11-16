@@ -3,11 +3,13 @@
 	import Today from '$lib/components/md/Today.svelte';
 	import Tutorial from '$lib/components/md/Tutorial.svelte';
 	import Profile from '$lib/components/md/Profile.svelte';
+	import { goto } from '$app/navigation';
 	import { getContext } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { tasksByMilestoneStore, type TasksMap, type MilestoneStatus } from '$lib/stores/tasks';
 	import { get } from 'svelte/store';
 	import { todosByTaskStore } from '$lib/stores/todos';
+	import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
 
 	type Milestone = {
 		id: string;
@@ -59,6 +61,8 @@
 
 	type AuthUI = { signOut: () => Promise<void> };
 	const { signOut } = getContext<AuthUI>('auth-ui');
+	const appMode = getContext<AppModeContext>(APP_MODE_CONTEXT_KEY) ?? { isDemo: false };
+	const isDemo = appMode.isDemo;
 
 	let selectedMilestoneId = $state<string | null>(selectedMilestoneIdProp);
 	let selectedTaskId = $state<string | null>(selectedTaskIdProp);
@@ -142,7 +146,7 @@
 	}
 
 	async function resetProgress() {
-		if (!userId) return;
+		if (!userId || isDemo) return;
 		const allTaskIds = (Object.values(tasksByMilestone) as Task[][]).flat().map((t) => t.id);
 
 		if (allTaskIds.length) {
@@ -272,6 +276,30 @@
                                 {milestoneStatus}
                             />
                         </div>
+                    </div>
+                  
+                    <div class="bg-stone-100">
+                      {#if !isDemo}
+                        <Profile
+                          name="User"
+                          {email}
+                          {sidebarCollapsed}
+                          onSignOut={signOut}
+                          onResetProgress={userId && !isDemo ? resetProgress : null}
+                        />
+                      {:else}
+                        <div class="p-2">
+                          <button
+                            type="button"
+                            class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-xs text-stone-400 transition hover:bg-stone-200/70 hover:text-stone-800"
+                            aria-haspopup="dialog"
+                            onclick={() => goto('/')}
+                          >
+                            <span aria-hidden="true">←</span>
+                            Back to landing
+                          </button>
+                        </div>
+                      {/if}
                     </div>
 
                     {#if thumbHeight > 0}

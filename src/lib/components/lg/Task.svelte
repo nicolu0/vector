@@ -3,6 +3,8 @@
 	import { get } from 'svelte/store';
 	import { tasksByMilestoneStore, getMilestoneStatus } from '$lib/stores/tasks';
 	import { setTodoDoneInStore } from '$lib/stores/todos';
+	import { getContext } from 'svelte';
+	import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
 
 	type Task = {
 		id: string;
@@ -32,83 +34,13 @@
 		todos: Todo[];
 		setTaskDone?: (milestoneId: string, taskId: string, done: boolean) => void;
 	}>();
+	const appMode = getContext<AppModeContext>(APP_MODE_CONTEXT_KEY) ?? { isDemo: false };
+	const isDemo = appMode.isDemo;
 
 	const resources = [
 		{
-			label: 'PyTorch Tensor Docs',
-			url: 'https://arxiv.org/pdf/1706.03762'
-		},
-        {
-			label: 'PyTorch Tensor Docsasf',
-			url: 'https://arxiv.org/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTorch Tensor 331Docsasf',
-			url: 'https://arxiv.21521org/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTorch Ten12421sor Docsasf',
-			url: 'https://ar21421421xiv.org/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTorch T124ensor Docsasf',
-			url: 'https1232131://arxiv.org/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTorc12412421h Tensor Docsasf',
-			url: 'htt124124214ps://arxiv.org/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTorch Tensor124214215125 Docsasf',
-			url: 'https://a12421x124iv.org/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTor12421ch Tenso1252115ocsasf',
-			url: 'https://arx12215iv.org/25215pdf/1721506asfsa.03762'
-		},
-        {
-			label: 'PyTo21412412412412rch Tensor Docsasf',
-			url: 'htt22424242ps://arxiv.org/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTorch Tensor Docsas11111sssdds',
-			url: 'https://arxiv.oasa3q3rtrg/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTo41421412421rch Tensor Docsasf',
-			url: 'https:/1412arxi5356v.o7747rg/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'P1223yTorch Ten5657465645dsor Docsasf',
-			url: 'https://arxiv.org/pdfdfsfddght45/1706asfsa.03762'
-		},
-        {
-			label: 'PyTor1242141242156754ufdsfdsch Tensor Docsasf',
-			url: 'https://ffafad3q4256ytearxiv.org/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTor124526436tsdch Tensor Docsasf',
-			url: 'https://asdfjy6745rxiv.org/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTor1524365rgsgffgfch Tensor Docsasf',
-			url: 'https://arxivgfgfgfgfgfxcvbcvv.org/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTorch Tet5y46udhrtnsor Docsasf',
-			url: 'https://arxiczxczxczxcv787org/pdf806asfsa.03762'
-		},
-        {
-			label: 'PyTorch Tens3256ertkgor Docsasf',
-			url: 'https://arxiv.or32565fgfgcccccccbg/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyT53252342432423orch Tensor Docsasf',
-			url: 'https:/1io43tigjksdkjf/arxiv.org/pdf/1706asfsa.03762'
-		},
-        {
-			label: 'PyTorch Te20594060395049nsor Docsasf',
-			url: 'https://arxiv.org/fdsklklkllklklasdfsafsafaspdf/1706asfsa.03762'
+			label: 'Big Data Bowl Dataset',
+			url: 'https://www.kaggle.com/competitions/nfl-big-data-bowl-2025/data'
 		}
 	];
 
@@ -132,13 +64,15 @@
 		done[i] = !prev;
 		inflight[i] = true;
 
-		const { error } = await supabase.from('todos').update({ done: done[i] }).eq('id', todo.id);
+		if (!isDemo) {
+			const { error } = await supabase.from('todos').update({ done: done[i] }).eq('id', todo.id);
 
-		if (error) {
-			done[i] = prev;
-			inflight[i] = false;
-			console.error('Failed to update todo.done', error.message);
-			return;
+			if (error) {
+				done[i] = prev;
+				inflight[i] = false;
+				console.error('Failed to update todo.done', error.message);
+				return;
+			}
 		}
 
 		todos[i] = { ...todo, done: done[i] };
@@ -155,12 +89,14 @@
 			const prevTask = { ...task };
 			task = { ...task, done: allDone };
 
-			const { error } = await supabase.from('tasks').update({ done: allDone }).eq('id', task.id);
+			if (!isDemo) {
+				const { error } = await supabase.from('tasks').update({ done: allDone }).eq('id', task.id);
 
-			if (error) {
-				console.error('Failed to update task.done', error.message);
-				setTaskDone?.(prevTask.milestone_id, prevTask.id, prevDone);
-				task = prevTask;
+				if (error) {
+					console.error('Failed to update task.done', error.message);
+					setTaskDone?.(prevTask.milestone_id, prevTask.id, prevDone);
+					task = prevTask;
+				}
 			}
 		}
 
