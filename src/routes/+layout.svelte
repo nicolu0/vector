@@ -200,11 +200,15 @@
 	}
 	const generateApi: GenerateAPI = { generateTask };
 	setContext<GenerateAPI>('generate-task', generateApi);
+  const COLLAPSED_WIDTH = '0rem';
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
-	const LEFT_BTN = 28;
+  const containerFlex = $derived(sidebarCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH);
+	const LEFT_BTN = 28; // 7 * 4px (h-7/w-7)
 	const RIGHT_BTN = 28;
 	const H_PAD = 20;
 	const SPACER_EXPANDED = `calc(${EXPANDED_WIDTH} - ${LEFT_BTN + RIGHT_BTN + H_PAD}px)`;
+
+    const sideBarMaskTransform = $derived(sidebarCollapsed ? 'translateX(-100%)' : 'translateX(0%)');
 
 	const selectionStore = writable<ViewSelection>({ type: 'project' });
 	let currentSelection = $state<ViewSelection>({ type: 'project' });
@@ -293,11 +297,17 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-{#if userId && !isDemoRoute}
-	<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
+<style>
+	:global(html),
+	:global(body) {
+		overscroll-behavior: none;
+	}
+</style>
+
+<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
+	{#if userId && !isDemoRoute}
 		<div
-			class={`fixed z-20 flex items-center overflow-hidden px-3 pt-3 pb-2 ${sidebarCollapsed ? 'bg-stone-50' : ''}`}
-			style={`width:${EXPANDED_WIDTH};`}
+			class="fixed z-20 flex items-center overflow-hidden px-3 pt-3 pb-2"
 		>
 			<button
 				type="button"
@@ -305,21 +315,21 @@
 					selectProject();
 					goto('/');
 				}}
-				class="flex h-7 w-7 items-center justify-center rounded-md text-stone-700 hover:bg-stone-200 hover:text-stone-900"
+				class="relative flex h-7 w-7 items-center justify-center rounded-md text-stone-700 hover:bg-stone-200 hover:text-stone-900"
 				aria-label="Go to home"
 			>
 				<img src={vectorUrl} alt="vector" class="h-5 w-5" />
 			</button>
 
 			<div
-				class="flex-none transition-[flex-basis] duration-200 ease-out"
+				class="relative flex-none transition-[flex-basis] duration-200 ease-out"
 				style:flex-basis={sidebarCollapsed ? '8px' : SPACER_EXPANDED}
 			/>
 
 			<button
 				type="button"
 				onclick={toggleSidebar}
-				class="inline-flex h-6 w-6 items-center justify-center rounded-md leading-none text-stone-400 transition duration-200 hover:bg-stone-200 focus:outline-none"
+				class="relative inline-flex h-6 w-6 items-center justify-center rounded-md leading-none text-stone-400 transition duration-200 hover:bg-stone-200 focus:outline-none"
 				aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 			>
 				<svg
@@ -462,13 +472,43 @@
 					/>
 				{/if}
 			</div>
-			<Chat
-				conversationId={chat?.conversationId ?? null}
-				initialMessages={chat?.messages ?? []}
-				{userId}
-				width={`${chatWidth}px`}
-			/>
-		</div>
+            
+      <div bind:this={scrollContainer} class="flex-1 overflow-auto scrollbar-hide" onscroll={handleScroll}>
+        {@render children()}
+      </div>
+		</main>
+
+		{#if userId}
+            <div
+                class="relative h-full w-1.5 flex-shrink-0"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize chat panel"
+            >
+                <div
+                    class={`h-full w-1.5 flex-shrink-0 cursor-col-resize transition select-none ${
+                        resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
+                    }`}
+                    onpointerdown={startChatResize}
+                />
+
+                {#if thumbHeight > 0}
+                    <div
+                        class="absolute right-0 w-full bg-stone-400/80 transition-opacity duration-150 pointer-events-none"
+                        style:top={`${thumbTop + headerHeight}px`}
+                        style:height={`${thumbHeight}px`}
+                        style:opacity={isScrolling ? 1 : 0}
+                    />
+                {/if}
+            </div>
+            <Chat
+                conversationId={chat?.conversationId ?? null}
+                initialMessages={chat?.messages ?? []}
+                {userId}
+                width={`${chatWidth}px`}
+                resizing={resizingChat}
+            />
+		{/if}
 	</div>
 {:else}
 	<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">

@@ -178,10 +178,58 @@
 		currentMilestoneId = nextMilestoneId;
 		currentTaskId = nextTaskId;
 	}
+
+    let headerHeight = 48;
+    let scrollContainer = $state<HTMLElement | null>(null);
+    let thumbTop = $state(0);
+    let thumbHeight = $state(0);
+    let isScrolling = $state(false);
+    let scrollHideTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    function updateThumb() {
+        const el = scrollContainer;
+        if (!el) return;
+
+        const view = el.clientHeight;
+        const content = el.scrollHeight;
+
+        if (content <= view) {
+            thumbTop = 0;
+            thumbHeight = 0;
+            return;
+        }
+
+        const ratio = view / content;
+        const minThumb = 32;
+        thumbHeight = Math.max(minThumb, view * ratio);
+
+        const maxThumbTop = view - thumbHeight;
+        const scrollRatio = el.scrollTop / (content - view);
+        thumbTop = maxThumbTop * scrollRatio;
+    }
+
+    function handleScroll() {
+        updateThumb();
+        isScrolling = true;
+        
+        if (scrollHideTimeout) clearTimeout(scrollHideTimeout);
+        scrollHideTimeout = setTimeout(() => {
+            isScrolling = false;
+        }, 500);
+    }
+
+    $effect(() => {
+        const el = scrollContainer;
+        if (!el) return;
+
+        queueMicrotask(() => {
+            updateThumb();
+        });
+    });
 </script>
 
 <div
-	class=" relative flex h-full min-w-0 flex-col overflow-hidden transition-[flex-basis] duration-200 ease-out"
+	class="relative flex h-full min-w-0 flex-col overflow-hidden transition-[flex-basis] duration-200 ease-out"
 	style={`flex-basis:${containerFlex};flex-grow:0;flex-shrink:0;`}
 >
 	<aside
@@ -192,58 +240,87 @@
 		style:transform={sidebarTransform}
 		aria-hidden={sidebarCollapsed}
 	>
-		<div class="flex h-full min-h-0 min-w-0 flex-col">
-			{#if !sidebarCollapsed}
-				<div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
-					<div class="flex min-w-0 flex-col">
-						<div class="flex w-full items-center justify-end gap-2 pt-10"></div>
+        <div 
+            class="z-[100] pointer-events-none absolute inset-y-0 left-0 right-[1px] top-0 h-12 bg-stone-100"
+            aria-hidden="true"
+        />
 
-						<Today
-							{tasksByMilestone}
-							{currentMilestoneId}
-							{currentTaskId}
-							{userId}
-							{milestones}
-							onSelectTask={handleTaskSelect}
-						/>
+		<div 
+            class={`flex h-full min-h-0 min-w-0 flex-col transition-opacity duration-200 ease-out ${
+                sidebarCollapsed ? 'opacity-0' : 'opacity-100'
+            }`}
+        >
+            <div class="absolute inset-x-0 top-0 bottom-0">
+                <div class="flex h-full flex-col">
+                    <div class="min-h-0 min-w-0 flex-1 overflow-y-auto scrollbar-hide" bind:this={scrollContainer} onscroll={handleScroll}>
+                        <div class="flex min-w-0 flex-col">
+                            <div class="flex w-full items-center justify-end gap-2 pt-10"></div>
 
-						<Milestones
-							{milestones}
-							{tasksByMilestone}
-							initiallyOpen={true}
-							selectedId={selectedMilestoneId}
-							{selectedTaskId}
-							onSelect={handleMilestoneSelect}
-							onSelectTask={handleTaskSelect}
-							{milestoneStatus}
-						/>
-					</div>
-				</div>
+                            <Today
+                                {tasksByMilestone}
+                                {currentMilestoneId}
+                                {currentTaskId}
+                                {userId}
+                                {milestones}
+                                onSelectTask={handleTaskSelect}
+                            />
 
-				<div class="bg-stone-100">
-					{#if !isDemo}
-						<Profile
-							name="User"
-							{email}
-							{sidebarCollapsed}
-							onSignOut={signOut}
-							onResetProgress={userId && !isDemo ? resetProgress : null}
-						/>
-					{:else}
-						<div class="p-2">
-							<button
-								type="button"
-								class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-xs text-stone-400 transition hover:bg-stone-200/70 hover:text-stone-800"
-								aria-haspopup="dialog"
-								onclick={() => goto('/')}
-							>
-								<span aria-hidden="true">←</span>
-								Back to landing
-							</button>
-						</div>
-					{/if}
-				</div>
-			{/if}
+                            <Milestones
+                                {milestones}
+                                {tasksByMilestone}
+                                initiallyOpen={true}
+                                selectedId={selectedMilestoneId}
+                                {selectedTaskId}
+                                onSelect={handleMilestoneSelect}
+                                onSelectTask={handleTaskSelect}
+                                {milestoneStatus}
+                            />
+                        </div>
+                    </div>
+                  
+                    <div class="bg-stone-100">
+                      {#if !isDemo}
+                        <Profile
+                          name="User"
+                          {email}
+                          {sidebarCollapsed}
+                          onSignOut={signOut}
+                          onResetProgress={userId && !isDemo ? resetProgress : null}
+                        />
+                      {:else}
+                        <div class="p-2">
+                          <button
+                            type="button"
+                            class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-xs text-stone-400 transition hover:bg-stone-200/70 hover:text-stone-800"
+                            aria-haspopup="dialog"
+                            onclick={() => goto('/')}
+                          >
+                            <span aria-hidden="true">←</span>
+                            Back to landing
+                          </button>
+                        </div>
+                      {/if}
+                    </div>
+
+                    {#if thumbHeight > 0}
+                        <div
+                            class="absolute right-0 w-1 bg-stone-400/80 transition-opacity duration-150 pointer-events-none"
+                            style:top={`${thumbTop + headerHeight}px`}
+                            style:height={`${thumbHeight - headerHeight}px`}
+                            style:opacity={isScrolling ? 1 : 0}
+                        />
+                    {/if}
+                </div>
+            </div>
+            <div class="bg-stone-100">
+                <Profile
+                    name="User"
+                    {email}
+                    {sidebarCollapsed}
+                    onSignOut={signOut}
+                    onResetProgress={userId ? resetProgress : null}
+                />
+            </div>
 		</div>
 	</aside>
 </div>
