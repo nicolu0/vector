@@ -292,10 +292,10 @@
 			onclick={() => {
 				selectProject();
 			}}
-			class="flex h-7 w-7 items-center justify-center rounded-md text-stone-700 hover:bg-stone-200 hover:text-stone-900"
+			class="flex h-7 w-7 items-center justify-center rounded-md text-stone-700 transition hover:bg-stone-200 hover:text-stone-900 duration-200 ease-out"
 			aria-label="Go to home"
 		>
-			<img src={vectorUrl} alt="vector" class="h-5 w-5" />
+			<img src={vectorUrl} alt="vector" class="h-5 w-5 opacity-80 hover:opacity-90 transition-opacity duration-200 ease-out" />
 		</button>
 
 		<div
