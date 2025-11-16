@@ -200,15 +200,15 @@
 	}
 	const generateApi: GenerateAPI = { generateTask };
 	setContext<GenerateAPI>('generate-task', generateApi);
-  const COLLAPSED_WIDTH = '0rem';
+	const COLLAPSED_WIDTH = '0rem';
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
-  const containerFlex = $derived(sidebarCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH);
+	const containerFlex = $derived(sidebarCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH);
 	const LEFT_BTN = 28; // 7 * 4px (h-7/w-7)
 	const RIGHT_BTN = 28;
 	const H_PAD = 20;
 	const SPACER_EXPANDED = `calc(${EXPANDED_WIDTH} - ${LEFT_BTN + RIGHT_BTN + H_PAD}px)`;
 
-    const sideBarMaskTransform = $derived(sidebarCollapsed ? 'translateX(-100%)' : 'translateX(0%)');
+	const sideBarMaskTransform = $derived(sidebarCollapsed ? 'translateX(-100%)' : 'translateX(0%)');
 
 	const selectionStore = writable<ViewSelection>({ type: 'project' });
 	let currentSelection = $state<ViewSelection>({ type: 'project' });
@@ -297,18 +297,9 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<style>
-	:global(html),
-	:global(body) {
-		overscroll-behavior: none;
-	}
-</style>
-
 {#if userId && !isDemoRoute}
-    <div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
-		<div
-			class="fixed z-20 flex items-center overflow-hidden px-3 pt-3 pb-2"
-		>
+	<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
+		<div class="fixed z-20 flex items-center overflow-hidden px-3 pt-3 pb-2">
 			<button
 				type="button"
 				onclick={() => {
@@ -472,47 +463,50 @@
 					/>
 				{/if}
 			</div>
-        </div>
-
-        <div bind:this={scrollContainer} class="flex-1 overflow-auto scrollbar-hide" onscroll={handleScroll}>
-            {@render children()}
-        </div>
+		</div>
 
 		{#if userId}
-            <div
-                class="relative h-full w-1.5 flex-shrink-0"
-                role="separator"
-                aria-orientation="vertical"
-                aria-label="Resize chat panel"
-            >
-                <div
-                    class={`h-full w-1.5 flex-shrink-0 cursor-col-resize transition select-none ${
-                        resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
-                    }`}
-                    onpointerdown={startChatResize}
-                />
+			<div
+				class="relative h-full w-1.5 flex-shrink-0"
+				role="separator"
+				aria-orientation="vertical"
+				aria-label="Resize chat panel"
+			>
+				<div
+					class={`h-full w-1.5 flex-shrink-0 cursor-col-resize transition select-none ${
+						resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
+					}`}
+					onpointerdown={startChatResize}
+				/>
 
-                {#if thumbHeight > 0}
-                    <div
-                        class="absolute right-0 w-full bg-stone-400/80 transition-opacity duration-150 pointer-events-none"
-                        style:top={`${thumbTop + headerHeight}px`}
-                        style:height={`${thumbHeight}px`}
-                        style:opacity={isScrolling ? 1 : 0}
-                    />
-                {/if}
-            </div>
-            <Chat
-                conversationId={chat?.conversationId ?? null}
-                initialMessages={chat?.messages ?? []}
-                {userId}
-                width={`${chatWidth}px`}
-                resizing={resizingChat}
-                />
-        {/if}
-    </div>
+				{#if thumbHeight > 0}
+					<div
+						class="pointer-events-none absolute right-0 w-full bg-stone-400/80 transition-opacity duration-150"
+						style:top={`${thumbTop + headerHeight}px`}
+						style:height={`${thumbHeight}px`}
+						style:opacity={isScrolling ? 1 : 0}
+					/>
+				{/if}
+			</div>
+			<Chat
+				conversationId={chat?.conversationId ?? null}
+				initialMessages={chat?.messages ?? []}
+				{userId}
+				width={`${chatWidth}px`}
+				resizing={resizingChat}
+			/>
+		{/if}
+	</div>
 {:else}
 	<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 		{@render children()}
 	</div>
 {/if}
 <AuthModal open={authOpen} onClose={closeAuthModal} {signInWithGoogle} />
+
+<style>
+	:global(html),
+	:global(body) {
+		overscroll-behavior: none;
+	}
+</style>

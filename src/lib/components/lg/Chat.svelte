@@ -21,7 +21,7 @@
 		initialMessages = [],
 		userId = null,
 		width = 'min(26vw, 22rem)',
-		resizing = false,
+		resizing = false
 	} = $props<{
 		conversationId: string | null;
 		initialMessages?: ChatMessage[];
@@ -48,51 +48,51 @@
 	const displayMessages = $derived(messages.length > 0 ? messages : [welcomeMessage]);
 	const composerDisabled = $derived(!conversationId || sending || !userId);
 
-    let thumbTop = $state(0);
+	let thumbTop = $state(0);
 	let thumbHeight = $state(0);
 	let isScrolling = $state(false);
 	let scrollHideTimeout: ReturnType<typeof setTimeout> | null = null;
-    let hideThumb = $state(false);
-    let hideThumbTimeout: ReturnType<typeof setTimeout> | null = null;
+	let hideThumb = $state(false);
+	let hideThumbTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    function updateThumb() {
-        if (!scrollRegion) return;
+	function updateThumb() {
+		if (!scrollRegion) return;
 
-        const view = scrollRegion.clientHeight;
-        const content = scrollRegion.scrollHeight;
+		const view = scrollRegion.clientHeight;
+		const content = scrollRegion.scrollHeight;
 
-        if (content <= view) {
-            thumbTop = 0;
-            thumbHeight = 0;
-            return;
-        }
+		if (content <= view) {
+			thumbTop = 0;
+			thumbHeight = 0;
+			return;
+		}
 
-        const ratio = view / content;
-        const minThumb = 32;
-        thumbHeight = Math.max(minThumb, view * ratio);
+		const ratio = view / content;
+		const minThumb = 32;
+		thumbHeight = Math.max(minThumb, view * ratio);
 
-        const maxThumbTop = view - thumbHeight;
-        const scrollRatio = scrollRegion.scrollTop / (content - view);
-        thumbTop = maxThumbTop * scrollRatio;
-    }
+		const maxThumbTop = view - thumbHeight;
+		const scrollRatio = scrollRegion.scrollTop / (content - view);
+		thumbTop = maxThumbTop * scrollRatio;
+	}
 
-    function handleScroll() {
-        if (hideThumb) {
-            hideThumb = false;
-            if (hideThumbTimeout) {
-                clearTimeout(hideThumbTimeout);
-                hideThumbTimeout = null;
-            }
-        }
-        
-        updateThumb();
-        isScrolling = true;
-        
-        if (scrollHideTimeout) clearTimeout(scrollHideTimeout);
-        scrollHideTimeout = setTimeout(() => {
-            isScrolling = false;
-        }, 1000);
-    }
+	function handleScroll() {
+		if (hideThumb) {
+			hideThumb = false;
+			if (hideThumbTimeout) {
+				clearTimeout(hideThumbTimeout);
+				hideThumbTimeout = null;
+			}
+		}
+
+		updateThumb();
+		isScrolling = true;
+
+		if (scrollHideTimeout) clearTimeout(scrollHideTimeout);
+		scrollHideTimeout = setTimeout(() => {
+			isScrolling = false;
+		}, 1000);
+	}
 
 	$effect(() => {
 		messages = initialMessages;
@@ -206,70 +206,74 @@
 		}
 	}
 
-    $effect(() => {
-        if (!scrollRegion) return;
+	$effect(() => {
+		if (!scrollRegion) return;
 
-        queueMicrotask(() => {
-            updateThumb();
-        });
-    });
+		queueMicrotask(() => {
+			updateThumb();
+		});
+	});
 
-    $effect(() => {
-        const _ = width;
+	$effect(() => {
+		const _ = width;
 
-        if (hideThumbTimeout) {
-            clearTimeout(hideThumbTimeout);
-            hideThumbTimeout = null;
-        }
+		if (hideThumbTimeout) {
+			clearTimeout(hideThumbTimeout);
+			hideThumbTimeout = null;
+		}
 
-        hideThumb = true;
-        
-        hideThumbTimeout = setTimeout(() => {
-            hideThumb = false;
-            hideThumbTimeout = null;
-        }, 1000);
-    });
+		hideThumb = true;
+
+		hideThumbTimeout = setTimeout(() => {
+			hideThumb = false;
+			hideThumbTimeout = null;
+		}, 1000);
+	});
 </script>
 
 <div
 	class="flex h-full w-full flex-col border-l border-stone-200 bg-stone-50"
 	style={`flex: 0 0 ${width}; width: ${width};`}
 >
-    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 scrollbar-hide" bind:this={scrollRegion} onscroll={handleScroll}>
-        {#each displayMessages as message (message.id)}
-            {#if message.role === 'user'}
-                <div class="flex justify-end">
-                    <div
-                        class="max-w-[80%] rounded-xl bg-stone-200 px-3 py-2 text-xs leading-5 break-words whitespace-pre-wrap text-stone-900"
-                    >
-                        {message.content}
-                    </div>
-                </div>
-            {:else}
-                <div class="w-full">
-                    <div class="w-full text-xs leading-6 break-words whitespace-pre-wrap text-stone-900">
-                        {message.content}
-                    </div>
-                </div>
-            {/if}
-        {/each}
-        <div class="w-full">
-            <div
-                class="w-full rounded-lg border border-stone-200 bg-white p-4 text-xs leading-6 break-words whitespace-pre-wrap text-stone-900"
-            >
-                PyTorch Tensor Docs have been added to resources.
-            </div>
-        </div>
-    </div>
+	<div
+		class="scrollbar-hide min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+		bind:this={scrollRegion}
+		onscroll={handleScroll}
+	>
+		{#each displayMessages as message (message.id)}
+			{#if message.role === 'user'}
+				<div class="flex justify-end">
+					<div
+						class="max-w-[80%] rounded-xl bg-stone-200 px-3 py-2 text-xs leading-5 break-words whitespace-pre-wrap text-stone-900"
+					>
+						{message.content}
+					</div>
+				</div>
+			{:else}
+				<div class="w-full">
+					<div class="w-full text-xs leading-6 break-words whitespace-pre-wrap text-stone-900">
+						{message.content}
+					</div>
+				</div>
+			{/if}
+		{/each}
+		<div class="w-full">
+			<div
+				class="w-full rounded-lg border border-stone-200 bg-white p-4 text-xs leading-6 break-words whitespace-pre-wrap text-stone-900"
+			>
+				PyTorch Tensor Docs have been added to resources.
+			</div>
+		</div>
+	</div>
 
-    {#if thumbHeight > 0 && !hideThumb && !resizing}
-        <div
-            class="absolute right-0 w-1 m-[2px] bg-stone-400/80 transition-opacity duration-150 pointer-events-none"
-            style:top={`${thumbTop}px`}
-            style:height={`${thumbHeight}px`}
-            style:opacity={isScrolling ? 1 : 0}
-        />
-    {/if}
+	{#if thumbHeight > 0 && !hideThumb && !resizing}
+		<div
+			class="pointer-events-none absolute right-0 m-[2px] w-1 bg-stone-400/80 transition-opacity duration-150"
+			style:top={`${thumbTop}px`}
+			style:height={`${thumbHeight}px`}
+			style:opacity={isScrolling ? 1 : 0}
+		/>
+	{/if}
 
 	<div class="bg-stone-50 p-3">
 		{#if errorMessage}
