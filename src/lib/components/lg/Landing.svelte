@@ -116,11 +116,10 @@
 					in:fly={{ y: 16, duration: 600, delay: 70 }}
 					out:fly={{ y: -8, duration: 500, delay: 50 }}
 				>
-					Vector is learning by building, turned into a daily habit. You tell us your goals and we
-					turn them into a guided project made of daily tasks: build this feature, read this
-					resource. Each task is tailored to your goals and skill level, so you're never guessing
-					what to do next. Day by day, you become the student your dream colleges and internships
-					want. Unleash your potential.
+					Vector is learning by building, turned into a daily habit. 
+                    Every task is directed not by a teacher or course, but by you: your own goals and skill level.
+                    You'll never waste time guessing what to do next or searching for resources. 
+                    Unleash your potential.
 				</p>
 
 				<p
@@ -167,9 +166,9 @@
 					in:fly={{ y: 16, duration: 600, delay: 350 }}
 					out:fly={{ y: -8, duration: 500, delay: 250 }}
 				>
-					You want to be the student with the projects everyone admires. The ones that colleges,
-					research labs, and companies look for. You care less about looking "well-rounded" and more
-					about going all-in on one thing until you're the best at it.
+					You strive to be the student with the projects that colleges, research labs, and companies seek out.
+                    You're ready to move faster and dive deeper than your classes ever allow.
+                    Your schedule is full and the next step isn't always clear, but you know there's more in you.
 				</p>
 
 				<p
