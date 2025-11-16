@@ -141,10 +141,10 @@
 		onclick={() => {
 			openAuthModal();
 		}}
-		class="fixed top-3 left-3 z-[999] flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 transition hover:bg-stone-200 hover:text-stone-900 duration-200 ease-out"
+		class="fixed top-3 left-3 z-[999] flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 transition opacity-80 hover:opacity-90 hover:bg-stone-200 hover:text-stone-900 duration-200 ease-out"
 		aria-label="Go to home"
 	>
-		<img src={vectorUrl} alt="vector" class="h-5 w-5 opacity-80 hover:opacity-90 transition-opacity duration-200 ease-out" />
+		<img src={vectorUrl} alt="vector" class="h-5 w-5" />
 	</button>
 	<Landing />
 {/if}
