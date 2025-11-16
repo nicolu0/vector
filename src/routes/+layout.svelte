@@ -306,7 +306,7 @@
 					selectProject();
 					goto('/');
 				}}
-				class="relative flex h-7 w-7 items-center justify-center rounded-md text-stone-700 transition opacity-80 hover:opacity-90 hover:bg-stone-200 hover:text-stone-900 duration-200 ease-out"
+				class="relative flex h-7 w-7 items-center justify-center rounded-md text-stone-700 transition opacity-80 hover:opacity-90 hover:bg-stone-200 hover:text-stone-900 duration-200 ease-out focus:outline-none select-none"
 				aria-label="Go to home"
 			>
 				<img src={vectorUrl} alt="vector" class="h-5 w-5" />

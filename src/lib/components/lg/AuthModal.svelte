@@ -19,9 +19,12 @@
 	}
 </script>
 
+<svelte:window on:keydown={handleKeydown} />
+
 {#if open}
 	<div
 		in:fade={{ duration: 200 }}
+        out:fade={{ duration: 100 }}
 		class="fixed inset-0 z-[120] flex items-center justify-center bg-stone-50/80"
 		role="dialog"
 		aria-modal="true"
