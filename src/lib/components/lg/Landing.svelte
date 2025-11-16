@@ -18,79 +18,113 @@
 	}
 </script>
 
-<section
-	class="flex h-full w-full flex-col items-center justify-center selection:bg-stone-600 selection:text-stone-50"
-	style="font-family: 'Cormorant Garamond', serif"
->
-	<div class="flex max-w-xl flex-col">
-		<h2 class="line mb-1 text-xl tracking-wide text-stone-700 italic">
-			vector (v) <span style="font-family: 'Inter'">-</span> to find one's direction
-		</h2>
-		<p class="text-xl text-stone-600" style="font-family: 'Cormorant Garamond', serif">
-			We help you build stand-out projects with daily tasks tailored to your goals, interests, and
-			skill. generates daily tasks and resources to help you build in-demand projects. Vector
-			generates
-			<button
-				onclick={() => goto('/demo')}
-				class="italic underline decoration-[1px] underline-offset-2">demo project</button
-			>
-			daily tasks and resources to help you build in-demand projects.
-		</p>
-		<div class="line my-8 flex w-full items-center justify-center gap-4">
-			<span class="h-px w-1/5 rounded-full bg-stone-200"></span>
+<div class="relative w-full h-full">
+    <div
+        class="flex h-full w-1/3 mx-auto flex-col items-center justify-center text-justify selection:bg-stone-600 selection:text-stone-50"
+        style="font-family: 'Cormorant Garamond', serif"
+    >
+        <div class="flex max-w-xl flex-col">
+            <div class="mb-1">
+                <span class="text-stone-700 text-lg tracking-wide italic">vector</span>
+                <span class="text-stone-700 text-md"> (v) </span>
+                <span class="text-stone-400 text-sm" style="font-family: 'Inter', sans-serif">&nbsp;-&nbsp;</span>
+                <span class="text-stone-700 text-md tracking-wide mb-1 ">
+                    to find one's direction
+                </span>
+            </div>
+            <p class="text-md text-stone-600 mb-3" style="font-family: 'Cormorant Garamond', serif">
+                Vector is learning by building, turned into a daily habit. 
+                You tell us your goals and we turn it into a guided project made of concrete daily tasks: build this feature, read this resource. 
+                Each task is tailored to your goals and skill level, so you're never guessing what to do next. 
+                Day by day, you become the student your dream colleges and internships want.
+                <!-- <button
+                    onclick={() => goto('/demo')}
+                    class="italic underline decoration-[1px] underline-offset-2 hover:text-stone-800 transition-colors duration-200">demo project</button
+                > -->
+            </p>
 
-			<img
-				src="/mastery.svg"
-				alt="mastery"
-				class="pointer-events-none h-4 w-4 object-contain select-none"
-			/>
+            <p class="text-md text-stone-600" style="font-family: 'Cormorant Garamond', serif">
+                Learn, build,
+                <span class="italic">Vector.</span>
+            </p>
+            <div class="my-8 flex w-full items-center justify-center gap-4">
+                <span class="h-px w-1/6 rounded-full bg-stone-200"></span>
 
-			<span class="h-px w-1/5 rounded-full bg-stone-200"></span>
-		</div>
-		<h2 class="line mb-1 text-xl tracking-wide text-stone-700 italic">
-			you (n) <span style="font-family: 'Inter'">-</span> an ambitious student
-		</h2>
-		<div class="text-xl text-stone-600" style="font-family: 'Cormorant Garamond', serif">
-			Vector is looking to work with students interested in tech. If this is you,
-			<span class="relative inline-block">
-				<button
-					class="italic underline decoration-[1px] underline-offset-2"
-					onclick={copy}
-					aria-describedby="contact-tip"
-				>
-					contact us
-				</button>
+                <img
+                    src="/mastery.svg"
+                    alt="mastery"
+                    class="pointer-events-none h-4 w-4 object-contain select-none"
+                />
 
-				{#if copied}
-					<div
-						id="contact-tip"
-						class="pointer-events-none absolute top-[110%] flex flex-row items-center gap-1 rounded-md bg-stone-700 px-2 py-1 text-xs whitespace-nowrap text-stone-50 shadow-md"
-						in:fly={{ y: -2, duration: 200 }}
-						out:fade={{ duration: 120 }}
-					>
-						{#if copied}
-							<svg viewBox="0 0 24 24" class="h-3 w-3 text-stone-50" fill="none">
-								<path
-									d="M7 12.5 L10.25 15.75 L16.75 9.25"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									pathLength="100"
-									class="check"
-									class:check-animated={copied}
-								/>
-							</svg>
-						{:else}
-							<svg viewBox="0 0 24 24" class="h-3 w-3 text-stone-50" fill="none"> </svg>
-						{/if}
-						Email copied to clipboard
-					</div>
-				{/if}
-			</span>
-		</div>
-	</div>
-</section>
+                <span class="h-px w-1/6 rounded-full bg-stone-200"></span>
+            </div>
+
+            <div class="mb-1">
+                <span class="text-stone-700 text-lg tracking-wide mb-1 italic">you</span>
+                <span class="text-stone-700 text-md"> (n) </span>
+                <span class="text-stone-400 text-sm" style="font-family: 'Inter', sans-serif">&nbsp;-&nbsp;</span>
+                <span class="text-stone-700 text-md tracking-wide mb-1 ">
+                    an ambitious student
+                </span>
+            </div>
+
+            <p class="text-md text-stone-600 mb-3" style="font-family: 'Cormorant Garamond', serif">
+                You want to be the student with the projects everyone points to.
+                The ones that colleges, research labs, and companies look for.
+                You care less about looking "well-rounded" and more about going all-in on one thing until you're the best at it.
+                <!-- <span class="relative inline-block">
+                    <button
+                        class="italic underline decoration-[1px] underline-offset-2 hover:text-stone-800 transition-colors duration-200"
+                        onclick={copy}
+                        aria-describedby="contact-tip"
+                    >
+                        contact us
+                    </button>
+
+                    {#if copied}
+                        <div
+                            id="contact-tip"
+                            class="pointer-events-none absolute top-[110%] flex flex-row items-center gap-1 rounded-md bg-stone-700 px-2 py-1 text-xs whitespace-nowrap text-stone-50 shadow-md"
+                            in:fly={{ y: -2, duration: 200 }}
+                            out:fade={{ duration: 120 }}
+                        >
+                            {#if copied}
+                                <svg viewBox="0 0 24 24" class="h-3 w-3 text-stone-50" fill="none">
+                                    <path
+                                        d="M7 12.5 L10.25 15.75 L16.75 9.25"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        pathLength="100"
+                                        class="check"
+                                        class:check-animated={copied}
+                                    />
+                                </svg>
+                            {:else}
+                                <svg viewBox="0 0 24 24" class="h-3 w-3 text-stone-50" fill="none"> </svg>
+                            {/if}
+                            Email copied to clipboard
+                        </div>
+                    {/if}
+                </span> -->
+            </p>
+
+            <p class="text-md text-stone-600" style="font-family: 'Cormorant Garamond', serif">
+                If this sounds like you, contact us.
+            </p>
+        </div>
+    </div>
+
+    <div class="pointer-events-auto absolute bottom-16 left-0 right-0 flex justify-center gap-12 text-md text-stone-500" style="font-family: 'Cormorant Garamond', serif">
+        <span>
+            <a href="/demo" class="hover:text-stone-800 transition-colors duration-200">demo project.</a>
+        </span>
+        <span>
+            <a href="mailto:21andrewch@gmail.com" class="hover:text-stone-800 transition-colors duration-200">contact us.</a>
+        </span>
+    </div>
+</div>
 
 <style>
 	.check {
