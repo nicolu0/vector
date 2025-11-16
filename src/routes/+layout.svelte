@@ -440,29 +440,6 @@
 					{@render children()}
 				</div>
 			</main>
-
-			<div
-				class="relative h-full w-1 flex-shrink-0"
-				role="separator"
-				aria-orientation="vertical"
-				aria-label="Resize chat panel"
-			>
-				<div
-					class={`h-full w-1 flex-shrink-0 cursor-col-resize transition select-none ${
-						resizingChat ? 'bg-stone-300' : 'bg-transparent hover:bg-stone-200/50'
-					}`}
-					onpointerdown={startChatResize}
-				/>
-
-				{#if thumbHeight > 0}
-					<div
-						class="pointer-events-none absolute right-0 w-full bg-stone-400/80 transition-opacity duration-150"
-						style:top={`${thumbTop + headerHeight}px`}
-						style:height={`${thumbHeight}px`}
-						style:opacity={isScrolling ? 1 : 0}
-					/>
-				{/if}
-			</div>
 		</div>
 
 		{#if userId}

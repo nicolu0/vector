@@ -42,7 +42,7 @@
 	const welcomeMessage: ChatMessage = {
 		id: 'welcome',
 		role: 'assistant',
-		content: 'Ask me about your milestones, daily tasks, or anything you’re building.'
+		content: ''
 	};
 
 	const displayMessages = $derived(messages.length > 0 ? messages : [welcomeMessage]);
@@ -257,13 +257,6 @@
 				</div>
 			{/if}
 		{/each}
-		<div class="w-full">
-			<div
-				class="w-full rounded-lg border border-stone-200 bg-white p-4 text-xs leading-6 break-words whitespace-pre-wrap text-stone-900"
-			>
-				PyTorch Tensor Docs have been added to resources.
-			</div>
-		</div>
 	</div>
 
 	{#if thumbHeight > 0 && !hideThumb && !resizing}
