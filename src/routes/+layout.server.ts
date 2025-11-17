@@ -1,5 +1,4 @@
 import type { LayoutServerLoad } from './$types';
-import { createSupabaseServerClient } from '$lib/server/supabase';
 import { redirect } from '@sveltejs/kit';
 
 type Project =
@@ -44,7 +43,9 @@ type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; cr
 export const load: LayoutServerLoad = async (event) => {
 	const { cookies, url } = event;
 	const isDemoRoute = event.route.id === '/demo';
-	const supabase = createSupabaseServerClient(cookies);
+
+    const supabase = event.locals.supabase;
+    const user = event.locals.user;
 
 	// OAuth exchange
 	const errDesc = url.searchParams.get('error_description');
@@ -54,10 +55,6 @@ export const load: LayoutServerLoad = async (event) => {
 		await supabase.auth.exchangeCodeForSession(code);
 		throw redirect(303, url.pathname);
 	}
-
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
 
 	const payload: {
 		user: { id: string, email: string | undefined } | null;
@@ -73,6 +70,7 @@ export const load: LayoutServerLoad = async (event) => {
 		currentTaskId: string | null;
 		chat: { conversationId: string | null; messages: ChatMessage[] };
 		isDemoRoute: boolean;
+		githubConnected: boolean;
 	} = {
 		user: user ? { id: user.id, email: user.email } : null,
 		tutorial: false,
@@ -87,6 +85,7 @@ export const load: LayoutServerLoad = async (event) => {
 		currentTaskId: null,
 		chat: { conversationId: null, messages: [] },
 		isDemoRoute,
+		githubConnected: false,
 	};
 
 	if (isDemoRoute) {
@@ -95,6 +94,18 @@ export const load: LayoutServerLoad = async (event) => {
 	}
 
 	if (!user) return payload;
+
+    const { data: githubInstallations, error: githubInstallationsErr } = await supabase
+        .from('github_installations')
+        .select('installation_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    if (githubInstallationsErr) {
+        console.error('Failed to fetch GitHub installations:', githubInstallationsErr.message);
+    }
+    
+    (payload as any).githubConnected = !!githubInstallations;
 
 	const goalCookie = (cookies.get('vector:goal') ?? '').trim();
 

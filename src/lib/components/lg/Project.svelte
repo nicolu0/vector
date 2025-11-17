@@ -29,11 +29,13 @@
 	let {
 		project = null,
 		milestones = [],
-		resources = DEFAULT_RESOURCES
+		resources = DEFAULT_RESOURCES,
+		githubConnected = false
 	} = $props<{
 		project: Project | null;
 		milestones?: MilestoneSummary[];
 		resources?: typeof DEFAULT_RESOURCES;
+		githubConnected?: boolean;
 	}>();
 
 	const completedMilestones = $derived(
@@ -87,16 +89,22 @@
 			class="rounded-xl border border-stone-200 bg-white p-4 text-[14px] leading-relaxed text-stone-800"
 		>
 			<div class="mb-2 font-semibold text-stone-900">Progress tracking</div>
-			<p class="text-stone-700">
-				No repository connected.
-				<a
-					href="/"
-					class="inline-flex items-center gap-1 rounded-sm font-medium text-stone-900 underline decoration-stone-300 underline-offset-2 hover:text-stone-950 hover:decoration-stone-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400/60"
-				>
-					Connect a GitHub repository
-				</a>
-				to track your progress.
-			</p>
+            {#if githubConnected}
+                <p class="text-stone-700">
+                    Success! GitHub repository connected.
+                </p>
+            {:else}
+                <p class="text-stone-700">
+                    No repository connected.
+                    <a
+                        href="/integrations/github/connect"
+                        class="inline-flex items-center gap-1 rounded-sm font-medium text-stone-900 underline decoration-stone-300 underline-offset-2 hover:text-stone-950 hover:decoration-stone-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400/60"
+                    >
+                        Connect a GitHub repository
+                    </a>
+                    to track your progress.
+                </p>
+            {/if}
 		</div>
 
 		<div
