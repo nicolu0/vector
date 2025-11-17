@@ -27,6 +27,7 @@
 	let todosByTask = $state(data?.todosByTask ?? {});
 	let selection = $state<ViewSelection>({ type: 'project' });
 	let lastMilestoneDone: Record<string, boolean> = {};
+	let githubConnected = $state(data?.githubConnected ?? false);
 
 	type AuthUI = {
 		openAuthModal: () => void;
@@ -131,7 +132,7 @@
 			{:else if selection.type === 'task' && selectedTask}
 				<TaskView task={selectedTask} todos={selectedTodos ?? []} {setTaskDone} />
 			{:else}
-				<ProjectView {project} {milestones} />
+				<ProjectView {project} {milestones} {githubConnected} />
 			{/if}
 		</section>
 	</div>
