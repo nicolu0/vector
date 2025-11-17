@@ -117,8 +117,8 @@
 			</div>
 
 			{#if todos.length > 0}
-				<div class="rounded-xl border border-stone-200 bg-white p-4">
-					<div class="mb-3 font-semibold text-stone-900">TODO</div>
+				<div class="rounded-xl border border-stone-200 bg-white p-4 text-[14px] leading-relaxed text-stone-800">
+					<div class="mb-2 font-semibold text-stone-900">TODOs</div>
 					<ul class="space-y-2">
 						{#each todos as item, i}
 							<li class="group">

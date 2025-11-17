@@ -18,6 +18,7 @@
 		initiallyOpen = false,
 		active = false,
 		selectedTaskId = null,
+		initialOpenTaskId = null,
 		onSelect = null,
 		onSelectTask = null
 	} = $props<{
@@ -28,6 +29,7 @@
 		initiallyOpen?: boolean;
 		active?: boolean;
 		selectedTaskId?: string | null;
+		initialOpenTaskId?: string | null;
 		onSelect?: ((id: string) => void) | null;
 		onSelectTask?: ((taskId: string) => void) | null;
 	}>();
@@ -58,6 +60,14 @@
 			[taskId]: !(taskState[taskId] ?? false)
 		};
 	}
+
+    $effect(() => {
+        const hasSelectedTask = selectedTaskId && tasks.some((t: TaskData) => t.id === selectedTaskId);
+        const hasInitialOpenTask = initialOpenTaskId && tasks.some((t: TaskData) => t.id === initialOpenTaskId);
+        if (hasSelectedTask || hasInitialOpenTask) {
+            open = true;
+        }
+    });
 </script>
 
 <div

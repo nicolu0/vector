@@ -22,6 +22,7 @@
 		initiallyOpen = true,
 		selectedId = null,
 		selectedTaskId = null,
+		initialOpenTaskId = null,
 		onSelect = null,
 		onSelectTask = null
 	} = $props<{
@@ -31,6 +32,7 @@
 		initiallyOpen?: boolean;
 		selectedId?: string | null;
 		selectedTaskId?: string | null;
+		initialOpenTaskId?: string | null;
 		onSelect?: ((id: string) => void) | null;
 		onSelectTask?: ((taskId: string) => void) | null;
 	}>();
@@ -41,6 +43,12 @@
 		e.preventDefault();
 		open = !open;
 	}
+
+    $effect(() => {
+        if (selectedTaskId || initialOpenTaskId) {
+            open = true;
+        }
+    });
 </script>
 
 <div class="w-full min-w-0 space-y-1 px-2 py-2">
@@ -70,6 +78,7 @@
 								initiallyOpen={false}
 								active={selectedId === m.id}
 								{selectedTaskId}
+								{initialOpenTaskId}
 								{onSelectTask}
 								onSelect={onSelect ? () => onSelect(m.id) : null}
 							/>
