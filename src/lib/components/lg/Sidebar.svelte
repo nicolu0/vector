@@ -37,6 +37,7 @@
 		userId = null,
 		selectedMilestoneId: selectedMilestoneIdProp = null,
 		selectedTaskId: selectedTaskIdProp = null,
+		initialOpenTaskId = null,
 		onSelectMilestone = null,
 		onSelectTask = null
 	} = $props<{
@@ -50,6 +51,7 @@
 		userId?: string | null;
 		selectedMilestoneId?: string | null;
 		selectedTaskId?: string | null;
+		initialOpenTaskId?: string | null;
 		onSelectMilestone?: ((id: string) => void) | null;
 		onSelectTask?: ((id: string) => void) | null;
 	}>();
@@ -271,6 +273,7 @@
                                 initiallyOpen={true}
                                 selectedId={selectedMilestoneId}
                                 {selectedTaskId}
+                                {initialOpenTaskId}
                                 onSelect={handleMilestoneSelect}
                                 onSelectTask={handleTaskSelect}
                                 {milestoneStatus}

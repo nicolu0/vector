@@ -45,6 +45,7 @@
 	let resizingChat = $state(false);
 	let selectedMilestoneId = $state<string | null>(null);
 	let selectedTaskId = $state<string | null>(null);
+    let initialOpenTaskId = $state<string | null>(currentTaskId ?? null);
 
 	let headerElement = $state<HTMLElement | null>(null);
 	let scrollContainer = $state<HTMLElement | null>(null);
@@ -345,6 +346,7 @@
 			{userId}
 			{selectedMilestoneId}
 			{selectedTaskId}
+			{initialOpenTaskId}
 			onSelectMilestone={selectMilestone}
 			onSelectTask={selectTask}
 		/>

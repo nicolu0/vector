@@ -118,6 +118,12 @@
 		return [];
 	});
 
+    const selectedMilestoneTasks = $derived.by(() => {
+        const m = selectedMilestone;
+        if (!m) return [];
+        return tasksByMilestone[m.id] ?? [];
+    });
+
 	function setTaskDone(milestoneId: string, taskId: string, done: boolean) {
 		setTaskDoneInStore(milestoneId, taskId, done);
 	}
@@ -128,7 +134,11 @@
 	<div class="flex w-full min-w-0 flex-col pr-4 pb-5 pl-5">
 		<section class="bg-stone-50">
 			{#if selection.type === 'milestone' && selectedMilestone}
-				<MilestoneView milestone={selectedMilestone} />
+				<MilestoneView 
+                    milestone={selectedMilestone} 
+                    tasks={selectedMilestoneTasks}
+                    onSelectTask={(id) => {viewer.selection.set({ type: 'task', id });}}
+                />
 			{:else if selection.type === 'task' && selectedTask}
 				<TaskView task={selectedTask} todos={selectedTodos ?? []} {setTaskDone} />
 			{:else}
