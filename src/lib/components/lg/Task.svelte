@@ -40,8 +40,12 @@
 
 	const resources = [
 		{
-			label: 'Big Data Bowl Dataset',
-			url: 'https://www.kaggle.com/competitions/nfl-big-data-bowl-2025/data'
+			label: 'Riot Games API',
+			url: 'https://developer.riotgames.com/apis'
+		},
+		{
+			label: 'Top Player Stats',
+			url: 'https://www.onetricks.gg/'
 		}
 	];
 
@@ -132,7 +136,9 @@
 			</div>
 
 			{#if todos.length > 0}
-				<div class="rounded-xl border border-stone-200 bg-white p-4 text-[14px] leading-relaxed text-stone-800">
+				<div
+					class="rounded-xl border border-stone-200 bg-white p-4 text-[14px] leading-relaxed text-stone-800"
+				>
 					<div class="mb-2 font-semibold text-stone-900">TODOs</div>
 					<ul class="space-y-2">
 						{#each todos as item, i}
@@ -140,7 +146,7 @@
 								<div class="flex w-full items-start gap-2 rounded-md transition">
 									<button
 										type="button"
-										class="relative ml-1 mt-1.5 grid h-4 w-4 place-items-center rounded-full focus:outline-none {done[
+										class="relative mt-1.5 ml-1 grid h-4 w-4 place-items-center rounded-full focus:outline-none {done[
 											i
 										]
 											? 'bg-stone-700'
@@ -176,7 +182,7 @@
 
 									<div class="min-w-0 flex-1 py-1">
 										<span
-											class="block min-w-0 break-words text-sm tracking-tight {done[i]
+											class="block min-w-0 text-sm tracking-tight break-words {done[i]
 												? 'text-stone-400 line-through'
 												: 'text-stone-800'}"
 										>
