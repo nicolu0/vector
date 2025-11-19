@@ -36,6 +36,7 @@ type Todo = {
 	title: string;
 	done: boolean;
 	ordinal: number | null;
+	hints: string[] | null;
 } & Record<string, unknown>;
 
 type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; created_at: string };
@@ -277,6 +278,7 @@ export const load: LayoutServerLoad = async (event) => {
 		...todo,
 		done: !!todo.done,
 		ordinal: todo.ordinal ?? null,
+		hints: Array.isArray(todo.hints) ? todo.hints : [],
 	}));
 	payload.todos = normalizedTodos;
 
