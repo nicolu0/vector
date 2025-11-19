@@ -23,6 +23,7 @@
 		title: string;
 		done: boolean;
 		ordinal: number | null;
+		hints?: string[] | null;
 	} & Record<string, unknown>;
 
 	let {
@@ -47,10 +48,24 @@
 	// local optimistic update
 	let done = $state<boolean[]>(todos.map((t: Todo) => !!t.done));
 	let inflight = $state<boolean[]>(todos.map(() => false));
+	let expandedHints = $state<Set<string>>(new Set());
+	let lastTaskId = $state<string | undefined>(task?.id);
+
 	$effect(() => {
 		done = todos.map((t: Todo) => !!t.done);
 		inflight = todos.map(() => false);
+		if (task?.id !== lastTaskId) {
+			lastTaskId = task?.id;
+			expandedHints = new Set();
+		}
 	});
+
+	function toggleHints(id: string) {
+		const next = new Set(expandedHints);
+		if (next.has(id)) next.delete(id);
+		else next.add(id);
+		expandedHints = next;
+	}
 
 	async function toggle(i: number) {
 		const todo = todos[i];
@@ -122,10 +137,10 @@
 					<ul class="space-y-2">
 						{#each todos as item, i}
 							<li class="group">
-								<div class="flex w-full items-center gap-2 rounded-md transition">
+								<div class="flex w-full items-start gap-2 rounded-md transition">
 									<button
 										type="button"
-										class="relative ml-1 grid h-4 w-4 place-items-center rounded-full focus:outline-none {done[
+										class="relative ml-1 mt-1.5 grid h-4 w-4 place-items-center rounded-full focus:outline-none {done[
 											i
 										]
 											? 'bg-stone-700'
@@ -155,18 +170,52 @@
 										{:else}
 											<span
 												class="pointer-events-none absolute inset-0 rounded-full border border-[1px] border-stone-400 transition duration-200 ease-out"
-											/>
+											></span>
 										{/if}
 									</button>
 
 									<div class="min-w-0 flex-1 py-1">
 										<span
-											class="min-w-0 text-sm tracking-tight break-words {done[i]
+											class="block min-w-0 break-words text-sm tracking-tight {done[i]
 												? 'text-stone-400 line-through'
 												: 'text-stone-800'}"
 										>
 											{item.title}
 										</span>
+										{#if item.hints && item.hints.length > 0}
+											<button
+												type="button"
+												onclick={() => toggleHints(item.id)}
+												class="mt-1 flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-800 focus:outline-none"
+											>
+												<svg
+													class="h-3 w-3 transition-transform duration-200 {expandedHints.has(
+														item.id
+													)
+														? 'rotate-90'
+														: ''}"
+													viewBox="0 0 20 20"
+													fill="currentColor"
+													aria-hidden="true"
+												>
+													<path
+														fill-rule="evenodd"
+														d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+														clip-rule="evenodd"
+													/>
+												</svg>
+												{expandedHints.has(item.id) ? 'Hide hints' : 'Show hints'}
+											</button>
+											{#if expandedHints.has(item.id)}
+												<div class="mt-2 space-y-1 pl-1">
+													{#each item.hints as hint}
+														<div class="border-l-2 border-stone-200 pl-3 text-xs text-stone-600">
+															{hint}
+														</div>
+													{/each}
+												</div>
+											{/if}
+										{/if}
 									</div>
 								</div>
 							</li>

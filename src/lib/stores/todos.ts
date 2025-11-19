@@ -6,6 +6,7 @@ export type Todo = {
     title: string;
     done: boolean;
     ordinal?: number | null;
+    hints?: string[] | null;
 } & Record<string, unknown>;
 
 export type TodosMap = Record<string, Todo[]>;
