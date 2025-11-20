@@ -17,6 +17,9 @@
 	import { todosByTaskStore, type TodosMap } from '$lib/stores/todos';
 	import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
 
+	import { page } from '$app/stores';
+	const hideLayout = $derived($page.url.pathname.startsWith('/admin'));
+
 	let authOpen = $state(false);
 	const DEFAULT_CHAT_WIDTH = 352;
 	const MIN_CHAT_WIDTH = 260;
@@ -32,8 +35,10 @@
 	let tasks = $state(data.tasks ?? []);
 	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
 	let todosByTask = $state(data.todosByTask ?? {});
+
 	let currentMilestoneId = $state(data.currentMilestoneId ?? null);
 	let currentTaskId = $state(data.currentTaskId ?? null);
+
 	let chat = $state(data.chat);
 	let isDemoRoute = $state(data.isDemoRoute ?? false);
 	let chatWidth = $state(DEFAULT_CHAT_WIDTH);
@@ -133,8 +138,8 @@
 		if (!isDemoRoute && data?.tasksByMilestone) {
 			tasksByMilestoneStore.set(data.tasksByMilestone);
 		}
-		if (!isDemoRoute && data?.todosByTask) {
-			todosByTaskStore.set(data.todosByTask);
+		if (!isDemoRoute && todosByTask) {
+			todosByTaskStore.set(todosByTask);
 		}
 	});
 
@@ -266,16 +271,7 @@
 		unsubscribeSelection();
 	});
 
-	const selectionKey = $derived.by(() => {
-		const s = currentSelection;
-		if (s.type === 'project') return 'project';
-		if (s.type === 'milestone') return `m:${s.id}`;
-		if (s.type === 'task') return `t:${s.id}`;
-		return 'project';
-	});
-
 	$effect(() => {
-		const s = selectionKey;
 		const el = scrollContainer;
 		if (!browser || !el) return;
 
@@ -298,7 +294,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-{#if userId && !isDemoRoute}
+{#if userId && !isDemoRoute && !hideLayout}
 	<div class="flex h-dvh w-full overflow-hidden bg-stone-50 text-stone-900">
 		<div class="fixed z-20 flex items-center overflow-hidden px-3 pt-3 pb-2">
 			<button
