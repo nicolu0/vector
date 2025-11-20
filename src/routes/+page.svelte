@@ -118,11 +118,11 @@
 		return [];
 	});
 
-    const selectedMilestoneTasks = $derived.by(() => {
-        const m = selectedMilestone;
-        if (!m) return [];
-        return tasksByMilestone[m.id] ?? [];
-    });
+	const selectedMilestoneTasks = $derived.by(() => {
+		const m = selectedMilestone;
+		if (!m) return [];
+		return tasksByMilestone[m.id] ?? [];
+	});
 
 	function setTaskDone(milestoneId: string, taskId: string, done: boolean) {
 		setTaskDoneInStore(milestoneId, taskId, done);
@@ -134,11 +134,13 @@
 	<div class="flex w-full min-w-0 flex-col pr-4 pb-5 pl-5">
 		<section class="bg-stone-50">
 			{#if selection.type === 'milestone' && selectedMilestone}
-				<MilestoneView 
-                    milestone={selectedMilestone} 
-                    tasks={selectedMilestoneTasks}
-                    onSelectTask={(id) => {viewer.selection.set({ type: 'task', id });}}
-                />
+				<MilestoneView
+					milestone={selectedMilestone}
+					tasks={selectedMilestoneTasks}
+					onSelectTask={(id) => {
+						viewer.selection.set({ type: 'task', id });
+					}}
+				/>
 			{:else if selection.type === 'task' && selectedTask}
 				<TaskView task={selectedTask} todos={selectedTodos ?? []} {setTaskDone} />
 			{:else}
@@ -152,10 +154,11 @@
 		onclick={() => {
 			openAuthModal();
 		}}
-		class="fixed top-3 left-3 z-[999] flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 transition opacity-80 hover:opacity-90 hover:bg-stone-200 hover:text-stone-900 duration-200 ease-out focus:outline-none select-none"
+		class="fixed top-3 left-3 z-[999] flex items-center gap-2 rounded-md px-1 py-1 text-stone-700 opacity-80 transition duration-200 ease-out select-none hover:bg-stone-200 hover:text-stone-900 hover:opacity-90 focus:outline-none"
 		aria-label="Go to home"
 	>
 		<img src={vectorUrl} alt="vector" class="h-5 w-5" />
+		Log In
 	</button>
 	<Landing />
 {/if}
