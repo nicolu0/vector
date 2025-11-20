@@ -15,7 +15,9 @@
 	import { VIEWER_CONTEXT_KEY, type ViewSelection, type ViewerContext } from '$lib/stores/viewer';
 	import { tasksByMilestoneStore } from '$lib/stores/tasks';
 	import { todosByTaskStore, type TodosMap } from '$lib/stores/todos';
-	import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
+import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
+import { milestonesStore } from '$lib/stores/milestones';
+import { currentTaskOverrideStore } from '$lib/stores/currentTask';
 
 	import { page } from '$app/stores';
 	const hideLayout = $derived($page.url.pathname.startsWith('/admin'));
@@ -148,7 +150,6 @@
 		activeProjectId = data.project?.id ?? null;
 		profileCurrentProjectId = data.currentProjectId ?? data.project?.id ?? null;
 		profileCurrentTaskDetail = data.currentSelectionDetail ?? null;
-		profileCurrentTaskDetail = data.currentSelectionDetail ?? null;
 		milestones = data.milestones ?? [];
 		tasks = data.tasks ?? [];
 		tasksByMilestone = data.tasksByMilestone ?? {};
@@ -157,6 +158,14 @@
 		chat = data.chat;
 		isDemoRoute = data.isDemoRoute ?? false;
 		appModeContext.isDemo = isDemoRoute;
+		if (data.currentSelectionDetail?.task_id) {
+			currentTaskOverrideStore.set({ status: 'idle' });
+		}
+		milestonesStore.set(data.milestones ?? []);
+		if (!isDemoRoute) {
+			tasksByMilestoneStore.set(tasksByMilestone);
+			todosByTaskStore.set(todosByTask);
+		}
 		const nextActiveId = data.project?.id ?? null;
 		if (nextActiveId) {
 			applyProjectDetail(nextActiveId, { preserveSelection: true });
@@ -309,12 +318,6 @@ onDestroy(() => {
 	function handleProjectSelect(projectId: string) {
 		applyProjectDetail(projectId);
 	}
-
-	$effect(() => {
-		if (isDemoRoute) return;
-		tasksByMilestoneStore.set(tasksByMilestone);
-		todosByTaskStore.set(todosByTask);
-	});
 
 	$effect(() => {
 		const el = scrollContainer;

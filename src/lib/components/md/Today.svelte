@@ -4,6 +4,7 @@
 	import { getContext } from 'svelte';
 	import { VIEWER_CONTEXT_KEY, type ViewerContext } from '$lib/stores/viewer';
 	import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
+	import { currentTaskOverrideStore } from '$lib/stores/currentTask';
 
 	type Milestone = { id: string; title: string; ordinal?: number | null };
 	type TaskEntry = {
@@ -55,12 +56,22 @@
 	let currentTaskId = $state<string | null>(initialTaskId);
 	let profileProjectId = $state<string | null>(profileProjectIdProp ?? null);
 	let currentTaskDetail = $state<CurrentTaskDetail>(currentTaskDetailProp ?? null);
+	let overrideState = $state<{ status: 'idle' | 'generating' }>({ status: 'idle' });
 
 	$effect(() => {
 		currentMilestoneId = initialMilestoneId;
 		currentTaskId = initialTaskId;
 		profileProjectId = profileProjectIdProp ?? null;
 		currentTaskDetail = currentTaskDetailProp ?? null;
+	});
+
+	$effect(() => {
+		const unsub = currentTaskOverrideStore.subscribe((value) => {
+			overrideState = value;
+		});
+		return () => {
+			unsub();
+		};
 	});
 
 	function toggle(e: MouseEvent) {
@@ -125,6 +136,33 @@
 						/>
 					</div>
 				{/key}
+			{:else if overrideState.status === 'generating'}
+				<div class="group max-w-full min-w-0">
+					<div
+						class="flex w-full max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-md px-1 py-1 text-left"
+					>
+						<div
+							class="relative ml-3 grid h-3 w-3 place-items-center rounded-full text-stone-500"
+							aria-hidden="true"
+						>
+							<svg
+								viewBox="0 0 24 24"
+								class="h-3 w-3 animate-spin"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<circle cx="12" cy="12" r="9" stroke-opacity="0.25" />
+								<path d="M21 12a9 9 0 0 1-9 9" stroke-linecap="round" />
+							</svg>
+						</div>
+						<div class="min-w-0 flex-1">
+							<div class="min-w-0 truncate text-sm font-medium text-stone-700">
+								Generating next task…
+							</div>
+						</div>
+					</div>
+				</div>
 			{:else if currentTaskDetail?.task_id}
 				<div in:fly|local={{ y: 10, duration: 200 }}>
 					<Task

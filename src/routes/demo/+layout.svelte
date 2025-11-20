@@ -13,8 +13,10 @@
 	import { writable } from 'svelte/store';
 	import type { LayoutProps } from './$types';
 	import { VIEWER_CONTEXT_KEY, type ViewSelection, type ViewerContext } from '$lib/stores/viewer';
-	import { tasksByMilestoneStore } from '$lib/stores/tasks';
-	import { todosByTaskStore, type TodosMap } from '$lib/stores/todos';
+import { tasksByMilestoneStore } from '$lib/stores/tasks';
+import { todosByTaskStore, type TodosMap } from '$lib/stores/todos';
+import { milestonesStore } from '$lib/stores/milestones';
+import { currentTaskOverrideStore } from '$lib/stores/currentTask';
 	import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
 
 	let authOpen = $state(false);
@@ -148,6 +150,10 @@ let profileCurrentTaskDetail = $state(data.currentSelectionDetail ?? null);
 		}
 		if (data?.todosByTask) {
 			todosByTaskStore.set(data.todosByTask);
+		}
+		milestonesStore.set(data.milestones ?? []);
+		if (data.currentSelectionDetail?.task_id) {
+			currentTaskOverrideStore.set({ status: 'idle' });
 		}
 		if (data.project?.id) {
 			applyProjectDetail(data.project.id, true);
@@ -295,11 +301,6 @@ let profileCurrentTaskDetail = $state(data.currentSelectionDetail ?? null);
 	function handleProjectSelect(projectId: string) {
 		applyProjectDetail(projectId);
 	}
-
-	$effect(() => {
-		tasksByMilestoneStore.set(tasksByMilestone);
-		todosByTaskStore.set(todosByTask);
-	});
 
 	$effect(() => {
 		const s = selectionKey;

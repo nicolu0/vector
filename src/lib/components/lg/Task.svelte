@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { supabase } from '$lib/supabaseClient';
+	import { invalidateAll } from '$app/navigation';
 	import { get } from 'svelte/store';
-	import { tasksByMilestoneStore, getMilestoneStatus } from '$lib/stores/tasks';
+	import { tasksByMilestoneStore } from '$lib/stores/tasks';
+	import { milestonesStore, type MilestoneEntry } from '$lib/stores/milestones';
 	import { setTodoDoneInStore } from '$lib/stores/todos';
+	import { currentTaskOverrideStore } from '$lib/stores/currentTask';
 	import { getContext } from 'svelte';
 	import { APP_MODE_CONTEXT_KEY, type AppModeContext } from '$lib/context/appMode';
 
@@ -10,11 +13,15 @@
 		id: string;
 		title: string;
 		milestone_id: string;
+		project_id: string;
 		done: boolean;
 		ordinal: number | null;
 		tutorial?: boolean;
 		description?: string | null;
 		todo?: string[] | null;
+		started_at?: string | null;
+		completed_at?: string | null;
+		t2c_seconds?: number | null;
 	} & Record<string, unknown>;
 
 	type Todo = {
@@ -52,8 +59,9 @@
 	// local optimistic update
 	let done = $state<boolean[]>(todos.map((t: Todo) => !!t.done));
 	let inflight = $state<boolean[]>(todos.map(() => false));
-	let expandedHints = $state<Set<string>>(new Set());
-	let lastTaskId = $state<string | undefined>(task?.id);
+let expandedHints = $state<Set<string>>(new Set());
+let lastTaskId = $state<string | undefined>(task?.id);
+let generatingNextTask = $state(false);
 
 	$effect(() => {
 		done = todos.map((t: Todo) => !!t.done);
@@ -75,10 +83,8 @@
 		const todo = todos[i];
 		if (!todo || inflight[i]) return;
 
-		// const beforeMap = get(tasksByMilestoneStore);
-		// const prevMilestoneStatus = task ? getMilestoneStatus(beforeMap, task.milestone_id) : 'not_started';
-
 		const prevDone = done.every(Boolean);
+		const prevAnyDone = done.some(Boolean);
 		const prev = done[i];
 		done[i] = !prev;
 		inflight[i] = true;
@@ -103,23 +109,170 @@
 		}
 
 		const allDone = done.every(Boolean);
+		const anyDone = done.some(Boolean);
+		const nowIso = new Date().toISOString();
+		let startedAt = task.started_at ?? null;
+		let completedAt = task.completed_at ?? null;
+		let t2cSeconds = task.t2c_seconds ?? null;
+		const taskUpdates: Record<string, string | number | null | boolean> = { done: allDone };
+
+		if (!prevAnyDone && anyDone) {
+			startedAt = nowIso;
+			taskUpdates.started_at = startedAt;
+			taskUpdates.completed_at = null;
+			taskUpdates.t2c_seconds = null;
+			completedAt = null;
+			t2cSeconds = null;
+		}
+
+		if (!anyDone) {
+			startedAt = null;
+			completedAt = null;
+			t2cSeconds = null;
+			taskUpdates.started_at = null;
+			taskUpdates.completed_at = null;
+			taskUpdates.t2c_seconds = null;
+		} else {
+			if (allDone && !prevDone) {
+				completedAt = nowIso;
+				taskUpdates.completed_at = completedAt;
+				if (!startedAt) {
+					startedAt = nowIso;
+					taskUpdates.started_at = startedAt;
+				}
+				const startMs = startedAt ? Date.parse(startedAt) : Date.now();
+				const endMs = Date.parse(completedAt);
+				if (!Number.isNaN(startMs) && !Number.isNaN(endMs)) {
+					t2cSeconds = Math.max(0, Math.round((endMs - startMs) / 1000));
+					taskUpdates.t2c_seconds = t2cSeconds;
+				}
+			} else if (!allDone && prevDone) {
+				completedAt = null;
+				t2cSeconds = null;
+				taskUpdates.completed_at = null;
+				taskUpdates.t2c_seconds = null;
+			}
+		}
+
 		if (allDone !== prevDone) {
 			setTaskDone?.(task.milestone_id, task.id, allDone);
-			const prevTask = { ...task };
-			task = { ...task, done: allDone };
+		}
 
-			if (!isDemo) {
-				const { error } = await supabase.from('tasks').update({ done: allDone }).eq('id', task.id);
+		const prevTask = { ...task };
+		task = {
+			...task,
+			done: allDone,
+			started_at: startedAt,
+			completed_at: completedAt,
+			t2c_seconds: t2cSeconds
+		};
 
-				if (error) {
-					console.error('Failed to update task.done', error.message);
-					setTaskDone?.(prevTask.milestone_id, prevTask.id, prevDone);
-					task = prevTask;
-				}
+		if (!isDemo) {
+			const { error } = await supabase.from('tasks').update(taskUpdates).eq('id', task.id);
+
+			if (error) {
+				console.error('Failed to update task.done', error.message);
+				task = prevTask;
+				setTaskDone?.(prevTask.milestone_id, prevTask.id, prevDone);
+				done[i] = prev;
+				inflight[i] = false;
+				return;
+			}
+		}
+
+		if (allDone && !prevDone && task.project_id) {
+			const map = get(tasksByMilestoneStore);
+			const order = get(milestonesStore);
+			const next = findNextIncompleteTask(map, order);
+			if (next.taskId) {
+				currentTaskOverrideStore.set({ status: 'idle' });
+				await updateCurrentSelection(task.project_id, next.milestoneId, next.taskId);
+			} else {
+				currentTaskOverrideStore.set({ status: 'generating' });
+				await updateCurrentSelection(task.project_id, null, null);
+				await generateNextTask(task.project_id, task.milestone_id);
 			}
 		}
 
 		inflight[i] = false;
+	}
+
+	async function generateNextTask(projectId: string, milestoneId: string) {
+		if (isDemo || generatingNextTask) return;
+		generatingNextTask = true;
+		try {
+			const res = await fetch('/api/generate-task', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ projectId, milestoneId })
+			});
+			if (!res.ok) {
+				console.error('Failed to generate next task', await res.text());
+				currentTaskOverrideStore.set({ status: 'idle' });
+				return;
+			}
+			const payload = await res.json();
+			const newTask = payload?.task ?? null;
+			const nextMilestoneId = newTask?.milestone_id ?? milestoneId;
+			const nextTaskId = newTask?.id ?? null;
+			await updateCurrentSelection(projectId, nextMilestoneId ?? null, nextTaskId);
+		} catch (err) {
+			console.error('Failed to generate next task', err);
+			currentTaskOverrideStore.set({ status: 'idle' });
+		} finally {
+			generatingNextTask = false;
+		}
+	}
+
+	async function updateCurrentSelection(
+		projectId: string,
+		milestoneId: string | null,
+		taskId: string | null
+	) {
+		if (isDemo) return;
+		try {
+			const {
+				data: { user }
+			} = await supabase.auth.getUser();
+			if (!user) return;
+			const { error } = await supabase
+				.from('users')
+				.update({
+					current_project: projectId,
+					current_milestone: milestoneId,
+					current_task: taskId
+				})
+				.eq('user_id', user.id);
+			if (error) {
+				console.error('Failed to update current selection', error.message);
+				return;
+			}
+			if (milestoneId && taskId) {
+				currentTaskOverrideStore.set({ status: 'idle' });
+			}
+			await invalidateAll();
+		} catch (err) {
+			console.error('Failed to update current selection', err);
+			currentTaskOverrideStore.set({ status: 'idle' });
+		}
+	}
+
+	function findNextIncompleteTask(
+		map: Record<string, Task[]>,
+		order: MilestoneEntry[]
+	): { milestoneId: string | null; taskId: string | null } {
+		for (const milestone of order) {
+			const tasks = map[milestone.id] ?? [];
+			for (const entry of tasks) {
+				if (!entry.done) return { milestoneId: milestone.id, taskId: entry.id };
+			}
+		}
+		for (const [milestoneId, tasks] of Object.entries(map)) {
+			for (const entry of tasks) {
+				if (!entry.done) return { milestoneId, taskId: entry.id };
+			}
+		}
+		return { milestoneId: null, taskId: null };
 	}
 </script>
 
