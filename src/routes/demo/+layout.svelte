@@ -26,8 +26,19 @@
 	const appModeContext: AppModeContext = { isDemo: true };
 	setContext(APP_MODE_CONTEXT_KEY, appModeContext);
 
-	let userId = $state(data.user?.id ?? null);
-	let project = $state(data.project ?? null);
+let userId = $state(data.user?.id ?? null);
+let project = $state(data.project ?? null);
+let projects = $state(data.project ? [data.project] : []);
+let projectDetails = $state<Record<string, {
+	project: typeof data.project;
+	milestones: typeof data.milestones;
+	tasks: typeof data.tasks;
+	tasksByMilestone: typeof data.tasksByMilestone;
+	todosByTask: typeof data.todosByTask;
+}>>(data.projectDetails ?? {});
+let activeProjectId = $state(data.project?.id ?? null);
+let profileCurrentProjectId = $state(data.currentProjectId ?? data.project?.id ?? null);
+let profileCurrentTaskDetail = $state(data.currentSelectionDetail ?? null);
 	let milestones = $state(data.milestones);
 	let tasks = $state(data.tasks ?? []);
 	$inspect('tasks: ', tasks);
@@ -121,6 +132,11 @@
 	$effect(() => {
 		userId = data.user?.id ?? null;
 		project = data.project ?? null;
+		projects = data.project ? [data.project] : [];
+		projectDetails = data.projectDetails ?? {};
+		activeProjectId = data.project?.id ?? null;
+		profileCurrentProjectId = data.currentProjectId ?? data.project?.id ?? null;
+		profileCurrentTaskDetail = data.currentSelectionDetail ?? null;
 		milestones = data.milestones ?? [];
 		tasks = data.tasks ?? [];
 		tasksByMilestone = data.tasksByMilestone ?? {};
@@ -132,6 +148,9 @@
 		}
 		if (data?.todosByTask) {
 			todosByTaskStore.set(data.todosByTask);
+		}
+		if (data.project?.id) {
+			applyProjectDetail(data.project.id, true);
 		}
 	});
 
@@ -198,6 +217,21 @@
 	const selectionStore = writable<ViewSelection>({ type: 'project' });
 	let currentSelection = $state<ViewSelection>({ type: 'project' });
 
+	function applyProjectDetail(projectId: string | null, preserveSelection = false) {
+		if (!projectId) return;
+		const detail = projectDetails[projectId];
+		if (!detail) return;
+		activeProjectId = projectId;
+		project = detail.project;
+		milestones = detail.milestones;
+		tasks = detail.tasks;
+		tasksByMilestone = detail.tasksByMilestone;
+		todosByTask = detail.todosByTask;
+		if (!preserveSelection) {
+			selectProject();
+		}
+	}
+
 	function selectProject() {
 		selectionStore.set({ type: 'project' });
 	}
@@ -256,6 +290,15 @@
 		if (s.type === 'milestone') return `m:${s.id}`;
 		if (s.type === 'task') return `t:${s.id}`;
 		return 'project';
+	});
+
+	function handleProjectSelect(projectId: string) {
+		applyProjectDetail(projectId);
+	}
+
+	$effect(() => {
+		tasksByMilestoneStore.set(tasksByMilestone);
+		todosByTaskStore.set(todosByTask);
 	});
 
 	$effect(() => {
@@ -327,6 +370,10 @@
 	<Sidebar
 		{sidebarCollapsed}
 		{toggleSidebar}
+		{projects}
+		currentProjectId={activeProjectId}
+		profileCurrentProjectId={profileCurrentProjectId}
+		profileCurrentTaskDetail={profileCurrentTaskDetail}
 		{milestones}
 		{currentMilestoneId}
 		{currentTaskId}
@@ -337,6 +384,7 @@
 		{selectedTaskId}
 		onSelectMilestone={selectMilestone}
 		onSelectTask={selectTask}
+		onSelectProject={handleProjectSelect}
 	/>
 
 	<div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">

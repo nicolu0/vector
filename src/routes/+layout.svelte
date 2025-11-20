@@ -31,6 +31,22 @@
 
 	let userId = $state(data.user?.id ?? null);
 	let project = $state(data.project ?? null);
+	let projects = $state(data.projects ?? []);
+	let projectDetails = $state<
+		Record<
+			string,
+			{
+				project: typeof data.project;
+				milestones: typeof data.milestones;
+				tasks: typeof data.tasks;
+				tasksByMilestone: typeof data.tasksByMilestone;
+				todosByTask: typeof data.todosByTask;
+			}
+		>
+	>(data.projectDetails ?? {});
+	let activeProjectId = $state(data.project?.id ?? null);
+	let profileCurrentProjectId = $state(data.currentProjectId ?? project?.id ?? null);
+	let profileCurrentTaskDetail = $state(data.currentSelectionDetail ?? null);
 	let milestones = $state(data.milestones);
 	let tasks = $state(data.tasks ?? []);
 	let tasksByMilestone = $state(data.tasksByMilestone ?? {});
@@ -127,6 +143,12 @@
 	$effect(() => {
 		userId = data.user?.id ?? null;
 		project = data.project ?? null;
+		projects = data.projects ?? [];
+		projectDetails = data.projectDetails ?? {};
+		activeProjectId = data.project?.id ?? null;
+		profileCurrentProjectId = data.currentProjectId ?? data.project?.id ?? null;
+		profileCurrentTaskDetail = data.currentSelectionDetail ?? null;
+		profileCurrentTaskDetail = data.currentSelectionDetail ?? null;
 		milestones = data.milestones ?? [];
 		tasks = data.tasks ?? [];
 		tasksByMilestone = data.tasksByMilestone ?? {};
@@ -135,11 +157,9 @@
 		chat = data.chat;
 		isDemoRoute = data.isDemoRoute ?? false;
 		appModeContext.isDemo = isDemoRoute;
-		if (!isDemoRoute && data?.tasksByMilestone) {
-			tasksByMilestoneStore.set(data.tasksByMilestone);
-		}
-		if (!isDemoRoute && todosByTask) {
-			todosByTaskStore.set(todosByTask);
+		const nextActiveId = data.project?.id ?? null;
+		if (nextActiveId) {
+			applyProjectDetail(nextActiveId, { preserveSelection: true });
 		}
 	});
 
@@ -219,6 +239,21 @@
 	const selectionStore = writable<ViewSelection>({ type: 'project' });
 	let currentSelection = $state<ViewSelection>({ type: 'project' });
 
+	function applyProjectDetail(projectId: string | null, options: { preserveSelection?: boolean } = {}) {
+		if (!projectId) return;
+		const detail = projectDetails[projectId];
+		if (!detail) return;
+		activeProjectId = projectId;
+		project = detail.project;
+		milestones = detail.milestones;
+		tasks = detail.tasks;
+		tasksByMilestone = detail.tasksByMilestone;
+		todosByTask = detail.todosByTask;
+		if (!options.preserveSelection) {
+			selectProject();
+		}
+	}
+
 	function selectProject() {
 		selectionStore.set({ type: 'project' });
 	}
@@ -267,8 +302,18 @@
 		selectedMilestoneId = selection.type === 'milestone' ? selection.id : null;
 	});
 
-	onDestroy(() => {
-		unsubscribeSelection();
+onDestroy(() => {
+	unsubscribeSelection();
+});
+
+	function handleProjectSelect(projectId: string) {
+		applyProjectDetail(projectId);
+	}
+
+	$effect(() => {
+		if (isDemoRoute) return;
+		tasksByMilestoneStore.set(tasksByMilestone);
+		todosByTaskStore.set(todosByTask);
 	});
 
 	$effect(() => {
@@ -338,6 +383,10 @@
 		<Sidebar
 			{sidebarCollapsed}
 			{toggleSidebar}
+			{projects}
+			currentProjectId={activeProjectId}
+			profileCurrentProjectId={profileCurrentProjectId}
+			profileCurrentTaskDetail={profileCurrentTaskDetail}
 			{milestones}
 			{currentMilestoneId}
 			{currentTaskId}
@@ -349,6 +398,7 @@
 			{initialOpenTaskId}
 			onSelectMilestone={selectMilestone}
 			onSelectTask={selectTask}
+			onSelectProject={handleProjectSelect}
 		/>
 
 		<div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">

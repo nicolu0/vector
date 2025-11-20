@@ -67,9 +67,21 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		todos: [] as Todo[],
 		tasksByMilestone: {} as Record<string, Task[]>,
 		todosByTask: {} as Record<string, Todo[]>,
+		projectDetails: {} as Record<
+			string,
+			{
+				project: Project;
+				milestones: Milestone[];
+				tasks: Task[];
+				tasksByMilestone: Record<string, Task[]>;
+				todosByTask: Record<string, Todo[]>;
+			}
+		>,
 		currentMilestoneId: null as string | null,
 		currentTaskId: null as string | null,
-		chat: { conversationId: null, messages: [] as { id: string; role: string; content: string }[] }
+		currentProjectId: null as string | null,
+		chat: { conversationId: null, messages: [] as { id: string; role: string; content: string }[] },
+		currentSelectionDetail: null as CurrentSelectionDetail | null
 	};
 
 	if (!supabase) {
@@ -115,6 +127,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
 	payload.project = normalizedProject;
 	payload.goal = extractGoal(normalizedProject.metadata);
+	payload.currentProjectId = normalizedProject.id;
 
 	const projectId = normalizedProject.id;
 
@@ -155,6 +168,19 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	}));
 	payload.tasks = tasks;
 	payload.currentTaskId = tasks.length ? tasks[0].id : null;
+	if (payload.currentTaskId) {
+		const detailTask = tasks.find((t) => t.id === payload.currentTaskId) ?? null;
+		const detailMilestone = milestones.find((m) => m.id === detailTask?.milestone_id) ?? null;
+		payload.currentSelectionDetail = {
+			project_id: normalizedProject.id,
+			project_title: normalizedProject.title ?? null,
+			milestone_id: detailMilestone?.id ?? null,
+			milestone_title: detailMilestone?.title ?? null,
+			task_id: detailTask?.id ?? null,
+			task_title: detailTask?.title ?? null,
+			task_done: !!detailTask?.done
+		};
+	}
 
 	const { data: todoRows, error: todoErr } = await supabase
 		.from('todos')
@@ -191,6 +217,24 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		(todosByTask[todo.task_id] ??= []).push(todo);
 	}
 	payload.todosByTask = todosByTask;
+	payload.projectDetails = {
+		[normalizedProject.id]: {
+			project: normalizedProject,
+			milestones,
+			tasks,
+			tasksByMilestone,
+			todosByTask
+		}
+	};
 
 	return payload;
+};
+type CurrentSelectionDetail = {
+	project_id: string | null;
+	project_title: string | null;
+	milestone_id: string | null;
+	milestone_title: string | null;
+	task_id: string | null;
+	task_title: string | null;
+	task_done: boolean;
 };

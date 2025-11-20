@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Milestones from '$lib/components/md/Milestones.svelte';
 	import Today from '$lib/components/md/Today.svelte';
+	import Projects from '$lib/components/md/Projects.svelte';
 	import Tutorial from '$lib/components/md/Tutorial.svelte';
 	import Profile from '$lib/components/md/Profile.svelte';
 	import { goto } from '$app/navigation';
@@ -18,7 +19,7 @@
 		description?: string;
 		ordinal?: number | null;
 	};
-	type Task = {
+type Task = {
 		id: string;
 		title: string;
 		done: boolean;
@@ -30,6 +31,7 @@
 		sidebarCollapsed = false,
 		toggleSidebar,
 		milestones = [],
+		projects = [],
 		currentMilestoneId = null,
 		currentTaskId = null,
 		tutorial = false,
@@ -39,11 +41,16 @@
 		selectedTaskId: selectedTaskIdProp = null,
 		initialOpenTaskId = null,
 		onSelectMilestone = null,
-		onSelectTask = null
+		onSelectTask = null,
+		currentProjectId = null,
+		profileCurrentProjectId = null,
+		profileCurrentTaskDetail = null,
+		onSelectProject = null
 	} = $props<{
 		sidebarCollapsed: boolean;
 		toggleSidebar: () => void;
 		milestones?: Milestone[];
+		projects?: { id: string; title: string; description?: string | null }[];
 		currentMilestoneId?: string | null;
 		currentTaskId?: string | null;
 		tutorial?: boolean;
@@ -54,6 +61,18 @@
 		initialOpenTaskId?: string | null;
 		onSelectMilestone?: ((id: string) => void) | null;
 		onSelectTask?: ((id: string) => void) | null;
+		currentProjectId?: string | null;
+		profileCurrentProjectId?: string | null;
+		profileCurrentTaskDetail?: {
+			project_id: string | null;
+			project_title: string | null;
+			milestone_id: string | null;
+			milestone_title: string | null;
+			task_id: string | null;
+			task_title: string | null;
+			task_done: boolean;
+		} | null;
+		onSelectProject?: ((id: string) => void) | null;
 	}>();
 
 	const EXPANDED_WIDTH = 'min(21vw, 20rem)';
@@ -262,9 +281,17 @@
                                 {tasksByMilestone}
                                 {currentMilestoneId}
                                 {currentTaskId}
-                                {userId}
                                 {milestones}
+                                profileProjectId={profileCurrentProjectId}
+                                currentTaskDetail={profileCurrentTaskDetail}
                                 onSelectTask={handleTaskSelect}
+                                onSelectProject={onSelectProject}
+                            />
+
+                            <Projects
+                                {projects}
+                                currentProjectId={currentProjectId}
+                                onSelect={onSelectProject}
                             />
 
                             <Milestones
